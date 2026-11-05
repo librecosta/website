@@ -1,0 +1,131 @@
+{
+  "engine": "BLENDER_WORKBENCH",
+  "blender_version": "5.2.3 LTS",
+  "parameters_sha256": "f5fb36730d82e95e97809b467329a190df3e628a622f0bae6d50d2afa5d6657d",
+  "source_sha256": "ed23afee2fb40cd12c4071104c72d71593310ca6d1b82aa62b28bc4dc59c2c8e",
+  "render_environment": "Local Steam Blender background process; Workbench studio lighting; no image generation",
+  "stills": [
+    {
+      "file": "front-orthographic.png",
+      "camera": "FrontOrthographic",
+      "frame": 1,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "side-orthographic.png",
+      "camera": "SideOrthographic",
+      "frame": 1,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "top-orthographic.png",
+      "camera": "TopOrthographic",
+      "frame": 1,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "aligned-front-orthographic.png",
+      "camera": "FrontOrthographic",
+      "frame": 481,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "three-quarter.png",
+      "camera": "ThreeQuarter",
+      "frame": 1,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "pose-idle-mid.png",
+      "camera": "ThreeQuarter",
+      "frame": 121,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "pose-alignment-mid.png",
+      "camera": "ThreeQuarter",
+      "frame": 361,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "alignment-end.png",
+      "camera": "ThreeQuarter",
+      "frame": 481,
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "videos": [
+    {
+      "file": "idle-rotation.mp4",
+      "frames": [
+        1,
+        240
+      ],
+      "decoded_frame_count": 240,
+      "size": [
+        1280,
+        960
+      ],
+      "fps": 24,
+      "full_object_framing": {
+        "frames_checked": 240,
+        "uv_bounds": [
+          0.22946761914890212,
+          0.09294393932121603,
+          0.7705325926044438,
+          0.9070554018905966
+        ],
+        "pass": true
+      },
+      "seconds": 10.0
+    },
+    {
+      "file": "precision-alignment.mp4",
+      "frames": [
+        241,
+        481
+      ],
+      "decoded_frame_count": 241,
+      "size": [
+        1280,
+        960
+      ],
+      "fps": 24,
+      "full_object_framing": {
+        "frames_checked": 241,
+        "uv_bounds": [
+          0.25550984558946016,
+          0.09294387657948389,
+          0.7444903661638858,
+          0.9070554646323288
+        ],
+        "pass": true
+      },
+      "seconds": 10.041666666666666
+    }
+  ]
+}

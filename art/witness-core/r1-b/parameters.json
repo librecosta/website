@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "units": "Blender units; unit scale 1, physical world scale not frozen",
+  "ring_plane": "XZ, thickness along Y; identity rotation is precision alignment",
+  "clearance": 0.05,
+  "numeric_tolerance": 0.000001,
+  "bevel": { "width": 0.012, "segments": 3 },
+  "rings": [
+    {
+      "name": "OuterRing", "pivot": "OuterRingPivot",
+      "S": 4.8, "W": 0.45, "D": 0.35,
+      "initial_xyz_degrees": [7, -8, 10],
+      "rotation_axis_world": [0, 0, 1],
+      "degrees_per_second": 7, "phase_degrees": 8
+    },
+    {
+      "name": "MiddleRing", "pivot": "MiddleRingPivot",
+      "S": 2.5, "W": 0.3, "D": 0.25,
+      "initial_xyz_degrees": [-25, 28, 18],
+      "rotation_axis_world": [0.55, 0.8, 0.25],
+      "degrees_per_second": -11, "phase_degrees": -8
+    },
+    {
+      "name": "InnerRing", "pivot": "InnerRingPivot",
+      "S": 1.15, "W": 0.16, "D": 0.14,
+      "initial_xyz_degrees": [90, -12, -12],
+      "rotation_axis_world": [0.85, -0.15, 0.5],
+      "degrees_per_second": 17, "phase_degrees": 10
+    }
+  ],
+  "core": { "name": "Core", "side": 0.38, "bevel_width": 0.006 },
+  "motion": {
+    "fps": 24,
+    "idle_seconds": 10,
+    "idle_speed_ramp_seconds": 1,
+    "alignment_seconds": 10,
+    "alignment_target_quaternion_wxyz": [1, 0, 0, 0],
+    "alignment_easing": "quintic smootherstep, shortest-arc quaternion slerp"
+  },
+  "validation": { "sample_step_frames": 0.5, "reverse_check_step_frames": 8 },
+  "preview": {
+    "engine": "BLENDER_WORKBENCH",
+    "still_size": 1024,
+    "video_width": 1280, "video_height": 960,
+    "camera_ortho_scale": 7.6,
+    "orthographic_scale": 6.2,
+    "camera_three_quarter": [7, -12, 7],
+    "studio_light": "paint.sl",
+    "gray": [0.36, 0.36, 0.36, 1],
+    "white": [0.92, 0.92, 0.92, 1],
+    "background": [0.055, 0.06, 0.07]
+  }
+}
