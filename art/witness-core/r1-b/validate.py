@@ -1,7 +1,12 @@
-"""Reopenable actual-mesh validation. Sampling is explicitly NOT the proof."""
+"""R1-B2 bounded-joint certificate and independent actual-mesh sampling.
+
+The analytic certificate covers a specified joint box. BVH/winding samples are
+a separate finite test, never a continuous-motion or arbitrary-rotation proof.
+"""
 
 import copy
 import hashlib
+import itertools
 import json
 import math
 import sys
@@ -11,18 +16,13 @@ sys.dont_write_bytecode = True
 
 import bmesh
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Matrix, Quaternion, Vector
 from mathutils.bvhtree import BVHTree
-from mathutils.geometry import closest_point_on_tri
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-from kinematics import (action_fcurves, constraints, last_frame, load_parameters,
-                        orientation_at, parameter_hash, require_safe_parameters)
-
-
-class ValidationFailure(RuntimeError):
-    """A detailed failing report was already written."""
+from kinematics import (action_fcurves, angle_at, constraints, last_frame,
+                        load_parameters, orientation_at, parameter_hash, require_safe_parameters)
 
 
 def tree(vertices, triangles):
@@ -31,85 +31,62 @@ def tree(vertices, triangles):
 
 def mesh_arrays(mesh):
     mesh.calc_loop_triangles()
-    return ([v.co.copy() for v in mesh.vertices], [tuple(t.vertices) for t in mesh.loop_triangles])
-
-
-def radial_bounds(vertices, triangles):
-    origin = Vector((0, 0, 0))
-    minimum = min(closest_point_on_tri(origin, *(vertices[i] for i in tri)).length for tri in triangles)
-    maximum = max(v.length for v in vertices)
-    return minimum, maximum
+    return [v.co.copy() for v in mesh.vertices], [tuple(t.vertices) for t in mesh.loop_triangles]
 
 
 def contains_point(vertices, triangles, point):
-    """Signed solid-angle winding for closed oriented meshes; no grazing rays."""
-    relative = [vertex - point for vertex in vertices]
+    """Signed-solid-angle winding; resolve containment missed by surface BVH."""
+    relative = [v-point for v in vertices]
     lengths = [v.length for v in relative]
     angles = []
     for ia, ib, ic in triangles:
         a, b, c = relative[ia], relative[ib], relative[ic]
         la, lb, lc = lengths[ia], lengths[ib], lengths[ic]
         if min(la, lb, lc) < 1e-8:
-            raise ValueError("Containment probe lies on another mesh vertex")
-        numerator = a.dot(b.cross(c))
-        denominator = la * lb * lc + a.dot(b) * lc + b.dot(c) * la + c.dot(a) * lb
-        angles.append(2 * math.atan2(numerator, denominator))
-    winding = abs(math.fsum(angles) / (4 * math.pi))
+            raise ValueError("Containment probe on another surface vertex")
+        angles.append(2*math.atan2(a.dot(b.cross(c)),
+                      la*lb*lc+a.dot(b)*lc+b.dot(c)*la+c.dot(a)*lb))
+    winding = abs(math.fsum(angles)/(4*math.pi))
     if winding < 0.0001:
         return False
-    if abs(winding - 1) < 0.0001:
+    if abs(winding-1) < 0.0001:
         return True
-    raise ValueError(f"Unresolved solid-angle winding number: {winding}")
+    raise ValueError(f"Ambiguous solid-angle winding: {winding}")
 
 
-def box_arrays(side, offset=(0, 0, 0)):
-    offset = Vector(offset)
-    vertices = [Vector((x, y, z)) + offset for x in (-side / 2, side / 2)
-                for y in (-side / 2, side / 2) for z in (-side / 2, side / 2)]
-    quads = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1),
-             (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
-    triangles = [(q[0], q[1], q[2]) for q in quads] + [(q[0], q[2], q[3]) for q in quads]
-    return vertices, triangles
+def projected_triangle_hits_prism(vertices, tri, half):
+    """Clip projected triangle to XZ square; handles degenerate projections."""
+    polygon = [(vertices[i].x, vertices[i].z) for i in tri]
+    for axis, sign in ((0, 1), (0, -1), (1, 1), (1, -1)):
+        result = []
+        for i, start in enumerate(polygon):
+            stop = polygon[(i+1) % len(polygon)]
+            da, db = sign*start[axis]-half, sign*stop[axis]-half
+            if da <= 0:
+                result.append(start)
+            if (da <= 0) != (db <= 0):
+                t = da/(da-db)
+                result.append(tuple(a+t*(b-a) for a, b in zip(start, stop)))
+        polygon = result
+        if not polygon:
+            return False
+    return True
 
 
-def sensor_controls(parameters):
-    a, ta = box_arrays(2)
-    b, tb = box_arrays(2, (0.8, 0.3, 0.2))
-    c, tc = box_arrays(0.5)
-    d, td = box_arrays(1, (4, 0, 0))
-    large, crossing, contained, separate = [tree(v, t) for v, t in ((a, ta), (b, tb), (c, tc), (d, td))]
-    result = {
-        "crossing_boxes_detected": bool(large.overlap(crossing)),
-        "contained_box_has_no_surface_overlap": not bool(large.overlap(contained)),
-        "contained_box_detected_by_solid_angle": contains_point(a, ta, c[0]),
-        "separate_boxes_not_flagged": not large.overlap(separate) and not contains_point(a, ta, d[0]),
-    }
-    unsafe = copy.deepcopy(parameters)
-    unsafe["rings"][1]["S"] = 3.0
-    try:
-        require_safe_parameters(unsafe)
-        result["unsafe_parameter_negative_control_rejected"] = False
-    except ValueError:
-        result["unsafe_parameter_negative_control_rejected"] = True
-    return result
-
-
-def topology_and_envelope(obj, expected_dimensions, expected_euler, nominal, tolerance):
-    mesh = obj.data
-    vertices, triangles = mesh_arrays(mesh)
+def topology(obj, expected_dimensions, expected_euler, hole, tolerance):
+    vertices, triangles = mesh_arrays(obj.data)
     bm = bmesh.new()
-    bm.from_mesh(mesh)
+    bm.from_mesh(obj.data)
     manifold = all(e.is_manifold and e.is_contiguous for e in bm.edges)
     volume = bm.calc_volume(signed=True)
     degenerate = sum(f.calc_area() < 1e-10 for f in bm.faces)
     bm.free()
     adjacency = {i: set() for i in range(len(vertices))}
-    for edge in mesh.edges:
-        a, b = edge.vertices
+    for e in obj.data.edges:
+        a, b = e.vertices
         adjacency[a].add(b)
         adjacency[b].add(a)
-    pending = set(adjacency)
-    components = 0
+    pending, components = set(adjacency), 0
     while pending:
         stack = [pending.pop()]
         components += 1
@@ -118,251 +95,319 @@ def topology_and_envelope(obj, expected_dimensions, expected_euler, nominal, tol
                 if neighbor in pending:
                     pending.remove(neighbor)
                     stack.append(neighbor)
-    minimum = [min(v[axis] for v in vertices) for axis in range(3)]
-    maximum = [max(v[axis] for v in vertices) for axis in range(3)]
-    dimensions = [b - a for a, b in zip(minimum, maximum)]
-    center = [(a + b) / 2 for a, b in zip(minimum, maximum)]
-    r_min, r_max = radial_bounds(vertices, triangles)
-    self_tree = tree(vertices, triangles)
-    self_crossings = [(a, b) for a, b in self_tree.overlap(self_tree)
+    low = [min(v[i] for v in vertices) for i in range(3)]
+    high = [max(v[i] for v in vertices) for i in range(3)]
+    dimensions = [b-a for a, b in zip(low, high)]
+    center = [(a+b)/2 for a, b in zip(low, high)]
+    inside_box = all(abs(v[i]) <= expected_dimensions[i]/2+tolerance for v in vertices for i in range(3))
+    bvh = tree(vertices, triangles)
+    self_crossings = [(a, b) for a, b in bvh.overlap(bvh)
                       if a < b and not set(triangles[a]).intersection(triangles[b])]
-    euler = len(mesh.vertices) - len(mesh.edges) + len(mesh.polygons)
-    dimensions_ok = max(abs(a - b) for a, b in zip(dimensions, expected_dimensions)) <= tolerance
-    # The nominal annulus shell and un-beveled outer sphere MUST still enclose actual faces.
-    envelope_ok = r_min >= nominal["r_min"] - tolerance and r_max <= nominal["R_max"] + tolerance
-    return {
+    euler = len(vertices)-len(obj.data.edges)+len(obj.data.polygons)
+    hole_ok = True
+    hits = 0
+    origin_outside = None
+    if hole is not None:
+        hits = sum(projected_triangle_hits_prism(vertices, t, hole-tolerance) for t in triangles)
+        origin_outside = not contains_point(vertices, triangles, Vector((0, 0, 0)))
+        hole_ok = hits == 0 and origin_outside
+    result = {
         "geometry_sha256": hashlib.sha256(json.dumps({
-            "vertices": [list(v) for v in vertices], "triangles": triangles,
-        }, separators=(",", ":")).encode()).hexdigest(),
-        "vertices": len(vertices), "triangles": len(triangles), "faces": len(mesh.polygons),
-        "edges": len(mesh.edges), "components": components, "euler_characteristic": euler,
-        "expected_euler_characteristic": expected_euler,
-        "closed_consistently_oriented_manifold": manifold,
-        "positive_volume": volume, "degenerate_faces": degenerate,
-        "nonadjacent_self_surface_crossings": len(self_crossings),
-        "local_AABB_min": minimum, "local_AABB_max": maximum,
-        "local_dimensions_XYZ": dimensions, "expected_dimensions_XYZ": expected_dimensions,
-        "local_AABB_center": center,
-        "actual_min_surface_radius": r_min, "actual_max_vertex_radius": r_max,
-        "within_nominal_radial_envelope": envelope_ok,
+            "vertices": [list(v) for v in vertices], "triangles": triangles},
+            separators=(",", ":")).encode()).hexdigest(),
+        "vertices": len(vertices), "triangles": len(triangles), "faces": len(obj.data.polygons),
+        "components": components, "euler_characteristic": euler,
+        "closed_consistently_oriented_manifold": manifold, "signed_volume": volume,
+        "degenerate_faces": degenerate, "nonadjacent_self_surface_crossings": len(self_crossings),
+        "local_AABB_min": low, "local_AABB_max": high, "local_dimensions_XYZ": dimensions,
+        "expected_dimensions_XYZ": expected_dimensions, "local_AABB_center": center,
+        "within_nominal_box": inside_box, "empty_prism_half_width": hole,
+        "projected_triangles_inside_prism": hits, "origin_outside_ring_material": origin_outside,
+        "empty_prism_verified": hole_ok,
         "pass": (manifold and volume > 0 and components == 1 and degenerate == 0
-                 and euler == expected_euler and not self_crossings and dimensions_ok
-                 and max(abs(v) for v in center) <= tolerance and envelope_ok and not obj.modifiers),
-    }, (vertices, triangles)
+                 and euler == expected_euler and not self_crossings and inside_box and hole_ok
+                 and max(abs(a-b) for a, b in zip(dimensions, expected_dimensions)) <= tolerance
+                 and max(abs(v) for v in center) <= tolerance and not obj.modifiers),
+    }
+    return result, (vertices, triangles)
+
+
+def box_arrays(side, offset=(0, 0, 0)):
+    offset = Vector(offset)
+    v = [Vector((x, y, z))+offset for x in (-side/2, side/2)
+         for y in (-side/2, side/2) for z in (-side/2, side/2)]
+    quads = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1),
+             (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    return v, [(q[0], q[1], q[2]) for q in quads]+[(q[0], q[2], q[3]) for q in quads]
+
+
+def sensor_controls(p):
+    av, at = box_arrays(2)
+    bv, bt = box_arrays(2, (.8, .3, .2))
+    cv, ct = box_arrays(.5)
+    dv, dt = box_arrays(1, (4, 0, 0))
+    a, b, c, d = [tree(v, t) for v, t in ((av, at), (bv, bt), (cv, ct), (dv, dt))]
+    unsafe = copy.deepcopy(p)
+    unsafe["rings"][1]["S"] = 3.5
+    rejected = False
+    try:
+        require_safe_parameters(unsafe)
+    except ValueError:
+        rejected = True
+    return {"crossing_detected": bool(a.overlap(b)),
+            "containment_not_detected_by_surface_BVH": not bool(a.overlap(c)),
+            "containment_detected_by_winding": contains_point(av, at, cv[0]),
+            "separate_not_flagged": not a.overlap(d) and not contains_point(av, at, dv[0]),
+            "unsafe_tight_nesting_rejected": rejected,
+            "prism_triangle_inside_detected": projected_triangle_hits_prism(
+                [Vector((0, 0, 0)), Vector((.1, 0, 0)), Vector((0, 0, .1))], (0, 1, 2), .5),
+            "prism_triangle_crossing_detected": projected_triangle_hits_prism(
+                [Vector((-2, 0, -.2)), Vector((2, 0, -.2)), Vector((0, 0, 2))], (0, 1, 2), .5),
+            "prism_triangle_outside_rejected": not projected_triangle_hits_prism(
+                [Vector((2, 0, 2)), Vector((3, 0, 2)), Vector((2, 0, 3))], (0, 1, 2), .5)}
 
 
 def matrix_delta(a, b):
-    return max(abs(a[row][col] - b[row][col]) for row in range(4) for col in range(4))
+    return max(abs(a[r][c]-b[r][c]) for r in range(4) for c in range(4))
 
 
-def quaternion_delta_degrees(a, b):
-    cosine = abs(sum(x * y for x, y in zip(a, b))) / math.sqrt(sum(x * x for x in a) * sum(y * y for y in b))
-    return math.degrees(2 * math.acos(min(1.0, cosine)))
+def quaternion_delta(a, b):
+    cosine = abs(sum(x*y for x, y in zip(a, b)))/math.sqrt(sum(x*x for x in a)*sum(y*y for y in b))
+    return math.degrees(2*math.acos(min(1, cosine)))
 
 
-def _validate_scene(parameters, reopened):
-    scene = bpy.context.scene
-    tolerance = parameters["numeric_tolerance"]
-    bounds, pairs = constraints(parameters)
+def grid_values(ring, step):
+    lo, hi = ring["limits_degrees"]
+    values = [lo+i*step for i in range(math.floor((hi-lo)/step)+1)]+[hi, 0]
+    return sorted(set(values))
+
+
+def _validate_scene(p, reopened):
+    require_safe_parameters(p)
+    scene, tol = bpy.context.scene, p["numeric_tolerance"]
+    holes, pairs = constraints(p)
     report = {
-        "schema_version": 1, "blender_version": bpy.app.version_string,
+        "schema_version": 2, "revision": "R1-B2", "blender_version": bpy.app.version_string,
         "source_file": Path(bpy.data.filepath).name,
         "source_sha256": hashlib.sha256(Path(bpy.data.filepath).read_bytes()).hexdigest(),
-        "independent_source_reopen": reopened,
-        "parameters_sha256": parameter_hash(parameters),
-        "scene_parameter_hash_matches": scene.get("parameters_sha256") == parameter_hash(parameters),
-        "units": parameters["units"], "numeric_tolerance": tolerance,
-        "guarantee": {
-            "method": "origin-centered radial shell separation, all orientations",
-            "ring_r_min_formula": "S/2 - W",
-            "ring_R_max_formula": "sqrt(2*(S/2)^2 + (D/2)^2)",
-            "cube_R_max_formula": "sqrt(3)*side/2",
-            "domain": "Common fixed center; rigid rotations; no translation, scale, deformation or later mesh edits. Beveled actual mesh must stay within nominal radial envelopes.",
-            "proof": "For any outer material point x and inner point y, ||x-y|| >= ||x||-||y|| >= r_min(outer)-R_max(inner). Rigid rotation preserves each radius; therefore the bound holds for every relative orientation, not only sampled times.",
-            "nominal_bounds": bounds, "all_pair_constraints": pairs,
-            "conservative_minimum_gap": min(p["conservative_gap"] for p in pairs),
-            "minimum_gap_after_numeric_allowance": min(p["conservative_gap"] for p in pairs) - 2 * tolerance,
-            "clearance": parameters["clearance"],
+        "independent_source_reopen": reopened, "parameters_sha256": parameter_hash(p),
+        "scene_parameter_hash_matches": scene.get("parameters_sha256") == parameter_hash(p),
+        "numeric_tolerance": tol, "units": p["units"], "failures": [],
+        "bounded_domain_certificate": {
+            "method": "Serial Y->X->Z joint-box projection into verified empty square prisms",
+            "joint_limits_degrees": {r["name"]: r["limits_degrees"] for r in p["rings"]},
+            "domain": "Rigid meshes; zero offsets; unit scales; A(Y) -> B(X) -> C(Z) local single-axis serial hierarchy; stable Core",
+            "empty_prism_formula": "h = S/2-W-bevel_width",
+            "projection_formula": "P(a,d,L) = max[a*abs(cos(t))+d*abs(sin(t))], t in [-L,L]; includes atan(d/a) extrema",
+            "proof": "Actual outer material is outside |x|<h AND |z|<h. Every point of an inner solid has |x|,|z|<=E in outer coordinates. Any outer material point has at least one coordinate with absolute value >=h; Euclidean pair distance >=h-E. Relative transforms follow the serial hierarchy. Actual inward bevel envelopes and empty prisms are independently verified.",
+            "all_pairs": pairs,
+            "minimum_gap_after_numeric_allowance": min(x["after_numeric_allowance"] for x in pairs),
+            "clearance": p["clearance"],
+            "arbitrary_independent_rotations_verified": False,
         },
-        "sensor_controls": sensor_controls(parameters),
-        "objects": {}, "failures": [],
+        "sensor_controls": sensor_controls(p), "objects": {},
     }
     failures = report["failures"]
-    report["timeline"] = {"fps": scene.render.fps, "fps_base": scene.render.fps_base,
-                           "start": scene.frame_start, "end": scene.frame_end}
-    if (scene.render.fps != parameters["motion"]["fps"] or scene.render.fps_base != 1
-            or scene.frame_start != 1 or scene.frame_end != last_frame(parameters)):
-        failures.append("Saved timeline timing differs from parameters")
-    if not report["scene_parameter_hash_matches"]:
-        failures.append("Saved model and current parameters differ; rebuild before validation")
-    if not all(p["pass"] for p in pairs):
-        failures.append("Nominal all-angle clearance constraint failed")
-    if not all(report["sensor_controls"].values()):
-        failures.append("Collision sensor positive/negative controls failed")
-    names = [r["name"] for r in parameters["rings"]] + ["Core"]
+    names = [r["name"] for r in p["rings"]]+["Core"]
     meshes = {name: bpy.data.objects[name] for name in names}
-    report["source_editability"] = {
-        "local_editable_meshes": all(o.data.library is None and o.data.is_editable for o in meshes.values()),
-        "external_libraries": [lib.name for lib in bpy.data.libraries],
-        "embedded_auto_run_scripts_required": False,
-    }
-    if not report["source_editability"]["local_editable_meshes"] or bpy.data.libraries:
-        failures.append("Model is not a self-contained editable local asset")
-    arrays = {}
-    for index, name in enumerate(names):
-        if name == "Core":
-            dimensions = [parameters["core"]["side"]] * 3
-            euler = 2
-            expected_parent = "WitnessCore"
-        else:
-            ring = parameters["rings"][index]
-            dimensions = [ring["S"], ring["D"], ring["S"]]
-            euler = 0
-            expected_parent = ring["pivot"]
-        item, arrays[name] = topology_and_envelope(meshes[name], dimensions, euler, bounds[name], tolerance)
-        item["parent"] = meshes[name].parent.name if meshes[name].parent else None
-        item["parent_correct"] = item["parent"] == expected_parent
-        report["objects"][name] = item
-        if not item["pass"] or not item["parent_correct"]:
-            failures.append(f"Mesh topology, dimensions, envelope or hierarchy failed: {name}")
-    pivots = [bpy.data.objects[r["pivot"]] for r in parameters["rings"]]
-    hierarchy_ok = all(p.parent and p.parent.name == "WitnessCore" and p.rotation_mode == "QUATERNION" for p in pivots)
-    independent_actions = len({p.animation_data.action.as_pointer() for p in pivots}) == 3
-    rotation_only = all(c.data_path == "rotation_quaternion" for p in pivots for c in action_fcurves(p))
-    inert_objects = [bpy.data.objects["WitnessCore"], *meshes.values()]
-    inert_ok = all(not o.animation_data and not o.constraints for o in inert_objects)
-    pivots_clean = all(not p.constraints and not p.animation_data.drivers for p in pivots)
+    pivots = [bpy.data.objects[r["pivot"]] for r in p["rings"]]
     root = bpy.data.objects["WitnessCore"]
-    transform_objects = [root, *pivots, *meshes.values()]
-    origin_locks = all(o.location.length <= tolerance
-                       and max(abs(value - 1) for value in o.scale) <= tolerance
-                       and matrix_delta(o.matrix_parent_inverse, Matrix.Identity(4)) <= tolerance
-                       for o in transform_objects) and root.parent is None
-    static_meshes = all(o.data.shape_keys is None and not o.data.animation_data and not o.hide_render
-                        for o in meshes.values())
-    report["hierarchy"] = {"correct_pivots": hierarchy_ok, "three_independent_actions": independent_actions,
-                           "rotation_only_curves": rotation_only, "root_and_meshes_unanimated": inert_ok,
-                           "no_constraints_or_drivers_on_pivots": pivots_clean,
-                           "static_zero_offsets_unit_scales_identity_parent_inverses": origin_locks,
-                           "no_deformation_animation_or_hidden_model_meshes": static_meshes,
-                           "model_mesh_count": len([o for o in bpy.data.collections["WitnessCore"].objects if o.type == "MESH"])}
+    arrays = {}
+    for i, name in enumerate(names):
+        dims = [p["core"]["side"]]*3 if name == "Core" else [p["rings"][i][k] for k in ("S", "D", "S")]
+        result, arrays[name] = topology(meshes[name], dims, 2 if name == "Core" else 0, holes.get(name), tol)
+        parent = "WitnessCore" if name == "Core" else p["rings"][i]["pivot"]
+        result["parent"] = meshes[name].parent.name if meshes[name].parent else None
+        result["parent_correct"] = result["parent"] == parent
+        report["objects"][name] = result
+        if not result["pass"] or not result["parent_correct"]:
+            failures.append(f"Mesh topology/envelope/hierarchy failed: {name}")
+    local = all(o.data.library is None and o.data.is_editable for o in meshes.values()) and not bpy.data.libraries
+    inert = all(not o.animation_data and not o.constraints and
+                matrix_delta(o.matrix_basis, Matrix.Identity(4)) <= tol for o in [root, *meshes.values()])
+    origins = all(o.location.length <= tol and max(abs(x-1) for x in o.scale) <= tol
+                  and matrix_delta(o.matrix_parent_inverse, Matrix.Identity(4)) <= tol
+                  for o in [root, *pivots, *meshes.values()]) and root.parent is None
+    serial = all(o.parent and o.parent.name == r["parent"] and o.rotation_mode == "QUATERNION"
+                 and not o.constraints and not o.animation_data.drivers for o, r in zip(pivots, p["rings"]))
+    actions = len({o.animation_data.action.as_pointer() for o in pivots}) == 3
+    # All keys and all linear segments stay on the same quaternion great-circle
+    # arc, with angles in (-90,90). Normalized linear interpolation stays on-axis
+    # and cannot overshoot endpoint angles. Check every key, not only samples.
+    single_axis_keys = True
+    axis_errors, key_limits = {}, {}
+    for pivot, r in zip(pivots, p["rings"]):
+        curves = list(action_fcurves(pivot))
+        if len(curves) != 4 or any(c.data_path != "rotation_quaternion" for c in curves):
+            single_axis_keys = False
+            continue
+        errors, angles = [], []
+        component = r["axis_local"].index(1)
+        for frame in range(1, last_frame(p)+1):
+            q = [next(c for c in curves if c.array_index == k).evaluate(frame) for k in range(4)]
+            errors.append(max(abs(q[k+1]) for k in range(3) if k != component))
+            angles.append(math.degrees(2*math.atan2(q[component+1], q[0])))
+        axis_errors[r["name"]] = max(errors)
+        key_limits[r["name"]] = [min(angles), max(angles)]
+        lo, hi = r["limits_degrees"]
+        single_axis_keys &= (max(errors) <= tol and min(angles) >= lo-tol and max(angles) <= hi+tol
+                             and all(k.interpolation == "LINEAR" for c in curves for k in c.keyframe_points)
+                             and all(not c.modifiers and not c.mute for c in curves)
+                             and all(len(c.keyframe_points) == last_frame(p) for c in curves)
+                             and all(abs(k.co.x-frame) <= tol for c in curves
+                                     for frame, k in enumerate(c.keyframe_points, 1)))
+    static = all(not o.data.shape_keys and not o.data.animation_data and not o.hide_render for o in meshes.values())
+    hierarchy = {"serial_parents_correct": serial, "three_distinct_actions": actions,
+                 "single_axis_keys_and_bounded_linear_segments": bool(single_axis_keys),
+                 "axis_quaternion_error": axis_errors, "baked_angle_ranges_degrees": key_limits,
+                 "zero_offsets_unit_scale": origins, "inert_root_and_mesh_transforms": inert,
+                 "static_visible_meshes": static, "self_contained_editable_meshes": local,
+                 "model_mesh_count": len([o for o in bpy.data.collections["WitnessCore"].objects if o.type == "MESH"])}
+    report["hierarchy"] = hierarchy
+    domain_ok = (serial and actions and single_axis_keys and origins and inert and static and local
+                 and hierarchy["model_mesh_count"] == 4 and report["scene_parameter_hash_matches"])
+    if not domain_ok:
+        failures.append("Hierarchy, axis, source hash or rigid-domain check failed")
+    timeline_ok = (scene.frame_start == 1 and scene.frame_end == last_frame(p)
+                   and scene.render.fps == p["motion"]["fps"] and scene.render.fps_base == 1)
+    report["timeline"] = {"start": scene.frame_start, "end": scene.frame_end, "fps": scene.render.fps, "pass": timeline_ok}
+    if not timeline_ok or not all(report["sensor_controls"].values()):
+        failures.append("Timeline or collision-sensor control failed")
     report["animation_keys_sha256"] = hashlib.sha256(json.dumps([
-        {"pivot": p.name, "curves": [{"path": c.data_path, "index": c.array_index,
-          "keys": [[float(k.co.x), float(k.co.y), k.interpolation] for k in c.keyframe_points]}
-         for c in action_fcurves(p)]} for p in pivots
-    ], sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    if not (hierarchy_ok and independent_actions and rotation_only and inert_ok and pivots_clean and origin_locks and static_meshes
-            and report["hierarchy"]["model_mesh_count"] == 4):
-        failures.append("Unexpected hierarchy, animation channel or hidden geometry")
-    step = parameters["validation"]["sample_step_frames"]
-    end = last_frame(parameters)
-    frames = [1 + i * step for i in range(round((end - 1) / step) + 1)]
-    pair_stats = {f"{p['outer']} / {p['inner']}": {
+        {"pivot": o.name, "keys": [[c.array_index, [[float(k.co.x), float(k.co.y)] for k in c.keyframe_points]]
+                                 for c in action_fcurves(o)]} for o in pivots],
+        separators=(",", ":")).encode()).hexdigest()
+    stats = {f"{x['outer']} / {x['inner']}": {
         "samples": 0, "surface_overlap_samples": 0, "containment_samples": 0,
-        "minimum_actual_mesh_radial_lower_bound": float("inf"),
-    } for p in pairs}
-    max_center = max_rigid_error = max_motion_error = max_core_delta = 0.0
-    previous_frame = scene.frame_current
-    scene.frame_set(1)
-    core_initial = meshes["Core"].matrix_world.copy()
-    reverse_references = {}
-    for frame_index, frame in enumerate(frames):
-        scene.frame_set(math.floor(frame), subframe=frame % 1)
+        "minimum_sampled_prism_gap_lower_bound": float("inf")} for x in pairs}
+    max_center, max_rigid = 0.0, 0.0
+
+    def inspect_pose(label):
+        nonlocal max_center, max_rigid
         bpy.context.view_layer.update()
+        # Query actual evaluated world matrices, including every parent joint.
         depsgraph = bpy.context.evaluated_depsgraph_get()
-        world_arrays, world_trees, radial = {}, {}, {}
-        for name, obj in meshes.items():
-            matrix = obj.evaluated_get(depsgraph).matrix_world.copy()
+        matrices = {n: o.evaluated_get(depsgraph).matrix_world.copy() for n, o in meshes.items()}
+        world = {n: [matrices[n] @ v for v in arrays[n][0]] for n in names}
+        trees = {n: tree(world[n], arrays[n][1]) for n in names}
+        for matrix in matrices.values():
             max_center = max(max_center, matrix.translation.length)
             rotation = matrix.to_3x3()
             gram = rotation.transposed() @ rotation
-            rigid_error = max(abs(gram[r][c] - (1 if r == c else 0)) for r in range(3) for c in range(3))
-            max_rigid_error = max(max_rigid_error, rigid_error, abs(rotation.determinant() - 1))
-            vertices, triangles = arrays[name]
-            transformed = [matrix @ vertex for vertex in vertices]
-            world_arrays[name] = transformed
-            world_trees[name] = tree(transformed, triangles)
-            radial[name] = radial_bounds(transformed, triangles)
-        max_core_delta = max(max_core_delta, matrix_delta(meshes["Core"].matrix_world, core_initial))
-        for ring, pivot in zip(parameters["rings"], pivots):
-            expected = orientation_at((frame - 1) / parameters["motion"]["fps"], ring, parameters)
-            max_motion_error = max(max_motion_error, quaternion_delta_degrees(pivot.matrix_world.to_quaternion(), expected))
-            max_center = max(max_center, pivot.matrix_world.translation.length)
+            max_rigid = max(max_rigid, abs(rotation.determinant()-1),
+                            *(abs(gram[i][j]-(i == j)) for i in range(3) for j in range(3)))
         for pair in pairs:
             outer, inner = pair["outer"], pair["inner"]
-            stat = pair_stats[f"{outer} / {inner}"]
-            overlaps = world_trees[outer].overlap(world_trees[inner])
-            containment = False
-            if not overlaps:
-                containment = (contains_point(world_arrays[outer], arrays[outer][1], world_arrays[inner][0])
-                               or contains_point(world_arrays[inner], arrays[inner][1], world_arrays[outer][0]))
-            gap = radial[outer][0] - radial[inner][1]
+            stat = stats[f"{outer} / {inner}"]
+            overlap = trees[outer].overlap(trees[inner])
+            containment = (not overlap and
+                           (contains_point(world[outer], arrays[outer][1], world[inner][0])
+                            or contains_point(world[inner], arrays[inner][1], world[outer][0])))
+            inverse = matrices[outer].inverted()
+            projected = [inverse @ v for v in world[inner]]
+            gap = holes[outer]-max(max(abs(v.x), abs(v.z)) for v in projected)-2*tol
             stat["samples"] += 1
-            stat["surface_overlap_samples"] += bool(overlaps)
+            stat["surface_overlap_samples"] += bool(overlap)
             stat["containment_samples"] += bool(containment)
-            if gap < stat["minimum_actual_mesh_radial_lower_bound"]:
-                stat["minimum_actual_mesh_radial_lower_bound"] = gap
-                stat["minimum_bound_frame"] = frame
-            if overlaps or containment or gap < parameters["clearance"] - tolerance:
-                failures.append({"frame": frame, "pair": [outer, inner], "overlapping_triangles": len(overlaps),
-                                 "containment": containment, "radial_gap": gap})
-        if frame_index % max(1, round(parameters["validation"]["reverse_check_step_frames"] / step)) == 0:
-            reverse_references[frame] = [obj.matrix_world.copy() for obj in meshes.values()]
-    max_reverse_error = 0.0
-    for frame, matrices in reversed(list(reverse_references.items())):
+            if gap < stat["minimum_sampled_prism_gap_lower_bound"]:
+                stat["minimum_sampled_prism_gap_lower_bound"] = gap
+                stat["minimum_bound_pose"] = label
+            if overlap or containment or gap < p["clearance"]:
+                failures.append({"pose": label, "pair": [outer, inner], "triangle_overlaps": len(overlap),
+                                 "containment": bool(containment), "gap_lower_bound": gap})
+        return matrices
+
+    original_frame = scene.frame_current
+    step = p["validation"]["sample_step_frames"]
+    frames = [1+i*step for i in range(round((last_frame(p)-1)/step)+1)]
+    references = {}
+    max_motion_error = max_core_delta = 0.0
+    core_identity = Matrix.Identity(4)
+    for i, frame in enumerate(frames):
+        scene.frame_set(math.floor(frame), subframe=frame % 1)
+        matrices = inspect_pose({"frame": frame})
+        expected_world = Quaternion((1, 0, 0, 0))
+        for r, pivot in zip(p["rings"], pivots):
+            q = orientation_at((frame-1)/p["motion"]["fps"], r, p)
+            expected_world = expected_world @ q
+            max_motion_error = max(max_motion_error,
+                                   quaternion_delta(pivot.matrix_world.to_quaternion(), expected_world))
+        max_core_delta = max(max_core_delta, matrix_delta(matrices["Core"], core_identity))
+        if i % max(1, round(p["validation"]["reverse_check_step_frames"]/step)) == 0:
+            references[frame] = matrices
+    max_reverse = 0.0
+    for frame, matrices in reversed(list(references.items())):
         scene.frame_set(math.floor(frame), subframe=frame % 1)
         bpy.context.view_layer.update()
-        max_reverse_error = max(max_reverse_error, *(matrix_delta(o.matrix_world, m) for o, m in zip(meshes.values(), matrices)))
-    scene.frame_set(end)
-    alignment_errors = [quaternion_delta_degrees(p.matrix_world.to_quaternion(), (1, 0, 0, 0)) for p in pivots]
-    if (max_center > tolerance or max_rigid_error > 1e-5 or max_core_delta > tolerance
-            or max_motion_error > 0.1 or max_reverse_error > tolerance or max(alignment_errors) > 0.001):
-        failures.append("Transform, deterministic motion, reverse evaluation or alignment check failed")
-    actual_envelopes_ok = all(x["within_nominal_radial_envelope"] for x in report["objects"].values())
-    domain_ok = (hierarchy_ok and independent_actions and rotation_only and inert_ok and pivots_clean and origin_locks and static_meshes
-                 and max_center <= tolerance and max_rigid_error <= 1e-5
-                 and report["scene_parameter_hash_matches"])
-    report["guarantee"]["actual_mesh_envelopes_confirmed"] = actual_envelopes_ok
-    report["guarantee"]["rigid_common_center_domain_confirmed"] = domain_ok
-    report["guarantee"]["all_angle_pass"] = (all(p["pass"] for p in pairs) and actual_envelopes_ok and domain_ok
-        and report["guarantee"]["minimum_gap_after_numeric_allowance"] >= parameters["clearance"])
-    if not report["guarantee"]["all_angle_pass"]:
-        failures.append("All-angle guarantee, domain or numeric allowance failed")
+        max_reverse = max(max_reverse, *(matrix_delta(meshes[n].matrix_world, m) for n, m in matrices.items()))
+    scene.frame_set(last_frame(p))
+    bpy.context.view_layer.update()
+    aligned = max(matrix_delta(o.matrix_world, Matrix.Identity(4)) for o in pivots)
+    print("R1-B2 timeline samples complete:", len(frames), flush=True)
+    # Grid includes full independent local-joint intervals, not only the idle path.
+    grids = [grid_values(r, s) for r, s in zip(p["rings"], p["validation"]["joint_grid_steps_degrees"])]
+    saved_actions = [o.animation_data.action for o in pivots]
+    saved_slots = [o.animation_data.action_slot for o in pivots]
+    try:
+        for o in pivots:
+            o.animation_data.action = None
+        for angles in itertools.product(*grids):
+            for o, r, degrees in zip(pivots, p["rings"], angles):
+                o.rotation_quaternion = Quaternion(r["axis_local"], math.radians(degrees))
+            inspect_pose({"joint_degrees_A_B_C": list(angles)})
+        for o, r, degrees in zip(pivots, p["rings"], p["preview"]["moderate_joint_degrees"]):
+            o.rotation_quaternion = Quaternion(r["axis_local"], math.radians(degrees))
+        inspect_pose({"preview_moderate_degrees_A_B_C": p["preview"]["moderate_joint_degrees"]})
+    finally:
+        for o, action, slot in zip(pivots, saved_actions, saved_slots):
+            o.animation_data.action = action
+            o.animation_data.action_slot = slot
+        scene.frame_set(original_frame)
+    if max_motion_error > .02 or max_core_delta > tol or max_reverse > tol or aligned > tol:
+        failures.append("Deterministic motion, stable core, reverse lookup or final alignment failed")
+    actual_ok = all(x["pass"] for x in report["objects"].values())
+    certificate_ok = domain_ok and actual_ok and all(x["pass"] for x in pairs)
+    report["bounded_domain_certificate"]["actual_mesh_envelopes_and_prisms_verified"] = actual_ok
+    report["bounded_domain_certificate"]["pass"] = bool(certificate_ok)
+    sampled_ok = all(s["surface_overlap_samples"] == 0 and s["containment_samples"] == 0
+                     and s["minimum_sampled_prism_gap_lower_bound"] >= p["clearance"] for s in stats.values())
+    sampled_ok &= max_center <= tol and max_rigid < 0.00001
     report["sampled_mesh_checks"] = {
-        "method": "World-transformed actual triangles: BVH surface intersections plus signed-solid-angle winding tests for containment; actual surface/vertex radial gap is a lower bound, NOT exact inter-surface distance.",
-        "frame_range": [1, end], "step_frames": step, "sampled_poses": len(frames),
-        "tested_pairs_per_pose": len(pairs), "pair_results": pair_stats,
-        "max_common_center_error": max_center, "max_rigid_matrix_error": max_rigid_error,
-        "max_core_matrix_change": max_core_delta, "max_baked_vs_analytic_degrees": max_motion_error,
-        "reverse_rechecked_poses": len(reverse_references), "max_reverse_matrix_error": max_reverse_error,
-        "alignment_end_errors_degrees": alignment_errors,
-        "pass": (all(s["surface_overlap_samples"] == 0 and s["containment_samples"] == 0
-                     and s["minimum_actual_mesh_radial_lower_bound"] >= parameters["clearance"] - tolerance
-                     for s in pair_stats.values()) and max_center <= tolerance and max_rigid_error <= 1e-5),
-    }
-    report["unverified"] = ["Nonrigid edits, translated/scaled pivots, changed mesh/parameters without rebuilding, or different future asset versions.",
-                            "BVH samples alone do not certify continuous-time safety; the separately stated radial bound does under its domain."]
+        "method": "Evaluated world-transformed triangles; BVH intersections plus winding containment; transformed vertices give square-prism gap LOWER BOUNDS, not exact closest-surface distances",
+        "timeline_sample_poses": len(frames), "timeline_step_frames": step,
+        "joint_grid_degrees_A_B_C": grids, "joint_grid_poses": math.prod(len(g) for g in grids),
+        "additional_preview_pose_checks": 1,
+        "pair_results": stats, "max_center_error": max_center, "max_rigid_matrix_error": max_rigid,
+        "max_baked_vs_analytic_world_degrees": max_motion_error,
+        "max_core_matrix_change": max_core_delta, "reverse_poses": len(references),
+        "max_reverse_matrix_error": max_reverse, "alignment_identity_error": aligned,
+        "pass": bool(sampled_ok)}
+    if not sampled_ok or not certificate_ok:
+        failures.append("Bounded-domain certificate or actual-mesh samples failed")
+    report["unverified"] = [
+        "Angles outside A +/-6, B +/-40, C +/-30 degrees; arbitrary independent rotation.",
+        "Changed axes, hierarchy, translation, scale, deformation, mesh or parameters without rebuilding.",
+        "Minimum reported gaps are conservative certified lower bounds, NOT exact closest-distance measurements.",
+        "BVH/winding samples are finite. Continuous bounded-domain safety comes from the separate projection certificate."]
     report["pass"] = not failures
-    scene.frame_set(previous_frame)
-    (ROOT / "collision-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print("R1-B VALIDATION", "PASS" if report["pass"] else "FAIL",
-          "poses", len(frames), "minimum guaranteed gap", report["guarantee"]["conservative_minimum_gap"], flush=True)
+    (ROOT/"collision-report.json").write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
+    print("R1-B2 VALIDATION", "PASS" if report["pass"] else "FAIL",
+          "certified gap", report["bounded_domain_certificate"]["minimum_gap_after_numeric_allowance"], flush=True)
     if failures:
-        raise ValidationFailure(f"Validation failed: {failures[:8]}")
+        raise RuntimeError(f"Validation failed: {failures[:6]}")
     return report
 
 
-def validate_scene(parameters, reopened=False):
+def validate_scene(p, reopened=False):
     try:
-        return _validate_scene(parameters, reopened)
-    except ValidationFailure:
-        raise
+        return _validate_scene(p, reopened)
     except Exception as error:
-        # Never leave a stale success report after an exception or missing object.
-        (ROOT / "collision-report.json").write_text(json.dumps({
-            "pass": False, "error": repr(error), "parameters_sha256": parameter_hash(parameters),
-            "source_file": Path(bpy.data.filepath).name,
-        }, indent=2) + "\n", encoding="utf-8")
+        path = ROOT/"collision-report.json"
+        # Preserve a detailed failure report, but never a stale prior success.
+        old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        if old.get("pass") is not False or old.get("parameters_sha256") != parameter_hash(p):
+            path.write_text(json.dumps({"pass": False, "error": repr(error),
+                                       "parameters_sha256": parameter_hash(p)}, indent=2)+"\n", encoding="utf-8")
         raise
 
 

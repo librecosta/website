@@ -1,12 +1,11 @@
-"""Deterministic geometry bounds and quaternion motion; no physics or handlers."""
+"""R1-B2: serial one-axis joints and a bounded square-aperture certificate."""
 
 import hashlib
 import json
 import math
 from pathlib import Path
 
-from mathutils import Euler, Quaternion, Vector
-
+from mathutils import Quaternion
 
 ROOT = Path(__file__).resolve().parent
 
@@ -16,111 +15,133 @@ def load_parameters():
 
 
 def parameter_hash(parameters):
-    encoded = json.dumps(parameters, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
+    return hashlib.sha256(json.dumps(parameters, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def nominal_bounds(parameters):
-    result = {}
-    for ring in parameters["rings"]:
-        s, w, d = (ring[key] for key in ("S", "W", "D"))
-        if not (s > 0 and 0 < w < s / 2 and d > 0):
-            raise ValueError(f"Invalid ring dimensions: {ring['name']}")
-        if not 0 < parameters["bevel"]["width"] < min(w, d) / 2:
-            raise ValueError("Bevel must fit within every beam cross-section")
-        result[ring["name"]] = {
-            "r_min": s / 2 - w,
-            "R_max": math.sqrt(2 * (s / 2) ** 2 + (d / 2) ** 2),
-        }
-    side = parameters["core"]["side"]
-    if not side > 0 or not 0 < parameters["core"]["bevel_width"] < side / 2:
-        raise ValueError("Core side and bevel must be positive and compatible")
-    # The solid cube includes the origin; only its outer radius is used in nesting.
-    result["Core"] = {"r_min": 0.0, "R_max": math.sqrt(3) * side / 2}
-    return result
+def max_projection(a, d, limits):
+    """Maximum a*|cos(t)|+d*|sin(t)| on a symmetric interval below 90 deg."""
+    limit = math.radians(max(abs(x) for x in limits))
+    if not 0 <= limit < math.pi / 2:
+        raise ValueError("Certificate requires symmetric joint limits below 90 degrees")
+    critical = math.atan2(d, a)
+    angles = [0, limit] + ([critical] if critical <= limit else [])
+    return max(a * math.cos(t) + d * math.sin(t) for t in angles)
 
 
-def constraints(parameters):
-    bounds = nominal_bounds(parameters)
-    names = [r["name"] for r in parameters["rings"]] + ["Core"]
+def constraints(p):
+    """Per-coordinate separation, specific to Y -> X -> Z hierarchy.
+
+    Each outer ring must have an empty infinite square prism of half-width h.
+    Each inner solid stays inside a smaller prism; Euclidean separation >= h-E.
+    A bevel-width allowance contracts the nominal hole. Actual mesh triangles
+    are separately tested against that prism. No full-free-rotation sphere rule.
+    """
+    a, b, c = p["rings"]
+    bevel = p["bevel"]["width"]
+    holes = {r["name"]: r["S"] / 2 - r["W"] - bevel for r in (a, b, c)}
+    A, dyA = a["S"] / 2, a["D"] / 2
+    B, dyB = b["S"] / 2, b["D"] / 2
+    bmax = math.radians(max(abs(x) for x in b["limits_degrees"]))
+    cmax = math.radians(max(abs(x) for x in c["limits_degrees"]))
+    core_half = p["core"]["side"] / 2
+    core_sphere = math.sqrt(3) * core_half
+    # C^-1*A = Rz(-c) Rx(-b). Triangle inequality bounds the cross term.
+    cross_extent = max(A + math.sin(cmax) * (dyA + math.sin(bmax) * A),
+                       max_projection(A, dyA, b["limits_degrees"]))
+    extents = [
+        ("RingA", "Core", max_projection(core_half, core_half, a["limits_degrees"]),
+         "Ry(-a): cube projection h*(|cos(a)|+|sin(a)|)"),
+        ("RingB", "RingA", max_projection(A, dyA, b["limits_degrees"]),
+         "Rx(-b): max(A, A*|cos(b)|+dyA*|sin(b)|)"),
+        ("RingC", "RingB", max_projection(B, dyB, c["limits_degrees"]),
+         "Rz(-c): max(B, B*|cos(c)|+dyB*|sin(c)|)"),
+        ("RingC", "RingA", cross_extent,
+         "Rz(-c)Rx(-b): E_x <= A + sin(cmax)*(dyA+sin(bmax)*A); E_z <= projection(A,dyA,b)"),
+        ("RingB", "Core", core_sphere, "Stable cube outer sphere (nonadjacent pair only)"),
+        ("RingC", "Core", core_sphere, "Stable cube outer sphere (nonadjacent pair only)"),
+    ]
     pairs = []
-    for index, outer in enumerate(names[:-1]):
-        for inner in names[index + 1:]:
-            gap = bounds[outer]["r_min"] - bounds[inner]["R_max"]
-            pairs.append({
-                "outer": outer, "inner": inner,
-                "outer_r_min": bounds[outer]["r_min"],
-                "inner_R_max": bounds[inner]["R_max"],
-                "conservative_gap": gap,
-                "required_clearance": parameters["clearance"],
-                "pass": gap >= parameters["clearance"],
-            })
-    return bounds, pairs
+    for outer, inner, extent, method in extents:
+        gap = holes[outer] - extent
+        pairs.append({"outer": outer, "inner": inner, "empty_prism_half_width": holes[outer],
+                      "inner_projection_bound": extent, "method": method,
+                      "conservative_gap": gap, "after_numeric_allowance": gap - 2*p["numeric_tolerance"],
+                      "required_clearance": p["clearance"],
+                      "pass": gap - 2*p["numeric_tolerance"] >= p["clearance"]})
+    return holes, pairs
 
 
-def require_safe_parameters(parameters):
-    motion = parameters["motion"]
-    if (motion["fps"] <= 0 or int(motion["fps"]) != motion["fps"]
-            or min(motion["idle_seconds"], motion["alignment_seconds"]) <= 0
-            or parameters["validation"]["sample_step_frames"] <= 0):
-        raise ValueError("Positive durations, integral FPS and positive sample interval required")
-    for ring in parameters["rings"]:
-        if Vector(ring["rotation_axis_world"]).length < 1e-8:
-            raise ValueError("Every rotation axis must be nonzero")
-    _, pairs = constraints(parameters)
-    failed = [p for p in pairs if not p["pass"]]
+def require_safe_parameters(p):
+    expected = [("RingA", "WitnessCore", [0, 1, 0]),
+                ("RingB", "RingAPivot", [1, 0, 0]), ("RingC", "RingBPivot", [0, 0, 1])]
+    if len(p["rings"]) != 3:
+        raise ValueError("Exactly three serial joints required")
+    for r, (name, parent, axis) in zip(p["rings"], expected):
+        if (r["name"], r["parent"], r["axis_local"]) != (name, parent, axis):
+            raise ValueError("Certificate is specific to A(Y) -> B(X) -> C(Z), all centered")
+        if not (r["S"] > 0 and 0 < r["W"] < r["S"]/2 and r["D"] > 0
+                and 0 < p["bevel"]["width"] < min(r["W"], r["D"])/2):
+            raise ValueError("Invalid beam or bevel dimensions")
+        lo, hi = r["limits_degrees"]
+        if lo != -hi or not 0 < hi < 90 or abs(r["idle_amplitude_degrees"]) > hi:
+            raise ValueError("Symmetric limits <90deg, enclosing idle amplitude, required")
+    m = p["motion"]
+    if (m["fps"] <= 0 or int(m["fps"]) != m["fps"] or m["alignment_target_degrees"] != 0
+            or min(m["idle_seconds"], m["alignment_seconds"]) <= 0
+            or not 0 < m["idle_speed_ramp_seconds"] <= m["idle_seconds"]/2
+            or p["validation"]["sample_step_frames"] <= 0
+            or min(p["validation"]["joint_grid_steps_degrees"]) <= 0
+            or p["clearance"] < 0.05 or p["numeric_tolerance"] <= 0):
+        raise ValueError("Invalid motion, validation or clearance settings")
+    if not 0 < p["core"]["bevel_width"] < p["core"]["side"]/2:
+        raise ValueError("Invalid core dimensions")
+    preview_angles = p["preview"]["moderate_joint_degrees"]
+    if len(preview_angles) != 3 or any(not r["limits_degrees"][0] <= x <= r["limits_degrees"][1]
+                                     for r, x in zip(p["rings"], preview_angles)):
+        raise ValueError("Preview joint pose must stay inside the certified domain")
+    failed = [x for x in constraints(p)[1] if not x["pass"]]
     if failed:
-        raise ValueError(f"Unsafe nominal radial constraints: {failed}")
+        raise ValueError(f"Bounded single-axis clearance failed: {failed}")
 
 
 def speed_integral(u):
-    """Integral of quintic smootherstep from 0 to u, with integral(1)=0.5."""
-    return u ** 6 - 3 * u ** 5 + 2.5 * u ** 4
+    return u**6 - 3*u**5 + 2.5*u**4
 
 
 def idle_travel_time(seconds, duration, ramp):
-    """C2 start/stop, constant angular speed through the central eight seconds."""
     t = max(0.0, min(duration, seconds))
-    if not 0 < ramp <= duration / 2:
-        raise ValueError("Idle ramp must fit into half the duration")
     if t < ramp:
-        return ramp * speed_integral(t / ramp)
-    if t > duration - ramp:
-        return duration - ramp - ramp * speed_integral((duration - t) / ramp)
-    return t - ramp / 2
+        return ramp * speed_integral(t/ramp)
+    if t > duration-ramp:
+        return duration-ramp-ramp*speed_integral((duration-t)/ramp)
+    return t-ramp/2
 
 
 def smootherstep(u):
     u = max(0.0, min(1.0, u))
-    return u ** 3 * (10 + u * (-15 + 6 * u))
+    return u**3 * (10+u*(-15+6*u))
 
 
-def orientation_at(seconds, ring, parameters):
-    motion = parameters["motion"]
-    duration = motion["idle_seconds"]
-    axis = Vector(ring["rotation_axis_world"]).normalized()
-    initial = Euler(tuple(math.radians(v) for v in ring["initial_xyz_degrees"]), "XYZ").to_quaternion()
-    travel = idle_travel_time(seconds, duration, motion["idle_speed_ramp_seconds"])
-    angle = math.radians(ring["phase_degrees"] + ring["degrees_per_second"] * travel)
-    start = (Quaternion(axis, angle) @ initial).normalized()
-    if seconds <= duration:
-        return start
-    target = Quaternion(motion["alignment_target_quaternion_wxyz"]).normalized()
-    if start.dot(target) < 0:
-        target.negate()
-    u = (seconds - duration) / motion["alignment_seconds"]
-    return start.slerp(target, smootherstep(u)).normalized()
+def angle_at(seconds, ring, p):
+    m = p["motion"]
+    travel = idle_travel_time(seconds, m["idle_seconds"], m["idle_speed_ramp_seconds"])
+    angle = ring["idle_amplitude_degrees"] * math.sin(
+        math.radians(ring["idle_phase_degrees"]) + 2*math.pi*ring["idle_frequency_hz"]*travel)
+    if seconds > m["idle_seconds"]:
+        angle *= 1-smootherstep((seconds-m["idle_seconds"])/m["alignment_seconds"])
+    return angle
 
 
-def last_frame(parameters):
-    motion = parameters["motion"]
-    return 1 + round((motion["idle_seconds"] + motion["alignment_seconds"]) * motion["fps"])
+def orientation_at(seconds, ring, p):
+    return Quaternion(ring["axis_local"], math.radians(angle_at(seconds, ring, p)))
+
+
+def last_frame(p):
+    return 1+round((p["motion"]["idle_seconds"]+p["motion"]["alignment_seconds"])*p["motion"]["fps"])
 
 
 def action_fcurves(obj):
-    """Blender 5.2 layered Actions; no deprecated Action.fcurves access."""
-    action = obj.animation_data.action
-    for layer in action.layers:
+    for layer in obj.animation_data.action.layers:
         for strip in layer.strips:
             bag = strip.channelbag(obj.animation_data.action_slot)
             if bag:

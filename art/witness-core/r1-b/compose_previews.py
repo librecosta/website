@@ -6,14 +6,14 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent / "previews"
 SHOTS = [
-    ("FRONT / f001", "front-orthographic.png"),
+    ("R1-B2 / STATIC THREE QUARTER", "three-quarter.png"),
+    ("ALIGNED FRONT / f481", "front-orthographic.png"),
+    ("NESTED / OBLIQUE SIDE", "oblique-side.png"),
+    ("JOINTS / A+2 B+28 C-22", "pose-moderate.png"),
     ("SIDE / f001", "side-orthographic.png"),
     ("TOP / f001", "top-orthographic.png"),
-    ("ALIGNED FRONT / f481", "aligned-front-orthographic.png"),
-    ("THREE QUARTER / f001", "three-quarter.png"),
     ("IDLE / f121", "pose-idle-mid.png"),
-    ("ALIGNMENT / f361", "pose-alignment-mid.png"),
-    ("ALIGNED / f481", "alignment-end.png"),
+    ("ALIGNED THREE QUARTER / f481", "alignment-end.png"),
 ]
 
 

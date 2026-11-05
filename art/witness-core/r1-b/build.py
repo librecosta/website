@@ -98,7 +98,7 @@ def build(parameters):
             data_collection.remove(block)
     bpy.data.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
     scene = bpy.context.scene
-    scene.name = "Witness Core - R1-B"
+    scene.name = "Witness Core - R1-B2"
     model = bpy.data.collections.new("WitnessCore")
     rig = bpy.data.collections.new("PreviewRig")
     scene.collection.children.link(model)
@@ -110,10 +110,13 @@ def build(parameters):
     white = simple_material("White core study", parameters["preview"]["white"])
     for ring in parameters["rings"]:
         pivot = add_object(ring["pivot"], None, model)
-        pivot.parent = root
+        pivot.parent = bpy.data.objects[ring["parent"]]
         pivot.empty_display_type = "PLAIN_AXES"
         pivot.empty_display_size = 0.12
         pivot.rotation_mode = "QUATERNION"
+        pivot["axis_local"] = ring["axis_local"]
+        pivot["limits_degrees"] = ring["limits_degrees"]
+        pivot["axis_definition"] = ring["axis_definition"]
         obj = add_object(ring["name"], closed_ring_mesh(ring["name"], ring["S"], ring["W"], ring["D"]), model)
         obj.parent = pivot
         obj.data.materials.append(gray)
@@ -126,7 +129,7 @@ def build(parameters):
             if previous is not None and q.dot(previous) < 0:
                 q.negate()
             pivot.rotation_quaternion = q
-            pivot.keyframe_insert("rotation_quaternion", frame=frame, group="Independent quaternion rotation")
+            pivot.keyframe_insert("rotation_quaternion", frame=frame, group="Single local hinge axis")
             previous = q.copy()
         pivot.animation_data.action.name = ring["name"] + " - Idle then precision alignment"
         for curve in action_fcurves(pivot):
@@ -147,6 +150,7 @@ def build(parameters):
     camera("FrontOrthographic", (0, -12, 0), preview["orthographic_scale"], rig)
     camera("SideOrthographic", (12, 0, 0), preview["orthographic_scale"], rig)
     camera("TopOrthographic", (0, 0, 12), preview["orthographic_scale"], rig)
+    camera("ObliqueSide", preview["camera_oblique_side"], preview["camera_ortho_scale"], rig)
     scene.render.engine = preview["engine"]
     scene.render.resolution_x = preview["still_size"]
     scene.render.resolution_y = preview["still_size"]
@@ -180,7 +184,7 @@ def build(parameters):
     for frame, name in [(1, "IDLE / START"), (idle_end, "ALIGNMENT / START"), (last_frame(parameters), "ALIGNED")]:
         scene.timeline_markers.new(name, frame=frame)
     scene["parameters_sha256"] = parameter_hash(parameters)
-    scene["motion_note"] = f"1-{idle_end}: independent idle; {idle_end}-{last_frame(parameters)}: quaternion alignment. Core stable. No handlers/physics."
+    scene["motion_note"] = f"R1-B2: A(Y) -> B(X) -> C(Z), SERIAL local one-axis joints. 1-{idle_end}: bounded idle; {idle_end}-{last_frame(parameters)}: scalar joint alignment. Core stable. No handlers/physics."
     scene.unit_settings.system = "NONE"
     scene.unit_settings.scale_length = 1
     scene.frame_set(1)
@@ -195,8 +199,8 @@ def build(parameters):
                 area.spaces.active.region_3d.view_location = (0, 0, 0)
                 area.spaces.active.region_3d.view_perspective = "ORTHO"
                 area.spaces.active.shading.color_type = "MATERIAL"
-    source_text = bpy.data.texts.new("R1-B - README")
-    source_text.write("Generated from parameters.json + build.py. Four closed meshes, three independent quaternion pivots.\n" + scene["motion_note"] + "\nNo auto-run scripts required.\n")
+    source_text = bpy.data.texts.new("R1-B2 - README")
+    source_text.write("Generated from parameters.json + build.py. Four closed meshes, serial single-axis quaternion joints.\n" + scene["motion_note"] + "\nA +/-6, B +/-40, C +/-30 degrees; no free rotation.\nNo auto-run scripts required.\n")
     bpy.ops.wm.save_as_mainfile(filepath=str(ROOT / "witness-core.blend"), compress=True)
 
 

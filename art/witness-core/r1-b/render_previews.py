@@ -3,12 +3,14 @@
 import argparse
 import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 
 sys.dont_write_bytecode = True
 
 import bpy
+from mathutils import Quaternion
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -50,13 +52,13 @@ def render_previews(parameters, videos=True):
     end = last_frame(parameters)
     idle_end = 1 + round(parameters["motion"]["idle_seconds"] * parameters["motion"]["fps"])
     shots = [
-        ("front-orthographic", "FrontOrthographic", 1),
+        ("three-quarter", "ThreeQuarter", 1),
+        ("front-orthographic", "FrontOrthographic", end),
+        ("oblique-side", "ObliqueSide", 1),
+        ("pose-moderate", "ThreeQuarter", None),
         ("side-orthographic", "SideOrthographic", 1),
         ("top-orthographic", "TopOrthographic", 1),
-        ("aligned-front-orthographic", "FrontOrthographic", end),
-        ("three-quarter", "ThreeQuarter", 1),
         ("pose-idle-mid", "ThreeQuarter", 1 + (idle_end - 1) // 2),
-        ("pose-alignment-mid", "ThreeQuarter", idle_end + (end - idle_end) // 2),
         ("alignment-end", "ThreeQuarter", end),
     ]
     manifest = {"engine": scene.render.engine, "blender_version": bpy.app.version_string,
@@ -66,10 +68,22 @@ def render_previews(parameters, videos=True):
                 "stills": [], "videos": []}
     for name, camera, frame in shots:
         scene.camera = bpy.data.objects[camera]
-        scene.frame_set(frame)
+        scene.frame_set(frame if frame is not None else 1)
+        overrides = []
+        if frame is None:
+            for r, angle in zip(parameters["rings"], parameters["preview"]["moderate_joint_degrees"]):
+                pivot = bpy.data.objects[r["pivot"]]
+                overrides.append((pivot, pivot.animation_data.action, pivot.animation_data.action_slot))
+                pivot.animation_data.action = None
+                pivot.rotation_quaternion = Quaternion(r["axis_local"], math.radians(angle))
+            bpy.context.view_layer.update()
         scene.render.filepath = str(output / (name + ".png"))
         bpy.ops.render.render(write_still=True)
+        for pivot, action, slot in overrides:
+            pivot.animation_data.action = action
+            pivot.animation_data.action_slot = slot
         manifest["stills"].append({"file": name + ".png", "camera": camera, "frame": frame,
+                                    "joint_degrees_override": parameters["preview"]["moderate_joint_degrees"] if frame is None else None,
                                     "size": [scene.render.resolution_x, scene.render.resolution_y]})
     if videos:
         scene.camera = bpy.data.objects["ThreeQuarter"]
@@ -105,7 +119,7 @@ def render_previews(parameters, videos=True):
                                        "seconds": (stop - start + 1) / scene.render.fps})
             bpy.data.movieclips.remove(clip)
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    print("R1-B PREVIEWS COMPLETE", flush=True)
+    print("R1-B2 PREVIEWS COMPLETE", flush=True)
 
 
 if __name__ == "__main__":

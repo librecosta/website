@@ -1,140 +1,239 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "revision": "R1-B2",
   "blender_version": "5.2.3 LTS",
   "source_file": "witness-core.blend",
-  "source_sha256": "ed23afee2fb40cd12c4071104c72d71593310ca6d1b82aa62b28bc4dc59c2c8e",
+  "source_sha256": "426d9d71d7c2ec59e6f1c543b43adaa99b543ca81eb0d660e1693d029faacc52",
   "independent_source_reopen": true,
-  "parameters_sha256": "f5fb36730d82e95e97809b467329a190df3e628a622f0bae6d50d2afa5d6657d",
+  "parameters_sha256": "2d95096858242cb8d8ba0175df4933e178d4c6d30795ab121167466e921dceb9",
   "scene_parameter_hash_matches": true,
-  "units": "Blender units; unit scale 1, physical world scale not frozen",
-  "numeric_tolerance": 1e-06,
-  "guarantee": {
-    "method": "origin-centered radial shell separation, all orientations",
-    "ring_r_min_formula": "S/2 - W",
-    "ring_R_max_formula": "sqrt(2*(S/2)^2 + (D/2)^2)",
-    "cube_R_max_formula": "sqrt(3)*side/2",
-    "domain": "Common fixed center; rigid rotations; no translation, scale, deformation or later mesh edits. Beveled actual mesh must stay within nominal radial envelopes.",
-    "proof": "For any outer material point x and inner point y, ||x-y|| >= ||x||-||y|| >= r_min(outer)-R_max(inner). Rigid rotation preserves each radius; therefore the bound holds for every relative orientation, not only sampled times.",
-    "nominal_bounds": {
-      "OuterRing": {
-        "r_min": 1.95,
-        "R_max": 3.398621043894126
-      },
-      "MiddleRing": {
-        "r_min": 0.95,
-        "R_max": 1.7721808598447282
-      },
-      "InnerRing": {
-        "r_min": 0.4149999999999999,
-        "R_max": 0.8161801271778184
-      },
-      "Core": {
-        "r_min": 0.0,
-        "R_max": 0.32908965343808666
-      }
+  "numeric_tolerance": 2e-06,
+  "units": "Blender units; unit scale 1; physical size remains undecided",
+  "failures": [],
+  "bounded_domain_certificate": {
+    "method": "Serial Y->X->Z joint-box projection into verified empty square prisms",
+    "joint_limits_degrees": {
+      "RingA": [
+        -6,
+        6
+      ],
+      "RingB": [
+        -40,
+        40
+      ],
+      "RingC": [
+        -30,
+        30
+      ]
     },
-    "all_pair_constraints": [
+    "domain": "Rigid meshes; zero offsets; unit scales; A(Y) -> B(X) -> C(Z) local single-axis serial hierarchy; stable Core",
+    "empty_prism_formula": "h = S/2-W-bevel_width",
+    "projection_formula": "P(a,d,L) = max[a*abs(cos(t))+d*abs(sin(t))], t in [-L,L]; includes atan(d/a) extrema",
+    "proof": "Actual outer material is outside |x|<h AND |z|<h. Every point of an inner solid has |x|,|z|<=E in outer coordinates. Any outer material point has at least one coordinate with absolute value >=h; Euclidean pair distance >=h-E. Relative transforms follow the serial hierarchy. Actual inward bevel envelopes and empty prisms are independently verified.",
+    "all_pairs": [
       {
-        "outer": "OuterRing",
-        "inner": "MiddleRing",
-        "outer_r_min": 1.95,
-        "inner_R_max": 1.7721808598447282,
-        "conservative_gap": 0.17781914015527178,
-        "required_clearance": 0.05,
-        "pass": true
-      },
-      {
-        "outer": "OuterRing",
-        "inner": "InnerRing",
-        "outer_r_min": 1.95,
-        "inner_R_max": 0.8161801271778184,
-        "conservative_gap": 1.1338198728221816,
-        "required_clearance": 0.05,
-        "pass": true
-      },
-      {
-        "outer": "OuterRing",
+        "outer": "RingA",
         "inner": "Core",
-        "outer_r_min": 1.95,
-        "inner_R_max": 0.32908965343808666,
-        "conservative_gap": 1.6209103465619132,
+        "empty_prism_half_width": 0.5579999999999999,
+        "inner_projection_bound": 0.32971510759077804,
+        "method": "Ry(-a): cube projection h*(|cos(a)|+|sin(a)|)",
+        "conservative_gap": 0.2282848924092219,
+        "after_numeric_allowance": 0.2282808924092219,
         "required_clearance": 0.05,
         "pass": true
       },
       {
-        "outer": "MiddleRing",
-        "inner": "InnerRing",
-        "outer_r_min": 0.95,
-        "inner_R_max": 0.8161801271778184,
-        "conservative_gap": 0.13381987282218155,
+        "outer": "RingB",
+        "inner": "RingA",
+        "empty_prism_half_width": 1.063,
+        "inner_projection_bound": 0.9968951800465282,
+        "method": "Rx(-b): max(A, A*|cos(b)|+dyA*|sin(b)|)",
+        "conservative_gap": 0.06610481995347173,
+        "after_numeric_allowance": 0.06610081995347172,
         "required_clearance": 0.05,
         "pass": true
       },
       {
-        "outer": "MiddleRing",
+        "outer": "RingC",
+        "inner": "RingB",
+        "empty_prism_half_width": 1.668,
+        "inner_projection_bound": 1.5996952834837015,
+        "method": "Rz(-c): max(B, B*|cos(c)|+dyB*|sin(c)|)",
+        "conservative_gap": 0.06830471651629844,
+        "after_numeric_allowance": 0.06830071651629843,
+        "required_clearance": 0.05,
+        "pass": true
+      },
+      {
+        "outer": "RingC",
+        "inner": "RingA",
+        "empty_prism_half_width": 1.668,
+        "inner_projection_bound": 1.3967519906979715,
+        "method": "Rz(-c)Rx(-b): E_x <= A + sin(cmax)*(dyA+sin(bmax)*A); E_z <= projection(A,dyA,b)",
+        "conservative_gap": 0.2712480093020284,
+        "after_numeric_allowance": 0.2712440093020284,
+        "required_clearance": 0.05,
+        "pass": true
+      },
+      {
+        "outer": "RingB",
         "inner": "Core",
-        "outer_r_min": 0.95,
-        "inner_R_max": 0.32908965343808666,
-        "conservative_gap": 0.6209103465619132,
+        "empty_prism_half_width": 1.063,
+        "inner_projection_bound": 0.5196152422706631,
+        "method": "Stable cube outer sphere (nonadjacent pair only)",
+        "conservative_gap": 0.5433847577293368,
+        "after_numeric_allowance": 0.5433807577293368,
         "required_clearance": 0.05,
         "pass": true
       },
       {
-        "outer": "InnerRing",
+        "outer": "RingC",
         "inner": "Core",
-        "outer_r_min": 0.4149999999999999,
-        "inner_R_max": 0.32908965343808666,
-        "conservative_gap": 0.08591034656191326,
+        "empty_prism_half_width": 1.668,
+        "inner_projection_bound": 0.5196152422706631,
+        "method": "Stable cube outer sphere (nonadjacent pair only)",
+        "conservative_gap": 1.1483847577293367,
+        "after_numeric_allowance": 1.1483807577293368,
         "required_clearance": 0.05,
         "pass": true
       }
     ],
-    "conservative_minimum_gap": 0.08591034656191326,
-    "minimum_gap_after_numeric_allowance": 0.08590834656191326,
+    "minimum_gap_after_numeric_allowance": 0.06610081995347172,
     "clearance": 0.05,
-    "actual_mesh_envelopes_confirmed": true,
-    "rigid_common_center_domain_confirmed": true,
-    "all_angle_pass": true
+    "arbitrary_independent_rotations_verified": false,
+    "actual_mesh_envelopes_and_prisms_verified": true,
+    "pass": true
   },
   "sensor_controls": {
-    "crossing_boxes_detected": true,
-    "contained_box_has_no_surface_overlap": true,
-    "contained_box_detected_by_solid_angle": true,
-    "separate_boxes_not_flagged": true,
-    "unsafe_parameter_negative_control_rejected": true
+    "crossing_detected": true,
+    "containment_not_detected_by_surface_BVH": true,
+    "containment_detected_by_winding": true,
+    "separate_not_flagged": true,
+    "unsafe_tight_nesting_rejected": true,
+    "prism_triangle_inside_detected": true,
+    "prism_triangle_crossing_detected": true,
+    "prism_triangle_outside_rejected": true
   },
   "objects": {
-    "OuterRing": {
-      "geometry_sha256": "2eb6e0bd672498063847b584d463b42649afab106d11dcd14bb0784dfbb6a277",
+    "RingA": {
+      "geometry_sha256": "f00916760f8f0135d2ce958fd22758826675c9196fafcb64ae76555fe9d5450a",
       "vertices": 192,
       "triangles": 384,
       "faces": 200,
-      "edges": 392,
       "components": 1,
       "euler_characteristic": 0,
-      "expected_euler_characteristic": 0,
       "closed_consistently_oriented_manifold": true,
-      "positive_volume": 2.737921288834928,
+      "signed_volume": 1.1325343845751685,
+      "degenerate_faces": 0,
+      "nonadjacent_self_surface_crossings": 0,
+      "local_AABB_min": [
+        -0.9700000286102295,
+        -0.23000000417232513,
+        -0.9700000286102295
+      ],
+      "local_AABB_max": [
+        0.9700000286102295,
+        0.23000000417232513,
+        0.9700000286102295
+      ],
+      "local_dimensions_XYZ": [
+        1.940000057220459,
+        0.46000000834465027,
+        1.940000057220459
+      ],
+      "expected_dimensions_XYZ": [
+        1.94,
+        0.46,
+        1.94
+      ],
+      "local_AABB_center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "within_nominal_box": true,
+      "empty_prism_half_width": 0.5579999999999999,
+      "projected_triangles_inside_prism": 0,
+      "origin_outside_ring_material": true,
+      "empty_prism_verified": true,
+      "pass": true,
+      "parent": "RingAPivot",
+      "parent_correct": true
+    },
+    "RingB": {
+      "geometry_sha256": "f07e2d49159a291e5eab0a7d93ae3c75f35f9a49a6295b2f85a7f819703e0f08",
+      "vertices": 192,
+      "triangles": 384,
+      "faces": 200,
+      "components": 1,
+      "euler_characteristic": 0,
+      "closed_consistently_oriented_manifold": true,
+      "signed_volume": 2.9664363451431575,
+      "degenerate_faces": 0,
+      "nonadjacent_self_surface_crossings": 0,
+      "local_AABB_min": [
+        -1.5750000476837158,
+        -0.2800000011920929,
+        -1.5750000476837158
+      ],
+      "local_AABB_max": [
+        1.5750000476837158,
+        0.2800000011920929,
+        1.5750000476837158
+      ],
+      "local_dimensions_XYZ": [
+        3.1500000953674316,
+        0.5600000023841858,
+        3.1500000953674316
+      ],
+      "expected_dimensions_XYZ": [
+        3.15,
+        0.56,
+        3.15
+      ],
+      "local_AABB_center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "within_nominal_box": true,
+      "empty_prism_half_width": 1.063,
+      "projected_triangles_inside_prism": 0,
+      "origin_outside_ring_material": true,
+      "empty_prism_verified": true,
+      "pass": true,
+      "parent": "RingBPivot",
+      "parent_correct": true
+    },
+    "RingC": {
+      "geometry_sha256": "17021964900b53e81a318bb9d42b5c05e234b4050619a01a6b2cb57baa29c838",
+      "vertices": 192,
+      "triangles": 384,
+      "faces": 200,
+      "components": 1,
+      "euler_characteristic": 0,
+      "closed_consistently_oriented_manifold": true,
+      "signed_volume": 8.45788080370222,
       "degenerate_faces": 0,
       "nonadjacent_self_surface_crossings": 0,
       "local_AABB_min": [
         -2.4000000953674316,
-        -0.17499999701976776,
+        -0.36000001430511475,
         -2.4000000953674316
       ],
       "local_AABB_max": [
         2.4000000953674316,
-        0.17499999701976776,
+        0.36000001430511475,
         2.4000000953674316
       ],
       "local_dimensions_XYZ": [
         4.800000190734863,
-        0.3499999940395355,
+        0.7200000286102295,
         4.800000190734863
       ],
       "expected_dimensions_XYZ": [
         4.8,
-        0.35,
+        0.72,
         4.8
       ],
       "local_AABB_center": [
@@ -142,241 +241,232 @@
         0.0,
         0.0
       ],
-      "actual_min_surface_radius": 1.9500000635782868,
-      "actual_max_vertex_radius": 3.392650243588868,
-      "within_nominal_radial_envelope": true,
+      "within_nominal_box": true,
+      "empty_prism_half_width": 1.668,
+      "projected_triangles_inside_prism": 0,
+      "origin_outside_ring_material": true,
+      "empty_prism_verified": true,
       "pass": true,
-      "parent": "OuterRingPivot",
-      "parent_correct": true
-    },
-    "MiddleRing": {
-      "geometry_sha256": "c5659e6883f1ee321812978f4307c426511b9fdc64cf3d32e013f45aa7d0923a",
-      "vertices": 192,
-      "triangles": 384,
-      "faces": 200,
-      "edges": 392,
-      "components": 1,
-      "euler_characteristic": 0,
-      "expected_euler_characteristic": 0,
-      "closed_consistently_oriented_manifold": true,
-      "positive_volume": 0.658697286885932,
-      "degenerate_faces": 0,
-      "nonadjacent_self_surface_crossings": 0,
-      "local_AABB_min": [
-        -1.25,
-        -0.125,
-        -1.25
-      ],
-      "local_AABB_max": [
-        1.25,
-        0.125,
-        1.25
-      ],
-      "local_dimensions_XYZ": [
-        2.5,
-        0.25,
-        2.5
-      ],
-      "expected_dimensions_XYZ": [
-        2.5,
-        0.25,
-        2.5
-      ],
-      "local_AABB_center": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "actual_min_surface_radius": 0.949999986196819,
-      "actual_max_vertex_radius": 1.7660067372962251,
-      "within_nominal_radial_envelope": true,
-      "pass": true,
-      "parent": "MiddleRingPivot",
-      "parent_correct": true
-    },
-    "InnerRing": {
-      "geometry_sha256": "e734105843251949e7071959ec5e0d10813045697cb197cc1444d943284def13",
-      "vertices": 192,
-      "triangles": 384,
-      "faces": 200,
-      "edges": 392,
-      "components": 1,
-      "euler_characteristic": 0,
-      "expected_euler_characteristic": 0,
-      "closed_consistently_oriented_manifold": true,
-      "positive_volume": 0.08811793999631787,
-      "degenerate_faces": 0,
-      "nonadjacent_self_surface_crossings": 0,
-      "local_AABB_min": [
-        -0.574999988079071,
-        -0.07000000029802322,
-        -0.574999988079071
-      ],
-      "local_AABB_max": [
-        0.574999988079071,
-        0.07000000029802322,
-        0.574999988079071
-      ],
-      "local_dimensions_XYZ": [
-        1.149999976158142,
-        0.14000000059604645,
-        1.149999976158142
-      ],
-      "expected_dimensions_XYZ": [
-        1.15,
-        0.14,
-        1.15
-      ],
-      "local_AABB_center": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "actual_min_surface_radius": 0.41499999816159167,
-      "actual_max_vertex_radius": 0.8098764627260916,
-      "within_nominal_radial_envelope": true,
-      "pass": true,
-      "parent": "InnerRingPivot",
+      "parent": "RingCPivot",
       "parent_correct": true
     },
     "Core": {
-      "geometry_sha256": "f6653158c2c500de5554ab9d408b0e7344c67ff7aa73aa8ceb8896b0888a3ded",
+      "geometry_sha256": "f8bd3497e7da095e0429fd18cf176fd02fc5e0f81d138ea3a651cec9a9735f3c",
       "vertices": 96,
       "triangles": 188,
       "faces": 98,
-      "edges": 192,
       "components": 1,
       "euler_characteristic": 2,
-      "expected_euler_characteristic": 2,
       "closed_consistently_oriented_manifold": true,
-      "positive_volume": 0.05483132574232118,
+      "signed_volume": 0.21593559233758705,
       "degenerate_faces": 0,
       "nonadjacent_self_surface_crossings": 0,
       "local_AABB_min": [
-        -0.1899999976158142,
-        -0.1899999976158142,
-        -0.1899999976158142
+        -0.30000001192092896,
+        -0.30000001192092896,
+        -0.30000001192092896
       ],
       "local_AABB_max": [
-        0.1899999976158142,
-        0.1899999976158142,
-        0.1899999976158142
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
       ],
       "local_dimensions_XYZ": [
-        0.3799999952316284,
-        0.3799999952316284,
-        0.3799999952316284
+        0.6000000238418579,
+        0.6000000238418579,
+        0.6000000238418579
       ],
       "expected_dimensions_XYZ": [
-        0.38,
-        0.38,
-        0.38
+        0.6,
+        0.6,
+        0.6
       ],
       "local_AABB_center": [
         0.0,
         0.0,
         0.0
       ],
-      "actual_min_surface_radius": 0.1900000003764504,
-      "actual_max_vertex_radius": 0.3245647319387865,
-      "within_nominal_radial_envelope": true,
+      "within_nominal_box": true,
+      "empty_prism_half_width": null,
+      "projected_triangles_inside_prism": 0,
+      "origin_outside_ring_material": null,
+      "empty_prism_verified": true,
       "pass": true,
       "parent": "WitnessCore",
       "parent_correct": true
     }
   },
-  "failures": [],
-  "timeline": {
-    "fps": 24,
-    "fps_base": 1.0,
-    "start": 1,
-    "end": 481
-  },
-  "source_editability": {
-    "local_editable_meshes": true,
-    "external_libraries": [],
-    "embedded_auto_run_scripts_required": false
-  },
   "hierarchy": {
-    "correct_pivots": true,
-    "three_independent_actions": true,
-    "rotation_only_curves": true,
-    "root_and_meshes_unanimated": true,
-    "no_constraints_or_drivers_on_pivots": true,
-    "static_zero_offsets_unit_scales_identity_parent_inverses": true,
-    "no_deformation_animation_or_hidden_model_meshes": true,
+    "serial_parents_correct": true,
+    "three_distinct_actions": true,
+    "single_axis_keys_and_bounded_linear_segments": true,
+    "axis_quaternion_error": {
+      "RingA": 0.0,
+      "RingB": 0.0,
+      "RingC": 0.0
+    },
+    "baked_angle_ranges_degrees": {
+      "RingA": [
+        0.0,
+        3.999990853906647
+      ],
+      "RingB": [
+        0.0,
+        27.99990953945697
+      ],
+      "RingC": [
+        -21.999861201448912,
+        13.96407586852727
+      ]
+    },
+    "zero_offsets_unit_scale": true,
+    "inert_root_and_mesh_transforms": true,
+    "static_visible_meshes": true,
+    "self_contained_editable_meshes": true,
     "model_mesh_count": 4
   },
-  "animation_keys_sha256": "89d65ce151ca4160742005e730f4b21fcee85ecc5b48f9ff35a877fa826c4bbe",
+  "timeline": {
+    "start": 1,
+    "end": 481,
+    "fps": 24,
+    "pass": true
+  },
+  "animation_keys_sha256": "47ca9e01774c40349ae76869fb6a295fce957bfc15f90855d13d7569ae0b977b",
   "sampled_mesh_checks": {
-    "method": "World-transformed actual triangles: BVH surface intersections plus signed-solid-angle winding tests for containment; actual surface/vertex radial gap is a lower bound, NOT exact inter-surface distance.",
-    "frame_range": [
-      1,
-      481
+    "method": "Evaluated world-transformed triangles; BVH intersections plus winding containment; transformed vertices give square-prism gap LOWER BOUNDS, not exact closest-surface distances",
+    "timeline_sample_poses": 961,
+    "timeline_step_frames": 0.5,
+    "joint_grid_degrees_A_B_C": [
+      [
+        -6,
+        -3,
+        0,
+        3,
+        6
+      ],
+      [
+        -40,
+        -35,
+        -30,
+        -25,
+        -20,
+        -15,
+        -10,
+        -5,
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40
+      ],
+      [
+        -30,
+        -25,
+        -20,
+        -15,
+        -10,
+        -5,
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30
+      ]
     ],
-    "step_frames": 0.5,
-    "sampled_poses": 961,
-    "tested_pairs_per_pose": 6,
+    "joint_grid_poses": 1105,
+    "additional_preview_pose_checks": 1,
     "pair_results": {
-      "OuterRing / MiddleRing": {
-        "samples": 961,
+      "RingA / Core": {
+        "samples": 2067,
         "surface_overlap_samples": 0,
         "containment_samples": 0,
-        "minimum_actual_mesh_radial_lower_bound": 0.18399261265441313,
-        "minimum_bound_frame": 272.0
+        "minimum_sampled_prism_gap_lower_bound": 0.22890799755668634,
+        "minimum_bound_pose": {
+          "joint_degrees_A_B_C": [
+            -6,
+            -40,
+            -30
+          ]
+        }
       },
-      "OuterRing / InnerRing": {
-        "samples": 961,
+      "RingB / RingA": {
+        "samples": 2067,
         "surface_overlap_samples": 0,
         "containment_samples": 0,
-        "minimum_actual_mesh_radial_lower_bound": 1.1401230496022037,
-        "minimum_bound_frame": 181.0
+        "minimum_sampled_prism_gap_lower_bound": 0.06880107516860956,
+        "minimum_bound_pose": {
+          "frame": 352.5
+        }
       },
-      "OuterRing / Core": {
-        "samples": 961,
+      "RingC / RingB": {
+        "samples": 2067,
         "surface_overlap_samples": 0,
         "containment_samples": 0,
-        "minimum_actual_mesh_radial_lower_bound": 1.6254349438272022,
-        "minimum_bound_frame": 303.0
+        "minimum_sampled_prism_gap_lower_bound": 0.07035751218414299,
+        "minimum_bound_pose": {
+          "frame": 11.5
+        }
       },
-      "MiddleRing / InnerRing": {
-        "samples": 961,
+      "RingC / RingA": {
+        "samples": 2067,
         "surface_overlap_samples": 0,
         "containment_samples": 0,
-        "minimum_actual_mesh_radial_lower_bound": 0.1401231365707284,
-        "minimum_bound_frame": 174.5
+        "minimum_sampled_prism_gap_lower_bound": 0.4352517830810546,
+        "minimum_bound_pose": {
+          "joint_degrees_A_B_C": [
+            -6,
+            -40,
+            30
+          ]
+        }
       },
-      "MiddleRing / Core": {
-        "samples": 961,
+      "RingB / Core": {
+        "samples": 2067,
         "surface_overlap_samples": 0,
         "containment_samples": 0,
-        "minimum_actual_mesh_radial_lower_bound": 0.6254351017233108,
-        "minimum_bound_frame": 231.5
+        "minimum_sampled_prism_gap_lower_bound": 0.6206052898845672,
+        "minimum_bound_pose": {
+          "joint_degrees_A_B_C": [
+            -6,
+            -40,
+            -30
+          ]
+        }
       },
-      "InnerRing / Core": {
-        "samples": 961,
+      "RingC / Core": {
+        "samples": 2067,
         "surface_overlap_samples": 0,
         "containment_samples": 0,
-        "minimum_actual_mesh_radial_lower_bound": 0.09043516972430993,
-        "minimum_bound_frame": 275.5
+        "minimum_sampled_prism_gap_lower_bound": 1.1855272459468842,
+        "minimum_bound_pose": {
+          "joint_degrees_A_B_C": [
+            -6,
+            -40,
+            -30
+          ]
+        }
       }
     },
-    "max_common_center_error": 0.0,
-    "max_rigid_matrix_error": 1.1920928955078125e-06,
+    "max_center_error": 0.0,
+    "max_rigid_matrix_error": 2.384185791015625e-07,
+    "max_baked_vs_analytic_world_degrees": 0.003514812626098784,
     "max_core_matrix_change": 0.0,
-    "max_baked_vs_analytic_degrees": 0.006913134012424908,
-    "reverse_rechecked_poses": 61,
+    "reverse_poses": 61,
     "max_reverse_matrix_error": 0.0,
-    "alignment_end_errors_degrees": [
-      0.0,
-      0.0,
-      0.0
-    ],
+    "alignment_identity_error": 0.0,
     "pass": true
   },
   "unverified": [
-    "Nonrigid edits, translated/scaled pivots, changed mesh/parameters without rebuilding, or different future asset versions.",
-    "BVH samples alone do not certify continuous-time safety; the separately stated radial bound does under its domain."
+    "Angles outside A +/-6, B +/-40, C +/-30 degrees; arbitrary independent rotation.",
+    "Changed axes, hierarchy, translation, scale, deformation, mesh or parameters without rebuilding.",
+    "Minimum reported gaps are conservative certified lower bounds, NOT exact closest-distance measurements.",
+    "BVH/winding samples are finite. Continuous bounded-domain safety comes from the separate projection certificate."
   ],
   "pass": true
 }
