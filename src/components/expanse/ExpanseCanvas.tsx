@@ -7,15 +7,14 @@ import {
   MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, WebGLRenderer,
 } from 'three';
 import { EXPANSE, type JourneySignal } from './parameters';
-import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
+import { buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
 import styles from './expanse.module.css';
 
 type Props = { signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
   onReady: () => void; onContextLost: () => void };
 
-function wedgeGeometry() {
+function solidGeometry(data: ReturnType<typeof buildWedgeData>) {
   const g = new BufferGeometry();
-  const data = buildWedgeData();
   g.setAttribute('position', new BufferAttribute(data.positions, 3));
   g.setIndex(new BufferAttribute(data.indices, 1));
   g.computeVertexNormals();
@@ -36,16 +35,18 @@ function Instances({ items, geometry, material }: { items: Monument[]; geometry:
     object.computeBoundingBox(); object.computeBoundingSphere(); invalidate();
     return () => object.dispose();
   }, [items, geometry, material, invalidate]);
-  // Isolated convex solids cast onto terrain. Receiving large-world shadow maps
-  // caused coplanar acne on grazing faces; inter-solid shadowing is deferred.
-  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow dispose={null} />;
+  // The concave hero receives its own shadow inside the actual groove. Convex
+  // blocks retain the existing shadow policy to avoid grazing-face map acne.
+  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow
+    receiveShadow={items[0]?.kind === 'slotted'} dispose={null} />;
 }
 
 function World({ mobile }: { mobile: boolean }) {
   const { invalidate, gl } = useThree();
   const batches = useMemo(() => {
     const all = buildMonuments(EXPANSE);
-    return { box: all.filter(x => x.kind === 'box'), wedge: all.filter(x => x.kind === 'wedge') };
+    return { box: all.filter(x => x.kind === 'box'), wedge: all.filter(x => x.kind === 'wedge'),
+      slotted: all.filter(x => x.kind === 'slotted') };
   }, []);
   const resources = useMemo(() => {
     const data = buildTerrainData(EXPANSE, EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop']);
@@ -53,7 +54,8 @@ function World({ mobile }: { mobile: boolean }) {
     terrain.setAttribute('position', new BufferAttribute(data.positions, 3));
     terrain.setIndex(new BufferAttribute(data.indices, 1)); terrain.computeVertexNormals(); terrain.computeBoundingSphere();
     return {
-      terrain, box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? wedgeGeometry() : null,
+      terrain, box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? solidGeometry(buildWedgeData()) : null,
+      slotted: solidGeometry(buildSlottedMonolithData(EXPANSE.hero.groove)),
       ground: new MeshStandardMaterial({ color: EXPANSE.atmosphere.terrainColor, roughness: 1, metalness: 0 }),
       stone: new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true }),
       fingerprint: fingerprint(data.positions),
@@ -62,17 +64,18 @@ function World({ mobile }: { mobile: boolean }) {
   useLayoutEffect(() => {
     gl.domElement.dataset.terrain = resources.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
-    gl.domElement.dataset.instances = String(batches.box.length + batches.wedge.length);
+    gl.domElement.dataset.instances = String(batches.box.length + batches.wedge.length + batches.slotted.length);
     gl.shadowMap.needsUpdate = true; invalidate();
   }, [resources, gl, invalidate, mobile, batches]);
   useEffect(() => () => {
-    resources.terrain.dispose(); resources.box.dispose(); resources.wedge?.dispose();
+    resources.terrain.dispose(); resources.box.dispose(); resources.wedge?.dispose(); resources.slotted.dispose();
     resources.ground.dispose(); resources.stone.dispose();
   }, [resources]);
   return <group dispose={null}>
     <mesh geometry={resources.terrain} material={resources.ground} receiveShadow />
     <Instances items={batches.box} geometry={resources.box} material={resources.stone} />
     {resources.wedge && <Instances items={batches.wedge} geometry={resources.wedge} material={resources.stone} />}
+    <Instances items={batches.slotted} geometry={resources.slotted} material={resources.stone} />
   </group>;
 }
 
@@ -157,7 +160,7 @@ export default function ExpanseCanvas(props: Props) {
     <directionalLight position={[...a.sunPosition]} target={target} color={a.sunColor} intensity={a.sunIntensity}
       castShadow shadow-mapSize={[props.mobile ? 1024 : 2048, props.mobile ? 1024 : 2048]}
       shadow-bias={-.0006} shadow-normalBias={3}>
-      <orthographicCamera attach="shadow-camera" args={[-2700,2700,2700,-2700,50,10000]} />
+      <orthographicCamera attach="shadow-camera" args={[...a.shadowBounds]} />
     </directionalLight>
     <World mobile={props.mobile} />
     <Observation {...props} />

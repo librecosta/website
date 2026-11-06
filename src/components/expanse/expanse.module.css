@@ -15,7 +15,7 @@
 .stage { position: sticky; top: 0; margin: 0; height: 100dvh; overflow: hidden; touch-action: pan-y; }
 .canvas { position: absolute !important; inset: 0; opacity: 0; transition: opacity 600ms ease; pointer-events: none; touch-action: pan-y; }
 .journey[data-ready='true'] .canvas { opacity: 1; }
-.brand { position: absolute; z-index: 2; top: 25px; left: 30px; color: #252e26; text-decoration: none; font-size: 19px; font-weight: 500; letter-spacing: -.65px; }
+.brand { position: absolute; z-index: 2; top: 25px; left: 30px; color: #252e26; text-shadow: 0 1px 3px #dedfd9e6, 0 0 1px #dedfd9; text-decoration: none; font-size: 19px; font-weight: 500; letter-spacing: -.65px; }
 .brand:focus-visible, .debug button:focus-visible { outline: 2px solid #4d5c4f; outline-offset: 6px; }
 .hint { position: absolute; left: 50%; bottom: 35px; transform: translateX(-50%); margin: 0; color: #5d655aa8; font-size: 10px; letter-spacing: .12em; text-align: center; pointer-events: none; }
 .progress { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 30px; right: 30px; height: 1px; background: #40463f1a; pointer-events: none; }

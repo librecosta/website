@@ -1,7 +1,7 @@
 
 # LibreCosta Website
 
-LibreCosta 远岸开物官网。正式首页维持基础 HTML；独立实验页 `/lab/expanse` 以原生滚动穿过连续沙脊围合的浅谷，接近稀疏柱阵与远方主体。
+LibreCosta 远岸开物官网。正式首页维持基础 HTML；实验页 `/lab/expanse` 以原生滚动穿过浅谷遗构与错位列阵，在真实遮挡后重新揭示远方的静默巨柱。
 
 ## 本地开发
 
@@ -36,6 +36,6 @@ World First, Detail Later：先确认世界的几何、尺度、构图与光线�
 
 P1-A 将 81 个实验二进制（约 122.2 MB）用 `git rm --cached` 移出当前索引，所有本地源文件保留，未改写历史；这不会删除历史 Git 对象或立即缩小已有 `.git`。旧文档中的生成物以本地路径说明，重建步骤保留于各研究目录。
 
-生成工程、模型、纹理、视频及审查截图默认忽略；最新浏览器截图放 `.local/valley-refinement/`。网站 `public/` 的 PNG/WebP 等图片格式仍可提交。正式资产需先说明用途、来源和优化后大小，再在 `.gitignore` 写精确路径例外，审查暂存清单后提交，不用 `git add -f` 绕过约束。
+生成工程、模型、纹理、视频及审查截图默认忽略；最新浏览器截图放 `.local/p1-a4/`。网站 `public/` 的 PNG/WebP 等图片格式仍可提交。正式资产需先说明用途、来源和优化后大小，再在 `.gitignore` 写精确路径例外，审查暂存清单后提交，不用 `git add -f` 绕过约束。
 
 Official website: https://librecosta.com . Operated by Chengdu Yuanan Kaiwu Technology Co., Ltd.

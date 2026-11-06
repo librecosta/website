@@ -1,4 +1,4 @@
-import { Euler, Quaternion, Vector3 } from 'three';
+import { Euler, Quaternion, ShapeUtils, Vector2, Vector3 } from 'three';
 import type { Vec3, WorldParameters } from './parameters';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -96,23 +96,29 @@ export function buildTerrainData(world: WorldParameters, segments: readonly numb
 export type Monument = {
   id: string;
   family: string;
-  kind: 'box' | 'wedge';
+  kind: 'box' | 'wedge' | 'slotted';
   position: [number, number, number];
   scale: [number, number, number];
   quaternion: [number, number, number, number];
   burial: number;
 };
 
-export function localVertices(kind: Monument['kind']): Vector3[] {
-  if (kind === 'wedge') {
-    const data = buildWedgeData().positions;
+export function localVertices(kind: Monument['kind'], world: WorldParameters): Vector3[] {
+  if (kind !== 'box') {
+    const data = kind === 'wedge' ? buildWedgeData().positions : buildSlottedMonolithData(world.hero.groove).positions;
     return Array.from({ length: data.length / 3 }, (_, i) => new Vector3().fromArray(data, i * 3));
   }
   return [-.5,.5].flatMap(x => [-.5,.5].flatMap(y => [-.5,.5].map(z => new Vector3(x,y,z))));
 }
 
 export function buildMonuments(world: WorldParameters): Monument[] {
-  return world.structures.map(part => {
+  const field = world.alignment.map(part => ({
+    id: part.id, family: 'Mid Monoliths', kind: 'box' as const, scale: part.scale,
+    center: [part.ideal.center[0] + part.disturbed.offset[0], part.ideal.center[1] + part.disturbed.offset[1]],
+    orientation: [part.disturbed.orientation[0], part.ideal.yaw + part.disturbed.orientation[1], part.disturbed.orientation[2]],
+    burial: part.ideal.burial + part.disturbed.settlement,
+  }));
+  return [...world.remnants, ...field, world.hero].map(part => {
     const radians = part.orientation.map(v => v * Math.PI / 180);
     const quaternion = new Quaternion().setFromEuler(new Euler(radians[0], radians[1], radians[2], 'YXZ'));
     const z=part.center[1], x=valleyAt(z,world).x+part.center[0];
@@ -124,15 +130,24 @@ export function buildMonuments(world: WorldParameters): Monument[] {
         (v / 8 - .5) * part.scale[2]).applyQuaternion(quaternion);
       originY = Math.min(originY, heightAt(x + point.x, z + point.z, world) - point.y);
     }
+    if ('exposure' in part) {
+      // Sample the real top plane against the same terrain function. The entire
+      // solid stays present below the sand; there is no visibility toggle.
+      originY = Infinity;
+      for (let u=0;u<=16;u++) for (let v=0;v<=16;v++) {
+        const point=new Vector3((u/16-.5)*part.scale[0], .5*part.scale[1], (v/16-.5)*part.scale[2]).applyQuaternion(quaternion);
+        originY=Math.min(originY,heightAt(x+point.x,z+point.z,world)-point.y+part.exposure);
+      }
+    }
     return { id: part.id, family: part.family, kind: part.kind,
       position: [x, originY - part.burial, z], scale: [...part.scale],
       quaternion: quaternion.toArray(), burial: part.burial };
   });
 }
 
-export function worldVertices(part: Monument) {
+export function worldVertices(part: Monument, world: WorldParameters) {
   const q = new Quaternion().fromArray(part.quaternion);
-  return localVertices(part.kind).map(p => p.multiply(new Vector3(...part.scale))
+  return localVertices(part.kind, world).map(p => p.multiply(new Vector3(...part.scale))
     .applyQuaternion(q).add(new Vector3(...part.position)));
 }
 
@@ -154,6 +169,28 @@ export function buildWedgeData() {
     0,1,2,0,2,3,4,6,5,4,7,6,0,5,1,0,4,5,1,6,2,1,5,6,2,7,3,2,6,7,3,4,0,3,7,4,
   ]);
   return { positions, indices };
+}
+
+// One closed boundary mesh with a rectangular recess in its front face. The
+// roof stays intact; the recess has four walls and a back, not a dark decal.
+export function buildSlottedMonolithData(groove: WorldParameters['hero']['groove']) {
+  const l=groove.center-groove.width/2, r=groove.center+groove.width/2;
+  const b=groove.bottom,t=groove.top,z=.5-groove.depth;
+  const outer=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]];
+  const hole=[[l,b],[l,t],[r,t],[r,b]];
+  const positions=new Float32Array([
+    ...[-.5,.5].flatMap(z => outer.flatMap(([x,y]) => [x,y,z])),
+    ...hole.flatMap(([x,y]) => [x,y,.5]),...hole.flatMap(([x,y]) => [x,y,z]),
+  ]);
+  const indices:number[]=[];
+  for (const face of [[0,3,2,1],[0,4,7,3],[1,2,6,5],[3,7,6,2],[0,1,5,4],
+    [12,15,14,13],[8,12,13,9],[11,10,14,15],[9,13,14,10],[8,11,15,12]]) {
+    indices.push(face[0],face[1],face[2],face[0],face[2],face[3]);
+  }
+  for(const face of ShapeUtils.triangulateShape(outer.map(([x,y]) => new Vector2(x,y)),[hole.map(([x,y]) => new Vector2(x,y))])) {
+    indices.push(...face.map(i => i+4));
+  }
+  return {positions,indices:new Uint16Array(indices)};
 }
 
 export function fingerprint(data: ArrayBufferView) {

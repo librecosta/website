@@ -101,7 +101,7 @@ export default function ExpanseLab() {
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} aria-label="场景调试">
         <output ref={debugOutput} aria-label="滚动进度与相机进度">0% / 0%</output>
-        <div>{[0,.05,.25,.55,.8,1].map(p => <button key={p} type="button" onClick={() => seek(p)}>{Math.round(p * 100)}%</button>)}</div>
+        <div>{[0,.25,.5,.65,.75,1].map(p => <button key={p} type="button" onClick={() => seek(p)}>{Math.round(p * 100)}%</button>)}</div>
         <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />静态模式验证</label>
       </aside>}
     </figure>
