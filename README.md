@@ -1,7 +1,7 @@
 
 # LibreCosta Website
 
-LibreCosta 远岸开物官网。正式首页维持基础 HTML，当前空间研究位于独立的 `/lab/expanse`。
+LibreCosta 远岸开物官网。正式首页维持基础 HTML；独立实验页 `/lab/expanse` 以原生滚动穿越苍白荒原与半埋巨构。
 
 ## 本地开发
 
@@ -12,14 +12,14 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-打开 http://127.0.0.1:3000/lab/expanse ，切换「首屏远眺 / 接近巨构 / 外围门槛」。这些是固定美术观察点，不是最终镜头时间轴。类型检查、生成约束与生产静态导出：
+打开 [本地实验页](http://127.0.0.1:3000/lab/expanse)，滚动前进、停止或反向返回。`?debug=1` 提供进度跳转与静态模式检查；正常模式没有观察点 Tab 或研究说明面板。类型检查、生成／路径约束与生产静态导出：
 
 ```sh
 pnpm check
 pnpm preview
 ```
 
-静态产物位于 `out/`，不需要业务后端。保留 Next.js App Router、React、TypeScript、Three.js / React Three Fiber、GSAP / ScrollTrigger。实验页只在客户端按需加载一个 WebGL2 Canvas；视图不可用时 HTML 与观察说明仍可阅读。此阶段没有滚动动画。
+静态产物位于 `out/`，不需要业务后端。保留 Next.js App Router、React、TypeScript、Three.js / React Three Fiber、GSAP / ScrollTrigger。实验页只按需加载一个客户端 WebGL2 Canvas；GSAP 驱动进度，渲染循环统一控制相机。减少动态效果时为静态画面；初始化失败时保留 HTML 描述与重试入口。
 
 ## 目录与约束
 

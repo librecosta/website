@@ -1,52 +1,38 @@
-.lab {
-  --ink: #3d423d;
-  --paper: #eae8df;
+.journey {
+  position: relative;
   max-width: none;
   margin: 0;
   padding: 0;
-  min-height: 100svh;
-  color: var(--ink);
-  background: var(--paper);
-  display: grid;
-  grid-template-rows: 76px minmax(420px, 1fr) 112px;
+  min-height: calc(var(--journey-screens) * 100svh);
+  color: #40463f;
+  background: #dedfd9;
   font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
-.header { display: flex; align-items: center; gap: 44px; padding: 0 36px; }
-.brand { color: inherit; text-decoration: none; font-size: 20px; font-weight: 500; letter-spacing: -.6px; }
-.title { display: flex; align-items: baseline; gap: 16px; }
-.title h1 { margin: 0; font-size: 16px; font-weight: 400; }
-.title span, .revision { font-size: 11px; color: #686d62; }
-.revision { margin-left: auto; }
-.stage { position: relative; margin: 0; min-width: 0; height: calc(100svh - 188px); min-height: 420px; background: #dddcd3; overflow: hidden; }
-.stage > div:first-child { position: absolute !important; inset: 0; }
-.caption { position: absolute; bottom: 22px; left: 36px; right: 36px; display: flex; justify-content: space-between; font-size: 11px; color: #4a5046; pointer-events: none; }
-.loading { position: absolute; top: 44%; left: 0; width: 100%; margin: 0; text-align: center; font-size: 13px; color: #656a61; pointer-events: none; }
-.unavailable { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; text-align: center; background: #dddcd3; }
-.unavailable p { margin: 8px 0; max-width: 36em; font-size: 14px; }
-.unavailable button { margin-top: 16px; padding: 9px 18px; border: 1px solid #92958a; color: var(--ink); background: transparent; font: inherit; font-size: 12px; cursor: pointer; }
-.observations { padding: 14px 36px 16px; display: flex; gap: 36px; align-items: center; border-top: 1px solid #c6c6ba; }
-.views { display: flex; flex-shrink: 0; gap: 28px; }
-.views button { position: relative; display: flex; align-items: center; gap: 10px; border: 0; padding: 14px 0; color: #717569; background: transparent; font: inherit; font-size: 12px; cursor: pointer; }
-.views button[aria-pressed='true'] { color: #343b33; }
-.views button::after { content: ''; position: absolute; left: 0; right: 0; bottom: 4px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform 180ms ease; }
-.views button[aria-pressed='true']::after { transform: scaleX(1); }
-.number { font-size: 10px; color: #7c8074; font-variant-numeric: tabular-nums; }
-.description { max-width: 37em; margin: 0 0 0 auto; font-size: 11px; line-height: 1.7; color: #686d62; }
-.lab a:focus-visible, .lab button:focus-visible { outline: 2px solid #555f51; outline-offset: 6px; }
+.journey[data-reduced='true'] { min-height: 100svh; }
+.stage { position: sticky; top: 0; margin: 0; height: 100svh; overflow: hidden; touch-action: pan-y; }
+.canvas { position: absolute !important; inset: 0; opacity: 0; transition: opacity 600ms ease; pointer-events: none; touch-action: pan-y; }
+.journey[data-ready='true'] .canvas { opacity: 1; }
+.brand { position: absolute; z-index: 2; top: 25px; left: 30px; color: #252e26; text-decoration: none; font-size: 19px; font-weight: 500; letter-spacing: -.65px; }
+.brand:focus-visible, .debug button:focus-visible { outline: 2px solid #4d5c4f; outline-offset: 6px; }
+.hint { position: absolute; left: 50%; bottom: 25px; transform: translateX(-50%); margin: 0; color: #5d655a; font-size: 11px; letter-spacing: .12em; text-align: center; pointer-events: none; }
+.hint span { display: block; width: 1px; height: 30px; margin: 13px auto 0; background: #7c8476; }
+.staticNote { position: absolute; bottom: 24px; left: 30px; margin: 0; font-size: 11px; color: #5d655a; }
+.loading { position: absolute; top: 50%; left: 0; width: 100%; margin: 0; text-align: center; font-size: 12px; color: #656e61; }
+.unavailable { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; text-align: center; background: #dedfd9; }
+.unavailable h1 { font-size: 23px; font-weight: 400; }
+.unavailable p { max-width: 32em; margin: 8px 0; font-size: 14px; }
+.unavailable button { margin-top: 20px; padding: 8px 16px; color: inherit; border: 1px solid #9bA294; background: transparent; font: inherit; cursor: pointer; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.debug { position: absolute; z-index: 3; bottom: 20px; right: 20px; padding: 12px; background: #eff0e8eb; border: 1px solid #a6ad9e; font-size: 12px; }
+.debug output { display: block; font-variant-numeric: tabular-nums; }
+.debug div { display: flex; gap: 12px; margin: 9px 0; }
+.debug button { color: inherit; border: 0; padding: 5px; background: transparent; cursor: pointer; font: inherit; }
+.debug label { display: flex; gap: 7px; align-items: center; }
 @media (max-width: 700px) {
-  .lab { grid-template-rows: 68px minmax(350px, 1fr) 140px; }
-  .header { padding: 0 20px; gap: 24px; }
-  .brand { font-size: 18px; }
-  .title { flex-direction: column; gap: 0; line-height: 1.45; }
-  .title h1 { font-size: 13px; }
-  .title span { font-size: 9px; }
-  .revision { font-size: 9px; }
-  .stage { height: calc(100svh - 208px); min-height: 350px; }
-  .caption { left: 20px; right: 20px; bottom: 18px; font-size: 9px; }
-  .caption span:last-child { display: none; }
-  .observations { padding: 10px 20px 18px; display: block; }
-  .views { justify-content: space-between; gap: 12px; }
-  .views button { gap: 7px; padding: 12px 0; font-size: 11px; }
-  .description { margin-top: 13px; font-size: 10px; }
+  .brand { top: 20px; left: 21px; font-size: 18px; }
+  .hint { bottom: 22px; font-size: 10px; }
+  .staticNote { left: 21px; font-size: 10px; }
+  .debug { left: 20px; right: 20px; bottom: 82px; }
+  .debug div { justify-content: space-between; }
 }
-@media (prefers-reduced-motion: reduce) { .views button::after { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .canvas { transition: none; } }

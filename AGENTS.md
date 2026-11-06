@@ -2,7 +2,7 @@
 
 ## 当前范围与工程
 
-- 当前 P1-A 只在 `/lab/expanse` 开发程序化荒原空间灰模与三个固定观察点；正式首页保持基础 HTML。后续场景、正式镜头时间轴与资产精修需要独立任务授权。
+- 当前 P1-A2 在 `/lab/expanse` 研究稀疏半埋巨构、地形包裹与原生滚动驱动的连续镜头；正常界面只保留品牌和轻提示，调试信息限 `?debug=1`。正式首页保持基础 HTML，后续世界与资产精修需独立授权。
 - 使用 Next.js App Router、React、TypeScript、Three.js、React Three Fiber、GSAP / ScrollTrigger 与 pnpm；禁止 Astro。依赖采用兼容的稳定版本并保留 lockfile。
 - 优先静态导出；不接入后台、数据库、CMS、认证或其他业务系统。不预建 Scene Manager、渲染管线、插件架构或空目录。
 - `src/app/` 保存真实 HTML 页面。未来的 3D 场景作为独立客户端模块按需加载，HTML 阅读不能依赖 Canvas 初始化成功。
@@ -38,7 +38,7 @@
 - 场景旅程由滚动进度控制，不能由首次滚轮触发不可打断的自动动画。用户能够停止、继续与反向探索。
 - 允许适度惯性、滚转、倾斜与复杂相机路径；运动必须重视空间逻辑、镜头稳定性和舒适度。
 - 已确认世界观见 `docs/creative/vision.md`；叙事骨架见 `narrative.md`；第一幕方向与未冻结事项见 `act-01-expanse.md`。不擅自补全未冻结设定。
-- 项目级 GSAP Skills 位于 `.agents/skills/`，来源与许可见其中的 `README.md`。本轮安装 Skills 不代表授权制作动画。
+- 项目级 GSAP Skills 位于 `.agents/skills/`，来源与许可见其中的 `README.md`。GSAP 只驱动进度，渲染循环统一写入相机；旅行可停止、可逆，减少动态效果时采用静态体验。修改布局／路径后运行几何与净空检查。
 
 <!-- BEGIN:nextjs-agent-rules -->
 

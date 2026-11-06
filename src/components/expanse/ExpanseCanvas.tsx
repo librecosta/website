@@ -1,15 +1,17 @@
 'use client';
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   ACESFilmicToneMapping, BoxGeometry, BufferAttribute, BufferGeometry, InstancedMesh,
   MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, WebGLRenderer,
 } from 'three';
-import { EXPANSE } from './parameters';
-import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, heightAt, type Monument } from './world';
+import { EXPANSE, type JourneySignal } from './parameters';
+import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, sampleJourney, type Monument } from './world';
+import styles from './expanse.module.css';
 
-type Props = { view: number; mobile: boolean; onReady: () => void; onContextLost: () => void };
+type Props = { signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
+  onReady: () => void; onContextLost: () => void };
 
 function wedgeGeometry() {
   const g = new BufferGeometry();
@@ -27,14 +29,16 @@ function Instances({ items, geometry, material }: { items: Monument[]; geometry:
     const object = mesh.current!;
     const transform = new Object3D();
     items.forEach((item, i) => {
-      transform.position.set(...item.position); transform.rotation.set(0, item.rotation, 0);
+      transform.position.set(...item.position); transform.quaternion.fromArray(item.quaternion);
       transform.scale.set(...item.scale); transform.updateMatrix(); object.setMatrixAt(i, transform.matrix);
     });
     object.instanceMatrix.needsUpdate = true;
     object.computeBoundingBox(); object.computeBoundingSphere(); invalidate();
     return () => object.dispose();
   }, [items, geometry, material, invalidate]);
-  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow receiveShadow dispose={null} />;
+  // Isolated convex solids cast onto terrain. Receiving large-world shadow maps
+  // caused coplanar acne on grazing faces; inter-solid shadowing is deferred.
+  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow dispose={null} />;
 }
 
 function World({ mobile }: { mobile: boolean }) {
@@ -72,19 +76,15 @@ function World({ mobile }: { mobile: boolean }) {
   </group>;
 }
 
-function Observation({ view, mobile, onReady, onContextLost }: Props) {
-  const { camera, size, invalidate, gl } = useThree();
+function Observation({ signal, mobile, reduced, debug: inspect, onReady, onContextLost }: Props) {
+  const { camera, invalidate, gl } = useThree();
   const ready = useRef(false), frames = useRef(0), readback = useRef(0);
-  useLayoutEffect(() => {
-    const preset = EXPANSE.views[view][mobile ? 'mobile' : 'desktop'];
-    const [x, eyeHeight, z] = preset.position;
-    camera.position.set(x, heightAt(x, z, EXPANSE) + eyeHeight, z);
-    camera.up.set(0,1,0); camera.lookAt(preset.target[0], preset.target[1], preset.target[2]);
-    (camera as PerspectiveCamera).fov = preset.fov;
-    (camera as PerspectiveCamera).updateProjectionMatrix();
-    gl.domElement.dataset.view = EXPANSE.views[view].id;
+  useEffect(() => {
+    const current = signal.current;
+    current.invalidate = invalidate;
     invalidate();
-  }, [camera, size.width, size.height, view, mobile, invalidate, gl]);
+    return () => { current.invalidate = () => {}; };
+  }, [signal, invalidate, mobile, reduced]);
   useEffect(() => {
     const canvas = gl.domElement;
     const lost = (event: Event) => { event.preventDefault(); onContextLost(); };
@@ -95,8 +95,23 @@ function Observation({ view, mobile, onReady, onContextLost }: Props) {
     canvas.dataset.renderer = debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER);
     return () => { canvas.removeEventListener('webglcontextlost', lost); cancelAnimationFrame(readback.current); };
   }, [gl, onContextLost]);
-  // No continuous animation. Capture actual render counters after a requested frame.
+  // Sole camera writer: GSAP changes only signal.value, never camera properties.
   useFrame(() => {
+    const progress = reduced ? EXPANSE.journey.reducedProgress : signal.current.value;
+    const pose = sampleJourney(progress, EXPANSE, mobile);
+    camera.position.set(...pose.position);
+    camera.up.set(0,1,0); camera.lookAt(pose.target[0],pose.target[1],pose.target[2]);
+    camera.rotateZ(pose.roll);
+    if ((camera as PerspectiveCamera).fov !== pose.fov) {
+      (camera as PerspectiveCamera).fov = pose.fov;
+      (camera as PerspectiveCamera).updateProjectionMatrix();
+    }
+    gl.domElement.dataset.progress = progress.toFixed(5);
+    if (inspect) {
+      gl.domElement.dataset.scrollProgress = signal.current.raw.toFixed(5);
+      gl.domElement.dataset.camera = JSON.stringify(pose.position.map(x => +x.toFixed(3)));
+      gl.domElement.dataset.rotation = JSON.stringify(camera.quaternion.toArray().map(x => +x.toFixed(6)));
+    }
     frames.current++;
     cancelAnimationFrame(readback.current);
     readback.current = requestAnimationFrame(() => {
@@ -120,9 +135,10 @@ export default function ExpanseCanvas(props: Props) {
     const object = new Object3D(); object.position.set(...EXPANSE.atmosphere.sunTarget); return object;
   }, []);
   const a = EXPANSE.atmosphere;
-  return <Canvas data-rendering={visible ? 'on-demand' : 'paused'}
+  return <Canvas className={styles.canvas} data-rendering={visible ? 'on-demand' : 'paused'}
+    style={{ pointerEvents: 'none', touchAction: 'pan-y' }}
     frameloop={visible ? 'demand' : 'never'} dpr={[1, props.mobile ? 1.25 : 1.5]}
-    camera={{ near: 1, far: 8500, fov: 43 }} shadows={{ type: PCFShadowMap }}
+    camera={{ near: 3, far: 11000, fov: 47 }} shadows={{ type: PCFShadowMap }}
     gl={defaults => {
       const canvas = defaults.canvas as HTMLCanvasElement;
       const context = canvas.getContext('webgl2', { antialias: !props.mobile, alpha: false, powerPreference: 'high-performance' });
@@ -131,15 +147,15 @@ export default function ExpanseCanvas(props: Props) {
       renderer.toneMapping = ACESFilmicToneMapping; renderer.toneMappingExposure = a.exposure;
       renderer.outputColorSpace = SRGBColorSpace; renderer.shadowMap.autoUpdate = false;
       return renderer;
-    }} fallback={<p>苍白地形与几何巨构。可通过下方按钮切换三个观察点。</p>}>
+    }} fallback={<p>苍白荒原与半埋巨构。三维视图需要 WebGL2。</p>}>
     <color attach="background" args={[a.sky]} />
     <fog attach="fog" args={[a.sky, a.fogNear, a.fogFar]} />
     <hemisphereLight args={[a.hemisphereSky, a.hemisphereGround, a.hemisphereIntensity]} />
     <primitive object={target} />
     <directionalLight position={[...a.sunPosition]} target={target} color={a.sunColor} intensity={a.sunIntensity}
       castShadow shadow-mapSize={[props.mobile ? 1024 : 2048, props.mobile ? 1024 : 2048]}
-      shadow-bias={-.00015} shadow-normalBias={1.2}>
-      <orthographicCamera attach="shadow-camera" args={[-2100,2100,2100,-2100,50,6500]} />
+      shadow-bias={-.0006} shadow-normalBias={3}>
+      <orthographicCamera attach="shadow-camera" args={[-2700,2700,2700,-2700,50,10000]} />
     </directionalLight>
     <World mobile={props.mobile} />
     <Observation {...props} />

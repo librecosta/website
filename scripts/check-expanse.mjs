@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { EXPANSE } from '../src/components/expanse/parameters.ts';
-import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, heightAt } from '../src/components/expanse/world.ts';
+import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, heightAt, sampleJourney, worldVertices, structureDistance } from '../src/components/expanse/world.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const results = {};
@@ -24,31 +25,66 @@ for (const quality of ['desktop', 'mobile']) {
 }
 const changedSeed = structuredClone(EXPANSE); changedSeed.seed++;
 assert.notEqual(fingerprint(buildTerrainData(changedSeed, EXPANSE.terrain.resolution.mobile).positions), results.mobile.fingerprint);
-for (let z = -3600; z <= 1000; z += 100) {
-  const x = Math.sin((z + 400) / EXPANSE.terrain.corridor.bendLength) * EXPANSE.terrain.corridor.bend;
-  for (const offset of [-80, 0, 80]) {
-    const h = heightAt(x + offset, z, EXPANSE);
-    assert(h > -6 && h < 7, 'Protected crossing corridor must remain low');
-    assert(Math.abs(heightAt(x + offset + 10, z, EXPANSE) - h) < 1.2, 'No steep ledge in the crossing corridor');
-  }
-}
 const monuments = buildMonuments(EXPANSE);
 assert.deepEqual(monuments, buildMonuments(EXPANSE));
-for (const m of monuments) {
-  assert(m.position.every(Number.isFinite)); assert(m.scale.every(x => Number.isFinite(x) && x > 0));
+assert(monuments.length <= 10, 'Restraint: no procedural block forest');
+const burial = monuments.map(m => {
+  assert(m.position.every(Number.isFinite)); assert(m.scale.every(x => x > 0));
+  const vertices = worldVertices(m);
+  const signed = vertices.map(v => v.y - heightAt(v.x,v.z,EXPANSE));
+  assert(Math.min(...signed) < -30 && Math.max(...signed) > 10, m.id + ': real partial terrain occlusion');
+  let footingDepth = Infinity;
+  for (const quality of ['desktop','mobile']) for (let u=0;u<=16;u++) for (let v=0;v<=16;v++) {
+    const bottom = new Vector3((u/16-.5)*m.scale[0], -.5*m.scale[1], (v/16-.5)*m.scale[2])
+      .applyQuaternion(new Quaternion().fromArray(m.quaternion)).add(new Vector3(...m.position));
+    footingDepth=Math.min(footingDepth,meshHeight(bottom.x,bottom.z,quality)-bottom.y);
+  }
+  assert(footingDepth > 30, m.id + ': rotated footing stays below both rendered terrain grids');
+  return { id: m.id, belowGroundVertices: signed.filter(x => x < 0).length,
+    visibleVertices: signed.filter(x => x > 0).length,
+    minimumSampledFootingDepth: footingDepth,
+    vertexHeightRangeAboveTerrain: [Math.min(...signed),Math.max(...signed)] };
+});
+function meshHeight(x,z,quality) {
+  const [nx,nz] = EXPANSE.terrain.resolution[quality];
+  const {width,depth,centerZ} = EXPANSE.terrain;
+  const fx = (x / width + .5) * nx, fz = (centerZ + depth/2 - z) / depth * nz;
+  assert(fx > 0 && fx < nx && fz > 0 && fz < nz, 'Camera stays inside terrain');
+  const ix = Math.floor(fx), iz = Math.floor(fz), u = fx-ix, v = fz-iz;
+  const vx = i => (i / nx - .5) * width, vz = j => centerZ + depth/2 - j/nz*depth;
+  const a = Math.fround(heightAt(vx(ix),vz(iz),EXPANSE)), b = Math.fround(heightAt(vx(ix+1),vz(iz),EXPANSE));
+  const c = Math.fround(heightAt(vx(ix),vz(iz+1),EXPANSE)), d = Math.fround(heightAt(vx(ix+1),vz(iz+1),EXPANSE));
+  return u+v <= 1 ? a + (b-a)*u + (c-a)*v : d + (c-d)*(1-u) + (b-d)*(1-v);
 }
-const gate = monuments.filter(m => m.group === 'threshold');
-assert.equal(gate.length, 3);
-function insideBox(m, point) {
-  const dx = point[0] - m.position[0], dz = point[2] - m.position[2];
-  const x = dx * Math.cos(m.rotation) - dz * Math.sin(m.rotation);
-  const z = dx * Math.sin(m.rotation) + dz * Math.cos(m.rotation);
-  return Math.abs(x) < m.scale[0] / 2 && Math.abs(point[1] - m.position[1]) < m.scale[1] / 2 && Math.abs(z) < m.scale[2] / 2;
+let minimumTerrainClearance = Infinity, minimumStructureClearance = Infinity;
+let maxQuaternionStep = 0, previousPose, previousQuaternion;
+const poses = [], radius = EXPANSE.journey.cameraRadius;
+for (let i=0;i<=1000;i++) {
+  const p=i/1000, pose=sampleJourney(p,EXPANSE);
+  const {position,target,roll}=pose;
+  assert(target[2] < position[2] - 100, 'Look direction stays forward, no flips');
+  assert(Math.abs(roll) < Math.PI/60, 'Limited roll');
+  const camera=new PerspectiveCamera(); camera.position.set(...position); camera.up.set(0,1,0);
+  camera.lookAt(...target); camera.rotateZ(roll);
+  if(previousQuaternion) maxQuaternionStep=Math.max(maxQuaternionStep,previousQuaternion.angleTo(camera.quaternion));
+  previousQuaternion=camera.quaternion.clone();
+  if(previousPose) assert(position[2] <= previousPose.position[2] + 1e-6, 'No unintended path reversal');
+  previousPose=pose;
+  assert.deepEqual(pose,sampleJourney(p,EXPANSE), 'Pure reversible pose function');
+  for (const quality of ['desktop','mobile']) for (let j=0;j<=8;j++) {
+    const offset=j===8 ? 0 : radius;
+    const x=position[0]+Math.cos(j*Math.PI/4)*offset, z=position[2]+Math.sin(j*Math.PI/4)*offset;
+    minimumTerrainClearance=Math.min(minimumTerrainClearance,position[1]-radius-meshHeight(x,z,quality));
+  }
+  for(const monument of monuments) minimumStructureClearance=Math.min(minimumStructureClearance,structureDistance(position,monument)-radius);
+  if ([0,250,550,800,1000].includes(i)) poses.push({progress:p,...pose});
 }
-for (const y of [80, 160, 260]) {
-  assert(!monuments.some(m => insideBox(m, [0, y, -740])), 'The main gate negative space must stay open');
-}
-assert(gate.some(m => insideBox(m, [0, 390, -740])), 'Gate has a real load-bearing lintel');
+assert(minimumTerrainClearance > 8, 'Camera sphere has terrain clearance');
+assert(minimumStructureClearance > 15, 'Camera sphere stays outside conservative OBBs');
+assert(maxQuaternionStep < .025, 'No abrupt orientation change at track keys');
+const pathValidation = { samples:1001, cameraRadius:radius, minimumTerrainClearance,
+  minimumStructureClearance, maximumQuaternionStepDegrees:maxQuaternionStep*180/Math.PI, poses,
+  scope:'Sampled trajectory and conservative structure OBBs; not a continuous collision proof.' };
 const wedge = buildWedgeData(), edges = new Map();
 let volume = 0;
 for (let i = 0; i < wedge.indices.length; i += 3) {
@@ -63,4 +99,4 @@ for (let i = 0; i < wedge.indices.length; i += 3) {
 assert(volume > 0, 'Wedge winding must face outward');
 assert([...edges.values()].every(e => e.length === 2 && e[0] + e[1] === 0), 'Wedge must be a closed orientable solid');
 console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, terrain: results,
-  instances: monuments.length, mainGateVoid: 'open', wedgeVolume: volume }, null, 2));
+  instances: monuments.length, burial, pathValidation, wedgeVolume: volume }, null, 2));

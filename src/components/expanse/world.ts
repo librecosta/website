@@ -1,3 +1,4 @@
+import { Euler, Quaternion, Vector3 } from 'three';
 import type { Vec3, WorldParameters } from './parameters';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -37,12 +38,8 @@ export function heightAt(x: number, z: number, world: WorldParameters): number {
   const corridor = terrain.corridor;
   const centerX = Math.sin((z + 400) / corridor.bendLength) * corridor.bend;
   const side = smoothstep(corridor.halfWidth, corridor.halfWidth + corridor.blendWidth, Math.abs(x - centerX));
-  let height = terrain.baseHeight + massing * side + detail * lerp(0.045, 1, side);
-  for (const pad of terrain.pads) {
-    const distance = Math.hypot((x - pad.center[0]) / pad.radius[0], (z - pad.center[1]) / pad.radius[1]);
-    height = lerp(height, pad.level, 1 - smoothstep(0.7, 1.2, distance));
-  }
-  return height;
+  return terrain.baseHeight + massing * lerp(corridor.massRetention, 1, side)
+    + detail * lerp(0.12, 1, side);
 }
 
 export function buildTerrainData(world: WorldParameters, segments: readonly number[]) {
@@ -69,68 +66,55 @@ export function buildTerrainData(world: WorldParameters, segments: readonly numb
 }
 
 export type Monument = {
+  id: string;
+  family: string;
   kind: 'box' | 'wedge';
-  group: string;
   position: [number, number, number];
   scale: [number, number, number];
-  rotation: number;
+  quaternion: [number, number, number, number];
+  burial: number;
 };
 
+export function localVertices(kind: Monument['kind']): Vector3[] {
+  if (kind === 'wedge') {
+    const data = buildWedgeData().positions;
+    return Array.from({ length: data.length / 3 }, (_, i) => new Vector3().fromArray(data, i * 3));
+  }
+  return [-.5,.5].flatMap(x => [-.5,.5].flatMap(y => [-.5,.5].map(z => new Vector3(x,y,z))));
+}
+
 export function buildMonuments(world: WorldParameters): Monument[] {
-  const result: Monument[] = [];
-  const a = world.architecture;
-  function solid(group: string, kind: Monument['kind'], x: number, z: number,
-    scale: Vec3, rotation = 0, base?: number) {
-    // Sample the footprint so a hill never leaves a floating lower corner.
-    const c = Math.cos(rotation), s = Math.sin(rotation);
-    const ground = base ?? Math.min(...[-0.5, 0, 0.5].flatMap(u => [-0.5, 0, 0.5].map(v =>
-      heightAt(x + u * scale[0] * c + v * scale[2] * s,
-        z - u * scale[0] * s + v * scale[2] * c, world)))) - 3;
-    result.push({ kind, group, position: [x, ground + scale[1] / 2, z], scale: [...scale], rotation });
-  }
-  function gate(group: string, data: { readonly center: readonly number[]; readonly width: number;
-    readonly height: number; readonly depth: number; readonly beam: number }) {
-    const [x, z] = data.center;
-    const { width: w, height: h, depth: d, beam: b } = data;
-    const base = heightAt(x, z, world) - 2;
-    for (const sign of [-1, 1]) solid(group, 'box', x + sign * (w - b) / 2, z, [b, h - b, d], 0, base);
-    solid(group, 'box', x, z, [w, b, d], 0, base + h - b);
-  }
-  gate('threshold', a.threshold);
-  gate('rear-gate', a.rearGate);
-  for (const part of a.solids) {
-    solid(part.group, part.kind, part.center[0], part.center[1], part.scale, part.rotation, part.base ?? undefined);
-  }
-  const w = a.western;
-  for (let row = 0; row < w.rows; row++) {
-    const c = Math.cos(w.rotation), s = Math.sin(w.rotation);
-    const localZ = -(row - (w.rows - 1) / 2) * w.spacing[1];
-    for (let col = 0; col < w.columns; col++) {
-      if (row === 0 && col === Math.floor(w.columns / 2)) continue; // Deliberate break, not random deletion.
-      const localX = (col - (w.columns - 1) / 2) * w.spacing[0];
-      const x = w.center[0] + localX * c + localZ * s;
-      const z = w.center[1] - localX * s + localZ * c;
-      solid('western-colonnade', 'box', x, z,
-        [w.width, w.rowHeights[row] - w.lintel, w.depth], w.rotation, 2);
+  return world.structures.map(part => {
+    const radians = part.orientation.map(v => v * Math.PI / 180);
+    const quaternion = new Quaternion().setFromEuler(new Euler(radians[0], radians[1], radians[2], 'YXZ'));
+    const [x,z] = part.center;
+    // Rotate the actual lower face first; put EVERY sampled footing below terrain.
+    // Burial then lowers the complete rigid object, rather than clipping/coloring it.
+    let originY = Infinity;
+    for (let u = 0; u <= 8; u++) for (let v = 0; v <= 8; v++) {
+      const point = new Vector3((u / 8 - .5) * part.scale[0], -.5 * part.scale[1],
+        (v / 8 - .5) * part.scale[2]).applyQuaternion(quaternion);
+      originY = Math.min(originY, heightAt(x + point.x, z + point.z, world) - point.y);
     }
-    solid('western-lintel', 'box', w.center[0] + localZ * s, w.center[1] + localZ * c,
-      [(w.columns - 1) * w.spacing[0] + w.width, w.lintel, w.depth], w.rotation, 2 + w.rowHeights[row] - w.lintel);
-  }
-  const e = a.eastern;
-  solid('eastern-wall', 'box', e.center[0], e.center[1], e.scale, e.rotation);
-  const far = a.distant;
-  for (const [band, centerX] of far.bands.entries()) {
-    for (let row = 0; row < far.rows; row++) {
-      for (let col = 0; col < far.columns; col++) {
-        const h = far.heights[(col + row * 2 + band) % far.heights.length];
-        // Seed affects only a bounded 4% scale range; the ordered grid is fixed.
-        const variation = 0.98 + hash(col + band * 17, row, world.seed) * 0.04;
-        solid('distant-' + band, 'box', centerX + (col - (far.columns - 1) / 2) * far.spacing[0],
-          far.startZ - row * far.spacing[1], [far.width, h * variation, far.depth], 0);
-      }
-    }
-  }
-  return result;
+    return { id: part.id, family: part.family, kind: part.kind,
+      position: [x, originY - part.burial, z], scale: [...part.scale],
+      quaternion: quaternion.toArray(), burial: part.burial };
+  });
+}
+
+export function worldVertices(part: Monument) {
+  const q = new Quaternion().fromArray(part.quaternion);
+  return localVertices(part.kind).map(p => p.multiply(new Vector3(...part.scale))
+    .applyQuaternion(q).add(new Vector3(...part.position)));
+}
+
+// Signed point distance to an oriented box. For the wedge this box is conservative.
+export function structureDistance(point: Vec3, part: Monument) {
+  const p = new Vector3(...point).sub(new Vector3(...part.position))
+    .applyQuaternion(new Quaternion().fromArray(part.quaternion).invert());
+  const d = [Math.abs(p.x) - part.scale[0] / 2, Math.abs(p.y) - part.scale[1] / 2,
+    Math.abs(p.z) - part.scale[2] / 2];
+  return Math.hypot(...d.map(x => Math.max(x,0))) + Math.min(Math.max(...d),0);
 }
 
 export function buildWedgeData() {
@@ -149,4 +133,34 @@ export function fingerprint(data: ArrayBufferView) {
   const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   for (const byte of bytes) hash = Math.imul(hash ^ byte, 16777619);
   return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+// Shape-preserving C1 Hermite interpolation. No overshoot at sparse turning keys.
+function channel(world: WorldParameters, progress: number, value: (i: number) => number) {
+  const keys = world.journey.keys;
+  const t = Math.max(0, Math.min(1, progress));
+  let i = 0;
+  while (i < keys.length - 2 && t > keys[i + 1].at) i++;
+  const slope = (j: number) => (value(j + 1) - value(j)) / (keys[j + 1].at - keys[j].at);
+  const tangent = (j: number) => {
+    if (j === 0 || j === keys.length - 1) return 0;
+    const left = slope(j - 1), right = slope(j);
+    if (left * right <= 0) return 0;
+    const h0 = keys[j].at - keys[j - 1].at, h1 = keys[j + 1].at - keys[j].at;
+    const w0 = 2 * h1 + h0, w1 = h1 + 2 * h0;
+    return (w0 + w1) / (w0 / left + w1 / right);
+  };
+  const h = keys[i + 1].at - keys[i].at, u = (t - keys[i].at) / h;
+  return (2*u*u*u - 3*u*u + 1) * value(i) + (u*u*u - 2*u*u + u) * h * tangent(i)
+    + (-2*u*u*u + 3*u*u) * value(i + 1) + (u*u*u - u*u) * h * tangent(i + 1);
+}
+
+export function sampleJourney(progress: number, world: WorldParameters, mobile = false) {
+  const keys = world.journey.keys;
+  const position = [0,1,2].map(axis => channel(world, progress, i => keys[i].position[axis])) as [number,number,number];
+  position[1] += heightAt(position[0], position[2], world);
+  const target = [0,1,2].map(axis => channel(world, progress, i => keys[i].target[axis])) as [number,number,number];
+  return { position, target: target as Vec3,
+    roll: channel(world, progress, i => keys[i].roll),
+    fov: channel(world, progress, i => keys[i].fov) + (mobile ? world.journey.mobileFovExtra : 0) };
 }
