@@ -71,14 +71,11 @@ export const EXPANSE = {
   },
   // Monolith Field then Hero Destination. Angles are degrees, applied YXZ.
   structures: [
-    { id: 'field-west', family: 'Mid Monoliths', kind: 'box', center: [-430, -1700],
-      scale: [220, 710, 210], orientation: [-7, 8, -19], burial: 285 },
-    { id: 'field-east', family: 'Mid Monoliths', kind: 'box', center: [460, -2380],
-      scale: [300, 660, 180], orientation: [12, -16, 22], burial: 245 },
+    // The surviving pair leans away from the valley, opening toward the sky.
     { id: 'field-axis', family: 'Mid Monoliths', kind: 'box', center: [-650, -2990],
-      scale: [200, 920, 250], orientation: [3, 14, -8], burial: 335 },
+      scale: [200, 920, 250], orientation: [3, 14, 22], burial: 335 },
     { id: 'field-lean', family: 'Mid Monoliths', kind: 'box', center: [650, -3490],
-      scale: [310, 760, 260], orientation: [-6, -18, 14], burial: 355 },
+      scale: [310, 760, 260], orientation: [-6, -18, -24], burial: 220 },
     { id: 'hero-axis', family: 'Hero Structure', kind: 'box', center: [70, -5400],
       scale: [430, 1550, 410], orientation: [-3, 28, -5], burial: 430 },
   ],
