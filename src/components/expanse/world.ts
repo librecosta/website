@@ -30,15 +30,18 @@ export function valleyAt(z: number, world: WorldParameters) {
   return { x: lerp(a.x,b.x,t), floor: lerp(a.floor,b.floor,t), width: lerp(a.width,b.width,t) };
 }
 
-function ridgeHeight(x: number, z: number, ridge: { readonly center: readonly number[];
-  readonly radius: readonly number[]; readonly height: number; readonly rotation: number; readonly leeScale: number },
-  world: WorldParameters) {
-  const centerX = valleyAt(ridge.center[1],world).x + ridge.center[0];
-  const dx=x-centerX, dz=z-ridge.center[1], c=Math.cos(ridge.rotation), s=Math.sin(ridge.rotation);
-  const localX=dx*c-dz*s;
-  const u=localX/(ridge.radius[0]*(localX>0 ? ridge.leeScale : 1));
-  const v=(dx*s+dz*c)/ridge.radius[1];
-  return ridge.height*Math.exp(-2.2*(u*u+v*v));
+export function crestAt(z: number, ribbon: WorldParameters['terrain']['crestRibbons'][number]) {
+  const nodes = ribbon.nodes;
+  let i=0;
+  while(i<nodes.length-2 && z<nodes[i+1].z) i++;
+  const a=nodes[i], b=nodes[i+1], t=smoothstep(0,1,(a.z-z)/(a.z-b.z));
+  return { offset:lerp(a.offset,b.offset,t), width:lerp(a.width,b.width,t), height:lerp(a.height,b.height,t) };
+}
+
+// Smooth union blends overlapping sand bodies without adding their heights.
+function mergeCrests(a: number, b: number, blend: number) {
+  const h=Math.max(0,1-Math.abs(a-b)/blend);
+  return Math.max(a,b)+h*h*blend*.25;
 }
 
 export function heightAt(x: number, z: number, world: WorldParameters): number {
@@ -46,15 +49,24 @@ export function heightAt(x: number, z: number, world: WorldParameters): number {
   const lateral=x-spine.x, edge=Math.max(0,Math.abs(lateral)-spine.width);
   const bank=profile.bankHeight*(1-Math.exp(-Math.pow(edge/profile.bankRun,2)))
     *Math.exp(-Math.pow(edge/profile.outerFalloff,4))*(lateral<0 ? profile.leftScale : profile.rightScale);
-  let dunes=0, burial=0, detail=0;
-  for(const ridge of terrain.duneLayers) dunes+=ridgeHeight(x,z,ridge,world);
-  for(const mask of terrain.burialMasks) burial+=ridgeHeight(x,z,mask,world);
+  let dunes=0, detail=0;
+  for(const ribbon of terrain.crestRibbons) {
+    const crest=crestAt(z,ribbon), dx=lateral-crest.offset;
+    const width=crest.width*(dx*ribbon.side<0 ? ribbon.innerWidth : ribbon.outerWidth);
+    dunes=mergeCrests(dunes,ribbon.reliefScale*crest.height*Math.exp(-2.2*Math.pow(dx/width,2)),terrain.crestBlend);
+  }
+  for(const fold of terrain.crosswindFolds) {
+    const dx=x-valleyAt(fold.center[1],world).x-fold.center[0], dz=z-fold.center[1];
+    const c=Math.cos(fold.rotation), s=Math.sin(fold.rotation);
+    const u=(dx*c-dz*s)/fold.radius[0], v=(dx*s+dz*c)/fold.radius[1];
+    dunes+=fold.height*Math.exp(-2.2*(u*u+v*v));
+  }
   terrain.noise.forEach((layer,i) => {
     detail+=layer.amplitude*noise(x/layer.wavelength,z/layer.wavelength,world.seed+i*113);
   });
   const mask=terrain.pathMask;
   const side=smoothstep(mask.halfWidth,mask.halfWidth+mask.blendWidth,Math.abs(lateral));
-  return terrain.baseHeight+spine.floor+bank+(dunes+burial)*lerp(mask.massRetention,1,side)
+  return terrain.baseHeight+spine.floor+bank+dunes*lerp(mask.massRetention,1,side)
     +detail*lerp(.12,1,side);
 }
 
@@ -100,7 +112,7 @@ export function localVertices(kind: Monument['kind']): Vector3[] {
 }
 
 export function buildMonuments(world: WorldParameters): Monument[] {
-  return [...world.debrisDistribution,...world.structures].map(part => {
+  return world.structures.map(part => {
     const radians = part.orientation.map(v => v * Math.PI / 180);
     const quaternion = new Quaternion().setFromEuler(new Euler(radians[0], radians[1], radians[2], 'YXZ'));
     const z=part.center[1], x=valleyAt(z,world).x+part.center[0];
@@ -159,7 +171,8 @@ function channel(world: WorldParameters, progress: number, value: (i: number) =>
   while (i < keys.length - 2 && t > keys[i + 1].at) i++;
   const slope = (j: number) => (value(j + 1) - value(j)) / (keys[j + 1].at - keys[j].at);
   const tangent = (j: number) => {
-    if (j === 0 || j === keys.length - 1) return 0;
+    if (j === 0) return slope(0) * .65;
+    if (j === keys.length - 1) return 0;
     const left = slope(j - 1), right = slope(j);
     if (left * right <= 0) return 0;
     const h0 = keys[j].at - keys[j - 1].at, h1 = keys[j + 1].at - keys[j].at;
@@ -171,7 +184,7 @@ function channel(world: WorldParameters, progress: number, value: (i: number) =>
     + (-2*u*u*u + 3*u*u) * value(i + 1) + (u*u*u - u*u) * h * tangent(i + 1);
 }
 
-export function sampleJourney(progress: number, world: WorldParameters, mobile = false) {
+export function sampleJourney(progress: number, world: WorldParameters) {
   const keys = world.journey.keys;
   const position = [0,1,2].map(axis => channel(world, progress, i => keys[i].position[axis])) as [number,number,number];
   position[0] += valleyAt(position[2],world).x;
@@ -181,5 +194,11 @@ export function sampleJourney(progress: number, world: WorldParameters, mobile =
   target[1] += valleyAt(target[2],world).floor;
   return { position, target: target as Vec3,
     roll: channel(world, progress, i => keys[i].roll),
-    fov: channel(world, progress, i => keys[i].fov) + (mobile ? world.journey.mobileFovExtra : 0) };
+    fov: channel(world, progress, i => keys[i].fov) };
+}
+
+// Contain the authored film gate: narrower windows reveal vertical space instead
+// of cropping the left/right composition. Camera position and path never change.
+export function fitVerticalFov(fov: number, aspect: number, framingAspect: number) {
+  return 2*Math.atan(Math.tan(fov*Math.PI/360)*Math.max(1,framingAspect/aspect))*180/Math.PI;
 }

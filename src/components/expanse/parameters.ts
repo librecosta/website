@@ -1,7 +1,7 @@
 export type Vec3 = readonly [number, number, number];
 export type JourneySignal = { value: number; raw: number; invalidate: () => void };
 
-// P1-A3 study values. Layout offsets are measured from the valley spine at Z.
+// Continuous dune banks; authored offsets are measured from the valley spine.
 export const EXPANSE = {
   seed: 7137,
   terrain: {
@@ -19,44 +19,56 @@ export const EXPANSE = {
       { z: -5500, x: 50, floor: 45, width: 250 },
       { z: -7400, x: 0, floor: 50, width: 370 },
     ],
-    basinProfile: { bankHeight: 105, bankRun: 560, outerFalloff: 2300, leftScale: 1.05, rightScale: 0.92 },
-    duneLayers: [
-      { layer: 'near', center: [-450, 2060], radius: [570, 540], height: 135, rotation: -0.35, leeScale: 0.65 },
-      { layer: 'near', center: [510, 1600], radius: [660, 450], height: 110, rotation: 0.3, leeScale: 0.72 },
-      { layer: 'near', center: [-390, 880], radius: [650, 420], height: 130, rotation: -0.5, leeScale: 0.68 },
-      { layer: 'middle', center: [510, 180], radius: [770, 540], height: 145, rotation: 0.35, leeScale: 0.65 },
-      { layer: 'middle', center: [-570, -700], radius: [800, 510], height: 165, rotation: -0.3, leeScale: 0.75 },
-      { layer: 'middle', center: [620, -1500], radius: [860, 630], height: 180, rotation: 0.4, leeScale: 0.7 },
-      { layer: 'middle', center: [-630, -2390], radius: [860, 610], height: 185, rotation: -0.4, leeScale: 0.72 },
-      { layer: 'far', center: [710, -3250], radius: [1000, 700], height: 175, rotation: 0.35, leeScale: 0.8 },
-      { layer: 'far', center: [-790, -4210], radius: [1200, 740], height: 195, rotation: -0.3, leeScale: 0.7 },
-      { layer: 'far', center: [900, -5050], radius: [1300, 950], height: 185, rotation: 0.25, leeScale: 0.8 },
+    basinProfile: { bankHeight: 70, bankRun: 650, outerFalloff: 2500, leftScale: 1.05, rightScale: 0.92 },
+    crestBlend: 32,
+    // Each ribbon extends through the whole valley; height never falls back to
+    // zero between longitudinal nodes. The left shoulder merges into its bank.
+    crestRibbons: [
+      { id: 'left-bank', side: -1, reliefScale: 0.35, innerWidth: 0.86, outerWidth: 1.2, nodes: [
+        { z: 3400, offset: -1050, width: 850, height: 75 },
+        { z: 1400, offset: -1100, width: 900, height: 100 },
+        { z: 400, offset: -900, width: 850, height: 125 },
+        { z: -450, offset: -500, width: 680, height: 210 },
+        { z: -1200, offset: -800, width: 850, height: 180 },
+        { z: -2350, offset: -650, width: 900, height: 210 },
+        { z: -3700, offset: -850, width: 1050, height: 195 },
+        { z: -5400, offset: -960, width: 1150, height: 155 },
+        { z: -7400, offset: -1050, width: 1300, height: 125 },
+      ] },
+      { id: 'left-shoulder', side: -1, reliefScale: 0.35, innerWidth: 1, outerWidth: 1.25, nodes: [
+        { z: 3400, offset: -1800, width: 1250, height: 90 },
+        { z: 1400, offset: -1550, width: 1150, height: 125 },
+        { z: 400, offset: -1600, width: 1150, height: 160 },
+        { z: -450, offset: -1050, width: 1150, height: 210 },
+        { z: -1200, offset: -1400, width: 1250, height: 195 },
+        { z: -2350, offset: -1450, width: 1500, height: 210 },
+        { z: -3700, offset: -1500, width: 1550, height: 195 },
+        { z: -5400, offset: -1700, width: 1650, height: 175 },
+        { z: -7400, offset: -1800, width: 1700, height: 150 },
+      ] },
+      { id: 'right-bank', side: 1, reliefScale: 1, innerWidth: 0.9, outerWidth: 1.3, nodes: [
+        { z: 3400, offset: 580, width: 840, height: 130 },
+        { z: 1200, offset: 720, width: 1000, height: 155 },
+        { z: -300, offset: 600, width: 780, height: 180 },
+        { z: -1800, offset: 750, width: 1050, height: 170 },
+        { z: -3300, offset: 960, width: 1250, height: 195 },
+        { z: -5200, offset: 1150, width: 1450, height: 165 },
+        { z: -7400, offset: 1250, width: 1700, height: 130 },
+      ] },
     ],
-    pathMask: { halfWidth: 65, blendWidth: 240, massRetention: 0.12 },
-    burialMasks: [
-      { center: [-430, -1700], radius: [400, 570], height: 45, rotation: -0.2, leeScale: 1 },
-      { center: [-650, -2930], radius: [570, 730], height: 65, rotation: -0.25, leeScale: 1 },
-      { center: [-650, -5150], radius: [770, 680], height: 85, rotation: -0.35, leeScale: 1 },
+    // Two broad crosswind folds share the continuous left bank underneath.
+    // Their footprints overlap heavily; they are not a repeated dune scatter.
+    crosswindFolds: [
+      { center: [-850, 450], radius: [900, 850], height: 125, rotation: -0.35 },
+      { center: [-580, -850], radius: [1000, 1150], height: 230, rotation: 0.28 },
     ],
+    pathMask: { halfWidth: 65, blendWidth: 440, massRetention: 0.12 },
     noise: [
       { wavelength: 1100, amplitude: 6 },
       { wavelength: 350, amplitude: 2 },
       { wavelength: 120, amplitude: 0.3 },
     ],
   },
-  // Foreground Basin + Mid Fragments. Explicit slots, no random scatter.
-  debrisDistribution: [
-    { id: 'basin-edge', family: 'Foreground Debris', kind: 'wedge', center: [-270, 1550],
-      scale: [145, 85, 120], orientation: [8, -22, -16], burial: 48 },
-    { id: 'buried-corner', family: 'Foreground Debris', kind: 'box', center: [290, 1110],
-      scale: [210, 78, 140], orientation: [-6, 24, 12], burial: 50 },
-    { id: 'low-cut', family: 'Foreground Debris', kind: 'wedge', center: [-235, 650],
-      scale: [120, 100, 155], orientation: [8, -12, -24], burial: 55 },
-    { id: 'exposed-slice', family: 'Foreground Debris', kind: 'box', center: [290, 90],
-      scale: [230, 78, 100], orientation: [-8, 18, 9], burial: 48 },
-    { id: 'last-fragment', family: 'Foreground Debris', kind: 'wedge', center: [-310, -670],
-      scale: [250, 110, 175], orientation: [9, -28, -17], burial: 58 },
-  ],
   // Monolith Field then Hero Destination. Angles are degrees, applied YXZ.
   structures: [
     { id: 'field-west', family: 'Mid Monoliths', kind: 'box', center: [-430, -1700],
@@ -67,12 +79,8 @@ export const EXPANSE = {
       scale: [200, 920, 250], orientation: [3, 14, -8], burial: 335 },
     { id: 'field-lean', family: 'Mid Monoliths', kind: 'box', center: [650, -3490],
       scale: [310, 760, 260], orientation: [-6, -18, 14], burial: 355 },
-    { id: 'field-stratum', family: 'Mid Monoliths', kind: 'wedge', center: [-460, -3900],
-      scale: [480, 330, 280], orientation: [8, -20, -15], burial: 155 },
     { id: 'hero-axis', family: 'Hero Structure', kind: 'box', center: [70, -5400],
       scale: [430, 1550, 410], orientation: [-3, 28, -5], burial: 430 },
-    { id: 'hero-shoulder', family: 'Hero Structure', kind: 'box', center: [-820, -5190],
-      scale: [650, 670, 350], orientation: [-8, -12, 31], burial: 265 },
   ],
   atmosphere: {
     sky: '#dedfd9', fogNear: 850, fogFar: 8000,
@@ -83,16 +91,15 @@ export const EXPANSE = {
     exposure: 0.98,
   },
   journey: {
-    screens: 9, scrubSeconds: 0.32, cameraRadius: 12, reducedProgress: 0,
-    mobileFovExtra: 18,
+    screens: 4, scrubSeconds: 0.18, cameraRadius: 12, reducedProgress: 0,
+    framingAspect: 2,
     // Position X is lateral to spine, Y is eye height; target Y is above valley floor.
     keys: [
-      { at: 0, position: [0, 55, 2250], target: [0, 100, -1400], roll: 0, fov: 52 },
-      { at: 0.2, position: [0, 55, 2250], target: [0, 100, -1400], roll: 0, fov: 52 },
-      { at: 0.45, position: [20, 55, 1000], target: [0, 140, -1800], roll: 0, fov: 52 },
-      { at: 0.55, position: [-15, 55, -150], target: [30, 170, -2850], roll: -0.008, fov: 53 },
-      { at: 0.75, position: [15, 58, -2650], target: [0, 260, -4800], roll: 0.012, fov: 54 },
-      { at: 0.9, position: [0, 58, -3680], target: [40, 360, -5400], roll: -0.005, fov: 55 },
+      { at: 0, position: [20, 70, 1000], target: [0, 140, -1800], roll: 0, fov: 52 },
+      { at: 0.12, position: [5, 70, 650], target: [10, 150, -2200], roll: -0.003, fov: 52 },
+      { at: 0.38, position: [-10, 65, -650], target: [30, 185, -3000], roll: -0.008, fov: 53 },
+      { at: 0.68, position: [15, 58, -2650], target: [0, 260, -4800], roll: 0.012, fov: 54 },
+      { at: 0.88, position: [0, 58, -3680], target: [40, 360, -5400], roll: -0.005, fov: 55 },
       { at: 1, position: [0, 55, -4050], target: [40, 430, -5400], roll: 0, fov: 55 },
     ],
   },

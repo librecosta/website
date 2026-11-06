@@ -3,7 +3,7 @@
   max-width: none;
   margin: 0;
   padding: 0;
-  min-height: calc(var(--journey-screens) * 100svh);
+  min-height: calc(var(--journey-distance, calc((var(--journey-screens) - 1) * 100svh)) + 100dvh);
   color: #40463f;
   background: #dedfd9;
   font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;

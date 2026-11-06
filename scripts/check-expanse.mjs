@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { EXPANSE } from '../src/components/expanse/parameters.ts';
-import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, heightAt, sampleJourney, valleyAt, worldVertices, structureDistance } from '../src/components/expanse/world.ts';
+import { buildMonuments, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, valleyAt, worldVertices, structureDistance } from '../src/components/expanse/world.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const results = {};
@@ -33,24 +33,26 @@ for (const z of [1900,1100,200,-800,-2000,-3200]) {
   assert(heightAt(spine.x-500,z,EXPANSE)-floor > 30, 'Left bank wraps the channel');
   assert(heightAt(spine.x+500,z,EXPANSE)-floor > 30, 'Right bank wraps the channel');
 }
-const debris=monuments.filter(m => m.family === 'Foreground Debris');
 const field=monuments.filter(m => m.family === 'Mid Monoliths');
 const hero=monuments.filter(m => m.family === 'Hero Structure');
-assert(debris.length > 0 && field.length > 0 && hero.length > 0, 'All three structure roles remain represented');
-assert(Math.min(...debris.map(m => m.position[2])) > Math.max(...field.map(m => m.position[2])), 'Debris precedes the monolith field');
+assert(field.length > 0 && hero.length > 0, 'Field and destination remain represented');
 assert(Math.min(...field.map(m => m.position[2])) > Math.max(...hero.map(m => m.position[2])), 'Destination stays beyond the field');
-for(let i=0;i<=20;i++) {
-  const pose=sampleJourney(i/100,EXPANSE), start=sampleJourney(0,EXPANSE);
-  assert(new Vector3(...pose.position).distanceTo(new Vector3(...start.position)) < 1e-9, 'First 20% holds position');
-  assert(new Vector3(...pose.target).distanceTo(new Vector3(...start.target)) < 1e-9, 'First 20% holds direction');
-  assert(Math.abs(pose.fov-start.fov)+Math.abs(pose.roll-start.roll) < 1e-9);
+assert(sampleJourney(.01,EXPANSE).position[2] < sampleJourney(0,EXPANSE).position[2]-10, 'First scroll produces travel, no dead segment');
+let minimumLeftSaddleRelief=Infinity;
+const [left,shoulder]=EXPANSE.terrain.crestRibbons;
+for(let z=1000;z>=-4050;z-=25) {
+  const spine=valleyAt(z,EXPANSE), a=crestAt(z,left), b=crestAt(z,shoulder);
+  for(const quality of ['desktop','mobile']) for(let j=0;j<=12;j++) {
+    const x=spine.x+a.offset+(b.offset-a.offset)*j/12;
+    minimumLeftSaddleRelief=Math.min(minimumLeftSaddleRelief,meshHeight(x,z,quality)-meshHeight(spine.x,z,quality));
+  }
 }
+assert(minimumLeftSaddleRelief > 80, 'Left crests join as raised sand, with no trough returning to the valley floor');
 const burial = monuments.map(m => {
   assert(m.position.every(Number.isFinite)); assert(m.scale.every(x => x > 0));
   const vertices = worldVertices(m);
   const signed = vertices.map(v => v.y - heightAt(v.x,v.z,EXPANSE));
   assert(Math.min(...signed) < -30 && Math.max(...signed) > 10, m.id + ': real partial terrain occlusion');
-  if(m.family === 'Foreground Debris') assert(Math.max(...signed) < 50, m.id + ': debris exposes a low fragment rather than a complete building');
   let footingDepth = Infinity;
   for (const quality of ['desktop','mobile']) for (let u=0;u<=16;u++) for (let v=0;v<=16;v++) {
     const bottom = new Vector3((u/16-.5)*m.scale[0], -.5*m.scale[1], (v/16-.5)*m.scale[2])
@@ -95,7 +97,7 @@ for (let i=0;i<=1000;i++) {
     minimumTerrainClearance=Math.min(minimumTerrainClearance,position[1]-radius-meshHeight(x,z,quality));
   }
   for(const monument of monuments) minimumStructureClearance=Math.min(minimumStructureClearance,structureDistance(position,monument)-radius);
-  if ([0,200,450,550,750,1000].includes(i)) poses.push({progress:p,...pose});
+  if ([0,50,250,550,800,1000].includes(i)) poses.push({progress:p,...pose});
 }
 assert(minimumTerrainClearance > 8, 'Camera sphere has terrain clearance');
 assert(minimumStructureClearance > 15, 'Camera sphere stays outside conservative OBBs');
@@ -103,6 +105,25 @@ assert(maxQuaternionStep < .025, 'No abrupt orientation change at track keys');
 const pathValidation = { samples:1001, cameraRadius:radius, minimumTerrainClearance,
   minimumStructureClearance, maximumQuaternionStepDegrees:maxQuaternionStep*180/Math.PI, poses,
   scope:'Sampled trajectory and conservative structure OBBs; not a continuous collision proof.' };
+// A landmark visible in the authored film gate must remain inside a narrow one.
+let comparedLandmarks=0;
+for(const pose of poses) {
+  const reference=new PerspectiveCamera(pose.fov,EXPANSE.journey.framingAspect,3,11000);
+  reference.position.set(...pose.position); reference.lookAt(...pose.target); reference.rotateZ(pose.roll); reference.updateMatrixWorld();
+  for(const aspect of [1.5,1,390/844]) {
+    const fitted=reference.clone(); fitted.aspect=aspect;
+    fitted.fov=fitVerticalFov(pose.fov,aspect,EXPANSE.journey.framingAspect);
+    fitted.updateProjectionMatrix(); fitted.updateMatrixWorld();
+    for(const m of monuments) for(const vertex of worldVertices(m)) {
+      const a=vertex.clone().project(reference);
+      if(Math.abs(a.x)>.95 || Math.abs(a.y)>.95 || a.z< -1 || a.z>1) continue;
+      const b=vertex.clone().project(fitted);
+      assert(Math.abs(b.x-a.x)<1e-9 && Math.abs(b.x)<1 && Math.abs(b.y)<1, 'Narrow film fit preserves the complete authored composition');
+      comparedLandmarks++;
+    }
+  }
+}
+assert(comparedLandmarks>0);
 const wedge = buildWedgeData(), edges = new Map();
 let volume = 0;
 for (let i = 0; i < wedge.indices.length; i += 3) {
@@ -117,4 +138,4 @@ for (let i = 0; i < wedge.indices.length; i += 3) {
 assert(volume > 0, 'Wedge winding must face outward');
 assert([...edges.values()].every(e => e.length === 2 && e[0] + e[1] === 0), 'Wedge must be a closed orientable solid');
 console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, terrain: results,
-  instances: monuments.length, burial, pathValidation, wedgeVolume: volume }, null, 2));
+  instances: monuments.length, minimumLeftSaddleRelief, comparedLandmarks, burial, pathValidation, wedgeVolume: volume }, null, 2));

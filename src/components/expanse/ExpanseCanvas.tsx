@@ -7,7 +7,7 @@ import {
   MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, WebGLRenderer,
 } from 'three';
 import { EXPANSE, type JourneySignal } from './parameters';
-import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, sampleJourney, type Monument } from './world';
+import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
 import styles from './expanse.module.css';
 
 type Props = { signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
@@ -43,22 +43,22 @@ function Instances({ items, geometry, material }: { items: Monument[]; geometry:
 
 function World({ mobile }: { mobile: boolean }) {
   const { invalidate, gl } = useThree();
+  const batches = useMemo(() => {
+    const all = buildMonuments(EXPANSE);
+    return { box: all.filter(x => x.kind === 'box'), wedge: all.filter(x => x.kind === 'wedge') };
+  }, []);
   const resources = useMemo(() => {
     const data = buildTerrainData(EXPANSE, EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop']);
     const terrain = new BufferGeometry();
     terrain.setAttribute('position', new BufferAttribute(data.positions, 3));
     terrain.setIndex(new BufferAttribute(data.indices, 1)); terrain.computeVertexNormals(); terrain.computeBoundingSphere();
     return {
-      terrain, box: new BoxGeometry(1,1,1), wedge: wedgeGeometry(),
+      terrain, box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? wedgeGeometry() : null,
       ground: new MeshStandardMaterial({ color: EXPANSE.atmosphere.terrainColor, roughness: 1, metalness: 0 }),
       stone: new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true }),
       fingerprint: fingerprint(data.positions),
     };
-  }, [mobile]);
-  const batches = useMemo(() => {
-    const all = buildMonuments(EXPANSE);
-    return { box: all.filter(x => x.kind === 'box'), wedge: all.filter(x => x.kind === 'wedge') };
-  }, []);
+  }, [mobile, batches]);
   useLayoutEffect(() => {
     gl.domElement.dataset.terrain = resources.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
@@ -66,18 +66,18 @@ function World({ mobile }: { mobile: boolean }) {
     gl.shadowMap.needsUpdate = true; invalidate();
   }, [resources, gl, invalidate, mobile, batches]);
   useEffect(() => () => {
-    resources.terrain.dispose(); resources.box.dispose(); resources.wedge.dispose();
+    resources.terrain.dispose(); resources.box.dispose(); resources.wedge?.dispose();
     resources.ground.dispose(); resources.stone.dispose();
   }, [resources]);
   return <group dispose={null}>
     <mesh geometry={resources.terrain} material={resources.ground} receiveShadow />
     <Instances items={batches.box} geometry={resources.box} material={resources.stone} />
-    <Instances items={batches.wedge} geometry={resources.wedge} material={resources.stone} />
+    {resources.wedge && <Instances items={batches.wedge} geometry={resources.wedge} material={resources.stone} />}
   </group>;
 }
 
 function Observation({ signal, mobile, reduced, debug: inspect, onReady, onContextLost }: Props) {
-  const { camera, invalidate, gl } = useThree();
+  const { camera, invalidate, gl, size } = useThree();
   const ready = useRef(false), frames = useRef(0), readback = useRef(0);
   useEffect(() => {
     const current = signal.current;
@@ -98,12 +98,13 @@ function Observation({ signal, mobile, reduced, debug: inspect, onReady, onConte
   // Sole camera writer: GSAP changes only signal.value, never camera properties.
   useFrame(() => {
     const progress = reduced ? EXPANSE.journey.reducedProgress : signal.current.value;
-    const pose = sampleJourney(progress, EXPANSE, mobile);
+    const pose = sampleJourney(progress, EXPANSE);
     camera.position.set(...pose.position);
     camera.up.set(0,1,0); camera.lookAt(pose.target[0],pose.target[1],pose.target[2]);
     camera.rotateZ(pose.roll);
-    if ((camera as PerspectiveCamera).fov !== pose.fov) {
-      (camera as PerspectiveCamera).fov = pose.fov;
+    const fittedFov = fitVerticalFov(pose.fov, size.width / size.height, EXPANSE.journey.framingAspect);
+    if ((camera as PerspectiveCamera).fov !== fittedFov) {
+      (camera as PerspectiveCamera).fov = fittedFov;
       (camera as PerspectiveCamera).updateProjectionMatrix();
     }
     gl.domElement.dataset.progress = progress.toFixed(5);
@@ -111,6 +112,7 @@ function Observation({ signal, mobile, reduced, debug: inspect, onReady, onConte
       gl.domElement.dataset.scrollProgress = signal.current.raw.toFixed(5);
       gl.domElement.dataset.camera = JSON.stringify(pose.position.map(x => +x.toFixed(3)));
       gl.domElement.dataset.rotation = JSON.stringify(camera.quaternion.toArray().map(x => +x.toFixed(6)));
+      gl.domElement.dataset.fov = fittedFov.toFixed(3);
     }
     frames.current++;
     cancelAnimationFrame(readback.current);
