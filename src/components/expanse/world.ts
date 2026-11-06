@@ -105,7 +105,7 @@ export type Monument = {
 
 export function localVertices(kind: Monument['kind'], world: WorldParameters): Vector3[] {
   if (kind !== 'box') {
-    const data = kind === 'wedge' ? buildWedgeData().positions : buildSlottedMonolithData(world.hero.groove).positions;
+    const data = kind === 'wedge' ? buildWedgeData().positions : buildSlottedMonolithData(world.hero.groove,world.hero.topScale).positions;
     return Array.from({ length: data.length / 3 }, (_, i) => new Vector3().fromArray(data, i * 3));
   }
   return [-.5,.5].flatMap(x => [-.5,.5].flatMap(y => [-.5,.5].map(z => new Vector3(x,y,z))));
@@ -118,7 +118,7 @@ export function buildMonuments(world: WorldParameters): Monument[] {
     orientation: [part.disturbed.orientation[0], part.ideal.yaw + part.disturbed.orientation[1], part.disturbed.orientation[2]],
     burial: part.ideal.burial + part.disturbed.settlement,
   }));
-  return [...world.remnants, ...field, world.hero].map(part => {
+  return [...world.remnants, ...field, ...world.distantStelae, world.hero].map(part => {
     const radians = part.orientation.map(v => v * Math.PI / 180);
     const quaternion = new Quaternion().setFromEuler(new Euler(radians[0], radians[1], radians[2], 'YXZ'));
     const z=part.center[1], x=valleyAt(z,world).x+part.center[0];
@@ -171,9 +171,9 @@ export function buildWedgeData() {
   return { positions, indices };
 }
 
-// One closed boundary mesh with a rectangular recess in its front face. The
-// roof stays intact; the recess has four walls and a back, not a dark decal.
-export function buildSlottedMonolithData(groove: WorldParameters['hero']['groove']) {
+// A closed tapered stele, shared by the destination and distant grove. Its
+// front recess follows the planar batter; four walls and a back stay real.
+export function buildSlottedMonolithData(groove: WorldParameters['hero']['groove'], topScale: WorldParameters['hero']['topScale']) {
   const l=groove.center-groove.width/2, r=groove.center+groove.width/2;
   const b=groove.bottom,t=groove.top,z=.5-groove.depth;
   const outer=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]];
@@ -189,6 +189,11 @@ export function buildSlottedMonolithData(groove: WorldParameters['hero']['groove
   }
   for(const face of ShapeUtils.triangulateShape(outer.map(([x,y]) => new Vector2(x,y)),[hole.map(([x,y]) => new Vector2(x,y))])) {
     indices.push(...face.map(i => i+4));
+  }
+  for(let i=0;i<positions.length;i+=3) {
+    const height=positions[i+1]+.5;
+    positions[i]*=lerp(1,topScale[0],height);
+    positions[i+2]*=lerp(1,topScale[1],height);
   }
   return {positions,indices:new Uint16Array(indices)};
 }

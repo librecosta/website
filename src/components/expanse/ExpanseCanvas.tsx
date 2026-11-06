@@ -35,7 +35,7 @@ function Instances({ items, geometry, material }: { items: Monument[]; geometry:
     object.computeBoundingBox(); object.computeBoundingSphere(); invalidate();
     return () => object.dispose();
   }, [items, geometry, material, invalidate]);
-  // The concave hero receives its own shadow inside the actual groove. Convex
+  // Concave stelae receive their own shadow inside the actual groove. Convex
   // blocks retain the existing shadow policy to avoid grazing-face map acne.
   return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow
     receiveShadow={items[0]?.kind === 'slotted'} dispose={null} />;
@@ -55,7 +55,7 @@ function World({ mobile }: { mobile: boolean }) {
     terrain.setIndex(new BufferAttribute(data.indices, 1)); terrain.computeVertexNormals(); terrain.computeBoundingSphere();
     return {
       terrain, box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? solidGeometry(buildWedgeData()) : null,
-      slotted: solidGeometry(buildSlottedMonolithData(EXPANSE.hero.groove)),
+      slotted: solidGeometry(buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale)),
       ground: new MeshStandardMaterial({ color: EXPANSE.atmosphere.terrainColor, roughness: 1, metalness: 0 }),
       stone: new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true }),
       fingerprint: fingerprint(data.positions),

@@ -37,7 +37,15 @@ const field=monuments.filter(m => m.family === 'Mid Monoliths');
 const hero=monuments.filter(m => m.family === 'Hero Structure');
 assert(field.length > 0 && hero.length > 0, 'Field and destination remain represented');
 assert.equal(hero.length,1,'One distant destination');
-assert.equal(field.length,3,'Three authored alignment members, no block forest');
+assert.equal(field.length,2,'Keep the outward pair; remove the central masking plate');
+assert(!monuments.some(m => m.id==='field-veil' || m.id==='basin-right-return'),'Remove the annotated intrusive pieces');
+const grove=monuments.filter(m => m.family==='Distant Stelae');
+assert(grove.length===5 && grove.every(m => m.kind===hero[0].kind && m.position[2]<hero[0].position[2]),'A distant grove shares the destination geometry');
+for(const remnant of monuments.filter(m => m.family==='Basin Remnant')) {
+ const topDirection=new Vector3(0,1,0).applyQuaternion(new Quaternion().fromArray(remnant.quaternion));
+ const side=remnant.position[0]-valleyAt(remnant.position[2],EXPANSE).x;
+ assert(side*topDirection.x<0,'Remnant upper axis leans inward toward the valley');
+}
 assert(EXPANSE.hero.scale[1] > Math.max(...field.map(m => m.scale[1]))*2,'Hero has a distinct scale hierarchy');
 const shadowCamera=new OrthographicCamera(...EXPANSE.atmosphere.shadowBounds);
 shadowCamera.position.set(...EXPANSE.atmosphere.sunPosition); shadowCamera.lookAt(...EXPANSE.atmosphere.sunTarget); shadowCamera.updateMatrixWorld();
@@ -134,6 +142,18 @@ for(const pose of poses) {
   }
 }
 assert(comparedLandmarks>0);
+const arrival=sampleJourney(1,EXPANSE), arrivalCamera=new PerspectiveCamera(arrival.fov,EXPANSE.journey.framingAspect,3,11000);
+arrivalCamera.position.set(...arrival.position); arrivalCamera.lookAt(...arrival.target); arrivalCamera.updateMatrixWorld();
+// Underground vertices do not belong to the visible silhouette. Clamp them to
+// the actual sand surface before testing the whole exposed destination.
+const arrivalBounds=worldVertices(hero[0],EXPANSE).map(v => {
+ v.y=Math.max(v.y,heightAt(v.x,v.z,EXPANSE)); return v.project(arrivalCamera);
+});
+assert(arrivalBounds.every(p => Math.abs(p.x)<.93 && Math.abs(p.y)<.93 && p.z>-1 && p.z<1),'Whole destination fits with breathing room at arrival');
+assert(arrival.target[1]>arrival.position[1]+500,'Arrival looks upward from the low valley');
+const arrivalFraming={horizontalRange:[Math.min(...arrivalBounds.map(p=>p.x)),Math.max(...arrivalBounds.map(p=>p.x))],
+ verticalRange:[Math.min(...arrivalBounds.map(p=>p.y)),Math.max(...arrivalBounds.map(p=>p.y))],
+ centerDistance:new Vector3(...arrival.position).distanceTo(new Vector3(...hero[0].position))};
 function solidVolume(data) {
  const edges = new Map(); let volume=0;
  for (let i = 0; i < data.indices.length; i += 3) {
@@ -150,8 +170,11 @@ function solidVolume(data) {
  return volume;
 }
 const wedgeVolume=solidVolume(buildWedgeData());
-const slotted=buildSlottedMonolithData(EXPANSE.hero.groove), heroVolume=solidVolume(slotted);
-assert(Math.abs(heroVolume-(1-EXPANSE.hero.groove.width*EXPANSE.hero.groove.depth*(EXPANSE.hero.groove.top-EXPANSE.hero.groove.bottom)))<1e-6,'Recess removes real volume');
+const slotted=buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale), heroVolume=solidVolume(slotted);
+const [tx,tz]=EXPANSE.hero.topScale, groove=EXPANSE.hero.groove;
+const sectionIntegral=t => t-((1-tx)+(1-tz))*t*t/2+(1-tx)*(1-tz)*t*t*t/3;
+const expectedVolume=sectionIntegral(1)-groove.width*groove.depth*(sectionIntegral(groove.top+.5)-sectionIntegral(groove.bottom+.5));
+assert(Math.abs(heroVolume-expectedVolume)<1e-6,'Taper and recess remove real volume');
 const probeGeometry=new BufferGeometry();
 probeGeometry.setAttribute('position',new BufferAttribute(slotted.positions,3)); probeGeometry.setIndex(new BufferAttribute(slotted.indices,1));
 const probeMaterial=new MeshBasicMaterial({side:DoubleSide}), probe=new Mesh(probeGeometry,probeMaterial), probeRay=new Raycaster();
@@ -160,8 +183,8 @@ const frontHit=(x,y) => {
  probeRay.set(new Vector3(x,y,2),new Vector3(0,0,-1));
  return probeRay.intersectObject(probe,false)[0]?.point.z;
 };
-assert(Math.abs(frontHit(EXPANSE.hero.groove.center,0)-(.5-EXPANSE.hero.groove.depth))<1e-6,'Groove ray reaches an actual recessed back wall');
-assert.equal(frontHit(EXPANSE.hero.groove.center,.45),.5,'The crown remains one continuous mass above the groove');
+assert(Math.abs(frontHit(groove.center,0)-(.5-groove.depth)*(1-(1-tz)*.5))<1e-6,'Groove ray reaches an actual recessed back wall');
+assert(Math.abs(frontHit(groove.center,.45)-.5*(1-(1-tz)*.95))<1e-6,'The tapered crown remains continuous above the groove');
 probeGeometry.dispose(); probeMaterial.dispose();
 // Actual transformed triangle intersections, independent of drawing or fog.
 // Sample a 3x3 patch of the hero's front; report finite ray visibility, not a
@@ -178,7 +201,8 @@ for(let i=0;i<=100;i++) {
  const p=i/100, camera=new Vector3(...sampleJourney(p,EXPANSE).position); let blocked=0;
  const blockers=new Set();
  for(const x of [-.3,0,.3]) for(const y of [-.05,.13,.32]) {
-  const point=new Vector3(x*heroPart.scale[0],y*heroPart.scale[1],.501*heroPart.scale[2]).applyQuaternion(q).add(new Vector3(...heroPart.position));
+  const point=new Vector3(x*(1-(1-tx)*(y+.5))*heroPart.scale[0],y*heroPart.scale[1],
+   .501*(1-(1-tz)*(y+.5))*heroPart.scale[2]).applyQuaternion(q).add(new Vector3(...heroPart.position));
   const direction=point.clone().sub(camera); raycaster.set(camera,direction.clone().normalize()); raycaster.far=direction.length()-.5;
   const hits=raycaster.intersectObjects(meshes,false);
   if(hits.length) {blocked++; blockers.add(hits[0].object.name);}
@@ -186,9 +210,8 @@ for(let i=0;i<=100;i++) {
  visibility.push({progress:p,blocked:blocked/9,blockers:[...blockers]});
 }
 const peak=visibility.reduce((a,b) => b.blocked>a.blocked?b:a);
-assert(peak.progress>.35 && peak.progress<.75 && peak.blocked>=2/3,'A real mid-field plate masks the hero during approach');
-assert(visibility[75].blocked===0 && visibility[100].blocked===0,'Hero is revealed again before arrival');
+assert(visibility.slice(50).every(v=>v.blocked===0),'The removed central plate no longer masks the destination on approach');
 meshes.forEach(m => m.geometry.dispose()); material.dispose();
 console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, terrain: results,
   instances: monuments.length, minimumLeftSaddleRelief, comparedLandmarks, burial, pathValidation,
-  wedgeVolume,heroVolume,occlusion:{peak,samples:visibility.filter((v,i)=>i%5===0)} }, null, 2));
+  wedgeVolume,heroVolume,arrivalFraming,occlusion:{peak,samples:visibility.filter((v,i)=>i%5===0)} }, null, 2));
