@@ -1,5 +1,7 @@
 # Witness Core · R1-C
 
+> P1-A 归档：本目录仅为资产研究历史，不是选定的正式资产。`.blend`、模型导出、纹理和预览已移出 Git 当前索引，原文件完整保留本地；克隆仓库后按本文命令重建。上游灰模先运行 `art/witness-core/r1-b/build.py -- --previews`，R1-C 工程再由 `r1-c/study.py` 生成。文中的图像／视频／工程路径都是本地输出，不是仓库下载链接。
+
 黑化锻铁、精密内壁与象牙白内核的材质研究。基于 R1-B2；**不改变任何顶点、拓扑、梁体厚度、倒角宽度、串联层级或动画关键帧**。只调整角点法线：大平面保持平面法线，现有倒角使用平滑加权法线。原灰模工程保留在上一级。
 
 ## 材质与表面语言
@@ -20,13 +22,13 @@
 
 内核用单一 Principled 介电表面及克制自发光；Cycles 直接计算发光网格对内壁的照明。**没有内核辅助灯、Bloom、Glare 或后期光晕**。五块外部摄影棚面光、暗灰地面与固定 AgX 曝光用于展示反射；并非第一幕场景。
 
-[发光开关对照](previews/core-light-comparison.png) 仅关闭 Core emission，保持灯光、材质其余参数、相机、采样种子与曝光一致，可见近处内壁的微弱提亮。核心仍有三个可分辨的面与明确轮廓，光不吞没环体。强度为本次相对材质研究参数，尚未作真实世界光度标定。
+`previews/core-light-comparison.png`（发光开关对照，仅本地生成物） 仅关闭 Core emission，保持灯光、材质其余参数、相机、采样种子与曝光一致，可见近处内壁的微弱提亮。核心仍有三个可分辨的面与明确轮廓，光不吞没环体。强度为本次相对材质研究参数，尚未作真实世界光度标定。
 
 ## 预览与复核
 
-- [总览](previews/overview.png)：原 R1-B2 Workbench 灰模、主视图、正面对齐、两张材质特写和内核受光关系。原灰模的灯光不同，另附 [相同 Cycles 摄影棚下的灰模 / 材质对照](previews/matched-comparison.png)。
+- `previews/overview.png`（总览，仅本地生成物）：原 R1-B2 Workbench 灰模、主视图、正面对齐、两张材质特写和内核受光关系。原灰模的灯光不同，另附 `previews/matched-comparison.png`（相同 Cycles 摄影棚下的灰模 / 材质对照，仅本地生成物）。
 - `previews/hero.png` 与 `aligned-front.png` 为 1536²；两张特写及内核开关对照原图为 1600×1200。全部由实际 Blender 工程渲染，未重绘或后期修饰。
-- [Idle 材质预演](previews/idle-material.mp4)：原时间线帧 1–240，10 秒、24 fps、960²、H.264、无音轨。Cycles / OptiX、32 samples、OptiX 去噪；静帧为 128 samples / OpenImageDenoise。离线预演不代表网页帧率。
+- `previews/idle-material.mp4`（Idle 材质预演，仅本地生成物）：原时间线帧 1–240，10 秒、24 fps、960²、H.264、无音轨。Cycles / OptiX、32 samples、OptiX 去噪；静帧为 128 samples / OpenImageDenoise。离线预演不代表网页帧率。
 - 环境：Steam Blender 5.2.3 LTS；NVIDIA RTX 3070 Laptop GPU，8 GB。MCP 未连接，使用独立后台进程；未修改安装、全局偏好或打开的用户工程。
 - [preservation-report.json](preservation-report.json) 对比实际打开的两个工程，确认几何、父子关系、局部变换、全部 Quaternion 关键帧及多个世界姿态一致；[collision-report.json](collision-report.json) 在材质源文件上重新运行 R1-B2 的 2,067 姿态和受限角域验证，保守间隙仍 ≥ **0.0661008**。法线 Bump 不产生实体位移。
 - 平面角点法线采用 0.25° 方向容差，报告保存实际误差；逐帧检查全部 240 帧的物体包围范围，另解码查看约 0 / 2 / 4 / 6 / 8 / 10 秒六个时刻。未把静帧去噪结果当作网页实时性能。
@@ -50,4 +52,4 @@ $blenderExe = 'E:/SteamLibrary/steamapps/common/Blender/blender.exe'
 python art/witness-core/r1-b/r1-c/compose_overview.py
 ```
 
-源文件为 [witness-core-materials.blend](witness-core-materials.blend)。建材脚本只允许新的后台进程，读取上一级源工程后另存此文件。已有匹配静帧时可使用 `--render-only --video-only` 重新导出预演；使用 `--render-only --shot clay-control` 可单独重做一张静帧；这两种模式应在命令中打开本材质工程。所有中间试图、日志和解码帧留在系统临时目录，不提交缓存或自动备份。
+源文件为 `witness-core-materials.blend`（仅本地生成物）。建材脚本只允许新的后台进程，读取上一级源工程后另存此文件。已有匹配静帧时可使用 `--render-only --video-only` 重新导出预演；使用 `--render-only --shot clay-control` 可单独重做一张静帧；这两种模式应在命令中打开本材质工程。所有中间试图、日志和解码帧留在系统临时目录，不提交缓存或自动备份。

@@ -1,5 +1,7 @@
 # R1-C2 · Surface Character Samples
 
+> P1-A 归档：本目录仅为资产研究历史，不是选定的正式资产。`.blend`、模型导出、纹理和预览已移出 Git 当前索引，原文件完整保留本地；克隆仓库后按本文命令重建。上游灰模先运行 `art/witness-core/r1-b/build.py -- --previews`，R1-C 工程再由 `r1-c/study.py` 生成。文中的图像／视频／工程路径都是本地输出，不是仓库下载链接。
+
 本轮只制作 **一块 L 形方环表面样板**。原 R1-B2 / R1-C 源工程、三环几何、旋转关节、内核与整套动画均未修改。没有把新纹理应用到正式观测核。
 
 ## Git 核实
@@ -29,7 +31,7 @@
 
 ## 三个受控样板
 
-[overview.png](previews/overview.png) 上排为中景，下排为近景；六张独立原图保留在 `previews/`。三个样板共享**同一个网格数据块、同一个 UV、同一位置**，每种景别使用完全相同的相机、五块摄影棚面光、曝光、种子和采样参数。没有为单个方案改灯或后期增锐。
+`previews/overview.png`（仅本地生成物） 上排为中景，下排为近景；六张独立原图保留在 `previews/`。三个样板共享**同一个网格数据块、同一个 UV、同一位置**，每种景别使用完全相同的相机、五块摄影棚面光、曝光、种子和采样参数。没有为单个方案改灯或后期增锐。
 
 | 方向 | 表面差异 | 尺度与深度参数 |
 | --- | --- | --- |
@@ -47,10 +49,10 @@ BU 为 Blender 单位。梁截面 **0.72 × 0.72**、倒角 **0.012 / 3 段**沿
 
 B / C 样板均有一套新的 Smart UV atlas，已经实际烘焙 **2048² Base Color、Roughness、切线 Normal**，共六张 PNG，位于 `textures/`。Base Color 为 sRGB；Roughness 和 Normal 为 Non-Color。留边 16 px。正式样板渲染使用这些图像材质，非只展示程序节点或调整常量。
 
-[texture-overview.png](previews/texture-overview.png) 排列实际烘焙图；[sample-verification.json](sample-verification.json) 记录图像尺寸、有效 UV 区间的数值变化、文件摘要与 GLB 验证。源程序材质保留于 Blender 工程，可通过脚本重建；当前观测核整体仍没有新增 UV 或贴图。
+`previews/texture-overview.png`（仅本地生成物） 排列实际烘焙图；[sample-verification.json](sample-verification.json) 记录图像尺寸、有效 UV 区间的数值变化、文件摘要与 GLB 验证。源程序材质保留于 Blender 工程，可通过脚本重建；当前观测核整体仍没有新增 UV 或贴图。
 
-- [B 样板 GLB](exports/B-fine-forged.glb)
-- [C 样板 GLB](exports/C-stylized-tooling.glb)
+- `exports/B-fine-forged.glb`（B 样板 GLB，仅本地生成物）
+- `exports/C-stylized-tooling.glb`（C 样板 GLB，仅本地生成物）
 
 两个 GLB 均检查嵌入 Base Color、Metallic-Roughness、Normal 图像及 UV、法线、显式切线；重新导入后的顶点位置集合在 1e-5 量化精度下与样板一致，并实际重渲染查看。只在导出副本上固化材质分配和三角化，不修改共享样板或正式观测核。
 
@@ -72,4 +74,4 @@ $blenderExe = 'E:/SteamLibrary/steamapps/common/Blender/blender.exe'
 python art/witness-core/r1-b/r1-c2/compose_overview.py
 ```
 
-源工程为 [surface-samples.blend](surface-samples.blend)，参数为 [sample-parameters.json](sample-parameters.json)。Blender 自带组件完成建模与烘焙；拼版只需已有 Python + Pillow。临时审计 GLB、试渲染及 GLB 回读画面留在系统临时目录。未提交缓存、自动备份或无用高分辨率中间帧。
+源工程为 `surface-samples.blend`（仅本地生成物），参数为 [sample-parameters.json](sample-parameters.json)。Blender 自带组件完成建模与烘焙；拼版只需已有 Python + Pillow。临时审计 GLB、试渲染及 GLB 回读画面留在系统临时目录。未提交缓存、自动备份或无用高分辨率中间帧。

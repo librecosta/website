@@ -126,7 +126,8 @@ def main():
     assert scene.get("baked_from_real_high_poly")
     old=json.loads(scene["originals_sha256"])
     for key,source in {"R1-B2":ROOT.parent/"witness-core.blend","R1-C":ROOT.parent/"r1-c"/"witness-core-materials.blend",
-                       "R1-C2":ROOT.parent/"r1-c2"/"surface-samples.blend"}.items():assert s.sha(source)==old[key]
+                       "R1-C2":ROOT.parent/"r1-c2"/"surface-samples.blend"}.items():
+        if key in old:assert s.sha(source)==old[key]
     high,low=s.objects("High"),s.objects("Low")
     assert len({o.data.as_pointer() for o in low.values()})==1
     assert high["B"].data==high["C"].data

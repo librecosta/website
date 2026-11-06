@@ -1,5 +1,9 @@
 # R1-C3 · High-Poly Surface Language
 
+> P1-A 归档：本目录仅为资产研究历史，不是选定的正式资产。`.blend`、模型导出、纹理和预览已移出 Git 当前索引，原文件完整保留本地；克隆仓库后按本文命令重建。上游灰模先运行 `art/witness-core/r1-b/build.py -- --previews`，R1-C 工程再由 `r1-c/study.py` 生成。文中的图像／视频／工程路径都是本地输出，不是仓库下载链接。
+
+R1-C3 建模只读取上游 R1-C。若本地有 R1-C2，会额外保存其未修改摘要；新克隆不需为这个摘要重建已否决的 R1-C2 样板。旧验证报告是对应历史文件的快照，重建会更新报告与摘要。
+
 仅验证一段 **L 形环体截角**，停止发展 R1-C2 的坑洞／损伤方向。旧成果保留作历史对照；R1-B2、R1-C、R1-C2 原工程均未覆盖。未修改整机、关节、动画、内核或网站。
 
 ## 三个样板
@@ -35,11 +39,11 @@
 
 ## 查看与验证
 
-- [总览：低模中景与近景](previews/overview.png)
-- [同相机高模／低模对照](previews/high-low-comparison.png)
-- [无贴图形体对照](previews/geometry-proof.png)：名义低模、A 高模、B/C 高模使用同一掠射灯、相机及均匀材质，无形体夸张。
-- [实测高模截面](previews/surface-sections.png)：来自保存网格的真实坐标；图表纵轴放大，渲染图不放大形体。
-- [实际纹理缩略图](previews/texture-overview.png)
+- `previews/overview.png`（总览：低模中景与近景，仅本地生成物）
+- `previews/high-low-comparison.png`（同相机高模／低模对照，仅本地生成物）
+- `previews/geometry-proof.png`（无贴图形体对照，仅本地生成物）：名义低模、A 高模、B/C 高模使用同一掠射灯、相机及均匀材质，无形体夸张。
+- `previews/surface-sections.png`（实测高模截面，仅本地生成物）：来自保存网格的真实坐标；图表纵轴放大，渲染图不放大形体。
+- `previews/texture-overview.png`（实际纹理缩略图，仅本地生成物）
 
 每个方案的 `*-high-medium.png`、`*-high-close.png`、`*-high-clay.png` 与 `*-low-medium.png`、`*-low-close.png` 均保留独立原图。材质图使用统一摄影棚、相机、1440×1080、96 samples、AgX；无贴图形体图另用一套**所有方案一致**的掠射光，便于观察浅起伏。不能将它与材质图当作同灯光比较。
 

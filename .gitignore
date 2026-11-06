@@ -3,3 +3,32 @@ node_modules/
 out/
 next-env.d.ts
 *.tsbuildinfo
+
+# DCC sources and experimental exports stay local; scripts/parameters are tracked.
+*.blend
+*.blend[0-9]
+*.glb
+*.gltf
+*.fbx
+*.abc
+*.mp4
+*.mov
+*.webm
+*.exr
+__pycache__/
+*.pyc
+
+# Scope generated images to research areas; public website images remain allowed.
+/art/**/previews/*
+!/art/**/previews/*.json
+/art/**/textures/
+/art/**/renders/
+/art/**/cache/
+/art/**/exports/
+/docs/creative/witness-core/**/*.png
+/docs/creative/witness-core/**/*.jpg
+/docs/creative/witness-core/**/*.webp
+/.local/
+
+# Approved production assets require a documented, exact-path exception here.
+# Do not use `git add -f` to bypass the review.

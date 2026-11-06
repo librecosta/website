@@ -402,7 +402,7 @@ def build(p):
     scene["parameters_sha256"]=study.digest(p)
     old={name:sha(path) for name,path in {
         "R1-B2":ROOT.parent/"witness-core.blend",
-        "R1-C":source,"R1-C2":ROOT.parent/"r1-c2"/"surface-samples.blend"}.items()}
+        "R1-C":source,"R1-C2":ROOT.parent/"r1-c2"/"surface-samples.blend"}.items() if path.is_file()}
     scene["originals_sha256"]=json.dumps(old,sort_keys=True)
     scene["scope"]="L coupon only. No new full-core geometry, kinematics, emissive core or animation."
     stats["C"]={"shared_mesh_with":"B High","same_physical_geometry":True}

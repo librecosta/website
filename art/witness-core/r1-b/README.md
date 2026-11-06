@@ -1,5 +1,7 @@
 # Witness Core · R1-B2
 
+> P1-A 归档：本目录仅为资产研究历史，不是选定的正式资产。`.blend`、模型导出、纹理和预览已移出 Git 当前索引，原文件完整保留本地；克隆仓库后按本文命令重建。上游灰模先运行 `art/witness-core/r1-b/build.py -- --previews`，R1-C 工程再由 `r1-c/study.py` 生成。文中的图像／视频／工程路径都是本地输出，不是仓库下载链接。
+
 厚构件灰模与层级单轴运动，替换 R1-B 的平级自由旋转方案。旧方案为任意姿态避碰让出了过大空隙，导致纤细、松散；本轮按厚重嵌套的视觉目标重新定比例。旧版本保留在 Git 提交 `218e3dd`，不保留重复工程。
 
 使用本机 Steam **Blender 5.2.3 LTS** 独立后台进程。MCP 未连接，未升级、重装或操作用户打开的文件。只有简单灰色环体与白色内核，无正式材质、纹理、发光后处理或网页改动。
@@ -31,9 +33,9 @@
 
 ## 预览与重建
 
-[overview.png](previews/overview.png) 包含重点静止三分之四、对齐正面、嵌套斜侧、中等偏转、侧面、顶面、Idle 中段与对齐终点。中等偏转采用 A +2° / B +28° / C −22°，不改写主时间线。
+`previews/overview.png`（仅本地生成物） 包含重点静止三分之四、对齐正面、嵌套斜侧、中等偏转、侧面、顶面、Idle 中段与对齐终点。中等偏转采用 A +2° / B +28° / C −22°，不改写主时间线。
 
-[Idle MP4](previews/idle-rotation.mp4) 为 10 秒；[Alignment MP4](previews/precision-alignment.mp4) 为 10.042 秒。均为 Workbench 灰模、H.264、1280 × 960、24 fps、无声音。逐帧核对完整画幅，并实际查看静帧及编码后视频的多个解码时刻；见 [manifest.json](previews/manifest.json)。不把灰模光照当正式材质。当前可继续评审这份基线，最终厚重程度、默认停留姿态与校准幅度仍由用户选定。
+`previews/idle-rotation.mp4`（Idle MP4，仅本地生成物） 为 10 秒；`previews/precision-alignment.mp4`（Alignment MP4，仅本地生成物） 为 10.042 秒。均为 Workbench 灰模、H.264、1280 × 960、24 fps、无声音。逐帧核对完整画幅，并实际查看静帧及编码后视频的多个解码时刻；见 [manifest.json](previews/manifest.json)。不把灰模光照当正式材质。当前可继续评审这份基线，最终厚重程度、默认停留姿态与校准幅度仍由用户选定。
 
 在仓库根目录运行；按本机安装修改可执行文件路径：
 
