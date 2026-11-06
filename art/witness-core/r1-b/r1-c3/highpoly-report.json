@@ -1,0 +1,36 @@
+{
+  "A": {
+    "vertices": 280008,
+    "faces": 280012,
+    "triangles": 560012,
+    "modified_vertices": 266280,
+    "maximum_absolute_shift": 0.004600018262863159,
+    "rms_shift": 0.0012061030138283968,
+    "displacement_exclusively_inward": false,
+    "shader_bump_or_displacement": false
+  },
+  "B": {
+    "vertices": 280008,
+    "faces": 280012,
+    "triangles": 560012,
+    "modified_vertices": 266285,
+    "maximum_absolute_shift": 0.004600018262863159,
+    "rms_shift": 0.0011183255119249225,
+    "displacement_exclusively_inward": false,
+    "shader_bump_or_displacement": false
+  },
+  "C": {
+    "shared_mesh_with": "B High",
+    "same_physical_geometry": true
+  },
+  "low": {
+    "vertices": 144,
+    "faces": 284,
+    "geometry_uv_sha256": "139c7a37f860b05150eb8a828fbe50ebeb2d7f36347301bda4ea9bc4b003fb31"
+  },
+  "originals_sha256": {
+    "R1-B2": "426d9d71d7c2ec59e6f1c543b43adaa99b543ca81eb0d660e1693d029faacc52",
+    "R1-C": "0282e079307af86501d1c0b720984229dc5724a860482ef5a805c114a54731e7",
+    "R1-C2": "0e62514a320853b1073aa17e28b630e99d94c9b1e92831c5c3a97d610c7e3607"
+  }
+}

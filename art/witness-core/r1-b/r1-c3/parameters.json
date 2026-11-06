@@ -1,0 +1,34 @@
+{
+  "revision": "R1-C3 high-poly surface language study; coupon only",
+  "units": "Blender units. Physical world scale remains unfrozen.",
+  "coupon": {"length": 2.6, "height": 1.8, "beam_width": 0.72, "depth": 0.72, "bevel": 0.012, "bevel_segments": 3},
+  "high_poly": {
+    "xz_grid_step_max": 0.012,
+    "depth_grid_step_max": 0.002,
+    "edge_protection_width": 0.105,
+    "forging_depth_scale": 0.0048,
+    "forging_wavelengths_approx": [0.48, 0.95, 1.65],
+    "machining_pitch": 0.012,
+    "machining_peak_to_valley": 0.00014,
+    "machining_finish_depth": 0.00022,
+    "method": "Explicit bounded trigonometric control surfaces applied to real dense mesh vertices, not shader displacement, noise, Voronoi or pits. Signed shallow relief bounded by 0.0048 BU, fades to zero before precision bevels; nominal edge paths stay fixed."
+  },
+  "variants": {
+    "A": {"name": "Forged Plain", "geometry": "Forged on body and inner surfaces; protected planar cut end; no machining grooves.", "aging": false},
+    "B": {"name": "Forged + Precision Machined", "geometry": "Same forged body; planished inner walls and top cut face with physical parallel finishing grooves.", "aging": false},
+    "C": {"name": "Aged Precision", "geometry": "Shares B high-poly mesh exactly; restrained oxide/edge burnishing in color and roughness only.", "aging": true}
+  },
+  "bake": {"size": 2048, "margin": 16, "cage_extrusion": 0.015, "max_ray_distance": 0.04, "samples": 32, "ao_distance": 0.22,
+    "basecolor_bits": 8, "data_maps_bits": 16},
+  "render": {
+    "size": [1440, 1080], "samples": 96, "seed": 42,
+    "medium_camera": [4, -7, 4], "medium_target": [0.15, 0, -0.05], "medium_scale": 3.65,
+    "close_camera": [3, -6, 3], "close_target": [0.72, -0.25, -0.12], "close_scale": 1.28,
+    "proof_camera": [0.8, -7, 0.3], "proof_target": [0.12, -0.36, -0.45], "proof_scale": 2.65,
+    "view_transform": "AgX", "look": "AgX - Medium High Contrast", "exposure": 0
+  },
+  "lighting": {"world_strength": 0.12, "key_power": 700, "fill_power": 350, "upper_strip_power": 500,
+    "face_panel": {"position": [-1.5, -4, 0.2], "target": [0,-0.36,-0.25], "size": [0.45,4], "power": 200}},
+  "geometry_proof": {"material": "Uniform neutral specular clay, no textures, bump or displacement", "metallic": 0.7, "roughness": 0.17,
+    "lighting": "Only the face ribbon and a dim fill remain on; identical for nominal low and A/B/C high. No geometric exaggeration."}
+}

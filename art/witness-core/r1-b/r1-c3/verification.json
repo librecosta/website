@@ -1,0 +1,426 @@
+{
+  "blender": "5.2.3 LTS",
+  "source_blend_sha256": "b47c58d51ec475d815f4375a005ecbd52122b8416fe51e135b648d0a54894cd6",
+  "parameters_sha256": "cdd51fe3b3bfa989d750e2a47f053dfc3d7a45f0a5f457b2866a3bba1b27818d",
+  "earlier_revisions_unchanged": true,
+  "originals_sha256": {
+    "R1-B2": "426d9d71d7c2ec59e6f1c543b43adaa99b543ca81eb0d660e1693d029faacc52",
+    "R1-C": "0282e079307af86501d1c0b720984229dc5724a860482ef5a805c114a54731e7",
+    "R1-C2": "0e62514a320853b1073aa17e28b630e99d94c9b1e92831c5c3a97d610c7e3607"
+  },
+  "shared_low_geometry_and_uv": true,
+  "B_and_C_share_high_geometry": true,
+  "high": {
+    "A": {
+      "closed_manifold": true,
+      "positive_volume": true,
+      "volume": 1.9094533703053567,
+      "loose_vertices": 0,
+      "vertices": 280008,
+      "faces": 280012,
+      "triangles": 560012,
+      "maximum_vertex_shift": 0.004600018262863159,
+      "rms_vertex_shift": 0.0012061030138283968,
+      "nominal_bounds": [
+        [
+          -1.2999999523162842,
+          -0.36000001430511475,
+          -0.8999999761581421
+        ],
+        [
+          1.2999999523162842,
+          0.36000001430511475,
+          0.8999999761581421
+        ]
+      ],
+      "actual_bounds": [
+        [
+          -1.301519751548767,
+          -0.3646000325679779,
+          -0.9033880233764648
+        ],
+        [
+          1.303389310836792,
+          0.3646000325679779,
+          0.9009118676185608
+        ]
+      ],
+      "changed_vertices": 266280,
+      "maximum_shift_of_protected_bevel_vertices": 0.0,
+      "no_noise_voronoi_bump_displacement_nodes": true
+    },
+    "B": {
+      "closed_manifold": true,
+      "positive_volume": true,
+      "volume": 1.9090379632643608,
+      "loose_vertices": 0,
+      "vertices": 280008,
+      "faces": 280012,
+      "triangles": 560012,
+      "maximum_vertex_shift": 0.004600018262863159,
+      "rms_vertex_shift": 0.0011183255119249225,
+      "nominal_bounds": [
+        [
+          -1.2999999523162842,
+          -0.36000001430511475,
+          -0.8999999761581421
+        ],
+        [
+          1.2999999523162842,
+          0.36000001430511475,
+          0.8999999761581421
+        ]
+      ],
+      "actual_bounds": [
+        [
+          -1.301519751548767,
+          -0.3646000325679779,
+          -0.9033880233764648
+        ],
+        [
+          1.303389310836792,
+          0.3646000325679779,
+          0.8999999761581421
+        ]
+      ],
+      "changed_vertices": 266285,
+      "maximum_shift_of_protected_bevel_vertices": 0.0,
+      "no_noise_voronoi_bump_displacement_nodes": true
+    }
+  },
+  "low": {
+    "closed_manifold": true,
+    "positive_volume": true,
+    "volume": 1.9069719526278142,
+    "loose_vertices": 0,
+    "vertices": 144,
+    "faces": 284,
+    "triangles": 284
+  },
+  "textures": {
+    "A": {
+      "normal": {
+        "sha256": "18dfddac07cde003f0cc312b4d90184345e11c0bb1e8b533821976b9a23c3a4f",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.3536583483219147,
+          0.35654231905937195,
+          0.9693293571472168
+        ],
+        "surface_max": [
+          0.6485084295272827,
+          0.6490272283554077,
+          1.0
+        ],
+        "surface_std": [
+          0.007183208130300045,
+          0.006455563474446535,
+          0.0004204754368402064
+        ]
+      },
+      "roughness": {
+        "sha256": "66510548ecede83f982cf515aeabf299cb05339e9d89953e80fdc6c9abc6468a",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.3499961793422699,
+          0.3499961793422699,
+          0.3499961793422699
+        ],
+        "surface_max": [
+          0.48349738121032715,
+          0.48349738121032715,
+          0.48349738121032715
+        ],
+        "surface_std": [
+          0.02324596978724003,
+          0.02324596978724003,
+          0.02324596978724003
+        ]
+      },
+      "ao": {
+        "sha256": "8f6ede4c0ef219ae8cc6dbf4865347cb9fea46dc1196d68ac298aa4ce5086afe",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.5000076293945312,
+          0.5000076293945312,
+          0.5000076293945312
+        ],
+        "surface_max": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "surface_std": [
+          0.03537779301404953,
+          0.03537779301404953,
+          0.03537779301404953
+        ]
+      },
+      "basecolor": {
+        "sha256": "50868c97d35775005be518f368b1d61e2d2bf845c396e270d5da1553ec8cbccc",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 8,
+        "colorspace": "sRGB",
+        "surface_min": [
+          0.2352941334247589,
+          0.24313727021217346,
+          0.24705883860588074
+        ],
+        "surface_max": [
+          0.3137255012989044,
+          0.32549020648002625,
+          0.3333333432674408
+        ],
+        "surface_std": [
+          0.014332383871078491,
+          0.014966225251555443,
+          0.015098380856215954
+        ]
+      }
+    },
+    "B": {
+      "normal": {
+        "sha256": "6c516b818726f054bcc79b2253155883537380a41e2216cfd9586d4acc2f730e",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.3536583483219147,
+          0.35652706027030945,
+          0.9693293571472168
+        ],
+        "surface_max": [
+          0.6485084295272827,
+          0.6490272283554077,
+          1.0
+        ],
+        "surface_std": [
+          0.0077566904947161674,
+          0.006496823858469725,
+          0.00042197940638288856
+        ]
+      },
+      "roughness": {
+        "sha256": "fac4a5a7ca48506d7ae00196b23cb9d1cf3bb86d51f859500d256f2690b7e53b",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.3000076413154602,
+          0.3000076413154602,
+          0.3000076413154602
+        ],
+        "surface_max": [
+          0.48349738121032715,
+          0.48349738121032715,
+          0.48349738121032715
+        ],
+        "surface_std": [
+          0.05493531748652458,
+          0.05493531748652458,
+          0.05493531748652458
+        ]
+      },
+      "ao": {
+        "sha256": "876c4eb367465256018f515f89071f48799d1accd05e7b094f2a892b761b62b7",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.5000076293945312,
+          0.5000076293945312,
+          0.5000076293945312
+        ],
+        "surface_max": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "surface_std": [
+          0.03512759134173393,
+          0.03512759134173393,
+          0.03512759134173393
+        ]
+      },
+      "basecolor": {
+        "sha256": "8d1b02a1874ef28ee317db03b4a4609a27cff6c542dc72222f70d3e8e8f3c20c",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 8,
+        "colorspace": "sRGB",
+        "surface_min": [
+          0.2352941334247589,
+          0.24313727021217346,
+          0.24705883860588074
+        ],
+        "surface_max": [
+          0.32156863808631897,
+          0.33725491166114807,
+          0.3490196168422699
+        ],
+        "surface_std": [
+          0.0336773507297039,
+          0.03690044954419136,
+          0.03888240084052086
+        ]
+      }
+    },
+    "C": {
+      "normal": {
+        "sha256": "955c65cb8c204f9097b061b205b1657821c5cf70e7ac53784d250abfc122cc15",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.3536583483219147,
+          0.35652706027030945,
+          0.9693293571472168
+        ],
+        "surface_max": [
+          0.6485084295272827,
+          0.6490272283554077,
+          1.0
+        ],
+        "surface_std": [
+          0.0077566904947161674,
+          0.006496823858469725,
+          0.000421979435486719
+        ]
+      },
+      "roughness": {
+        "sha256": "c006f439a9080650cc78cc1d24a292ba5bed4dbfea0cdc0bc88b6c607aea5032",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.3000076413154602,
+          0.3000076413154602,
+          0.3000076413154602
+        ],
+        "surface_max": [
+          0.5369954705238342,
+          0.5369954705238342,
+          0.5369954705238342
+        ],
+        "surface_std": [
+          0.07208970189094543,
+          0.07208970189094543,
+          0.07208970189094543
+        ]
+      },
+      "ao": {
+        "sha256": "876c4eb367465256018f515f89071f48799d1accd05e7b094f2a892b761b62b7",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 16,
+        "colorspace": "Non-Color",
+        "surface_min": [
+          0.5000076293945312,
+          0.5000076293945312,
+          0.5000076293945312
+        ],
+        "surface_max": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "surface_std": [
+          0.03512759134173393,
+          0.03512759134173393,
+          0.03512759134173393
+        ]
+      },
+      "basecolor": {
+        "sha256": "a49c3eed0e518e354be41c398544625270cef5e4f820a1f03d0ed33259a62826",
+        "size": [
+          2048,
+          2048
+        ],
+        "png_bits_per_channel": 8,
+        "colorspace": "sRGB",
+        "surface_min": [
+          0.22352942824363708,
+          0.23137256503105164,
+          0.2352941334247589
+        ],
+        "surface_max": [
+          0.3490196168422699,
+          0.3607843220233917,
+          0.3686274588108063
+        ],
+        "surface_std": [
+          0.037440069019794464,
+          0.039558373391628265,
+          0.04079616442322731
+        ]
+      }
+    }
+  },
+  "normal_bake_fidelity": {
+    "A": {
+      "sample_count": 420,
+      "ray_misses": 0,
+      "median_error_degrees": 0.0,
+      "p95_error_degrees": 0.020689403658279627,
+      "maximum_error_degrees": 0.03062309542835152,
+      "method": "Deterministic flat-face samples, BVH ray hit, interpolated high custom normals vs bilinear tangent-map decode"
+    },
+    "B": {
+      "sample_count": 420,
+      "ray_misses": 0,
+      "median_error_degrees": 0.00912359955722276,
+      "p95_error_degrees": 0.19895054842299556,
+      "maximum_error_degrees": 0.48909293087598826,
+      "method": "Deterministic flat-face samples, BVH ray hit, interpolated high custom normals vs bilinear tangent-map decode"
+    },
+    "C": {
+      "sample_count": 420,
+      "ray_misses": 0,
+      "median_error_degrees": 0.00912359955722276,
+      "p95_error_degrees": 0.19895054842299556,
+      "maximum_error_degrees": 0.48909293087598826,
+      "method": "Deterministic flat-face samples, BVH ray hit, interpolated high custom normals vs bilinear tangent-map decode"
+    }
+  },
+  "coupon_only_no_animation_or_kinematic_changes": true,
+  "covered_uv_texels": 1598770,
+  "B_C_normal_map_max_absolute_difference": 1.5288591384887695e-05,
+  "pass": true
+}
