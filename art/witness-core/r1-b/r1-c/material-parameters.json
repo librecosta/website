@@ -1,0 +1,54 @@
+{
+  "revision": "R1-C",
+  "source": "../witness-core.blend",
+  "geometry_changes": "None. Original positions, topology, bevel widths, hierarchy and all animation keys preserved. Flat principal planes, smooth bevel patches and applied weighted corner normals only.",
+  "color_space": "All numeric RGB values below are scene-linear, not sRGB swatches.",
+  "outer": {
+    "name": "Outer Monument Metal",
+    "base_color_low": [0.045, 0.047, 0.049, 1],
+    "base_color_high": [0.055, 0.057, 0.059, 1],
+    "metallic": 0.93, "roughness": [0.48, 0.61],
+    "forging_noise_scale": 38, "forging_bump_distance": 0.0015,
+    "forging_bump_strength": 0.22, "micro_noise_scale": 340,
+    "micro_bump_distance": 0.00025, "micro_bump_strength": 0.17,
+    "age_noise_scale": 8, "emission_strength": 0
+  },
+  "inner": {
+    "name": "Inner Precision Metal",
+    "base_color": [0.105, 0.113, 0.119, 1],
+    "metallic": 1, "roughness": [0.29, 0.36], "anisotropy": 0.18,
+    "machining_axis": "local Y, along the depth of each ring",
+    "machining_wave_scale": 220, "bump_distance": 0.00018, "bump_strength": 0.12,
+    "emission_strength": 0
+  },
+  "core": {
+    "name": "Core Light Material",
+    "base_color": [0.72, 0.69, 0.64, 1], "roughness": 0.26, "metallic": 0,
+    "ior": 1.46, "transmission": 0.08,
+    "emission_color": [1, 0.93, 0.82, 1], "emission_strength": 0.7,
+    "strategy": "Single Principled dielectric surface, restrained emission. Actual Cycles mesh-emission GI; no hidden auxiliary core lights, bloom or composited aura."
+  },
+  "studio": {
+    "world_color": [0.17, 0.18, 0.20, 1], "world_strength": 0.30,
+    "floor_z": -3.1, "floor_color": [0.022, 0.027, 0.033, 1],
+    "lights": [
+      {"name": "Key softbox", "position": [-4, -6, 7], "power_w": 1200, "size": [5, 5], "color": [1, 0.94, 0.86]},
+      {"name": "Precision fill", "position": [5, -4, 2], "power_w": 450, "size": [4, 4], "color": [0.84, 0.90, 1]},
+      {"name": "Upper strip", "position": [0, 3, 4], "power_w": 900, "size": [3, 0.6], "color": [1, 0.96, 0.90]},
+      {"name": "Side ribbon", "position": [4, 1, 1], "power_w": 300, "size": [2, 6], "color": [0.94, 0.96, 1]},
+      {"name": "Face reflection panel", "position": [-1, -6, 1], "power_w": 500, "size": [3, 5], "color": [0.93, 0.94, 1]}
+    ]
+  },
+  "render": {
+    "engine": "CYCLES", "device": "OPTIX", "still_samples": 128, "animation_samples": 32,
+    "still_size": 1536, "detail_size": [1600, 1200], "video_size": [960, 960],
+    "video_frames": [1, 240], "fps": 24, "seed": 42,
+    "view_transform": "AgX", "look": "AgX - Medium High Contrast",
+    "exposure": 0, "bloom": false
+  },
+  "web_translation": {
+    "direct": "Base color, metallic, roughness, inward geometric bevel and corner normals, modest emissive color/intensity; three material slots",
+    "bake_or_rebuild": "Object-space noise to UV base-color/roughness/tangent-normal textures, with texel density and seam padding; anisotropy requires an appropriate physical material",
+    "preview_only": "Cycles multi-bounce GI, softbox rig, denoiser, AgX display transform and floor. Principled emission does not guarantee matching realtime light on surrounding metal."
+  }
+}

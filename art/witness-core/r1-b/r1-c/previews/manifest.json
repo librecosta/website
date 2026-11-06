@@ -1,0 +1,128 @@
+{
+  "renderer": "Cycles / OptiX",
+  "blender_version": "5.2.3 LTS",
+  "material_parameters_sha256": "5d320124bbd850c76f874c2ffded190758a3d4ea6d4c9c6de19765a3a2369b3c",
+  "source_sha256": "0282e079307af86501d1c0b720984229dc5724a860482ef5a805c114a54731e7",
+  "color_management": "AgX / AgX - Medium High Contrast",
+  "stills": [
+    {
+      "file": "hero.png",
+      "frame": 1,
+      "camera": "ThreeQuarter",
+      "resolution": [
+        1536,
+        1536
+      ],
+      "samples": 128,
+      "render_seconds": null,
+      "core_emission_strength": 0.7,
+      "file_sha256": "115d1028840e8f23eef225008006f64008b268e53c39b1e57a7e913ca2e14cfd"
+    },
+    {
+      "file": "aligned-front.png",
+      "frame": 481,
+      "camera": "FrontOrthographic",
+      "resolution": [
+        1536,
+        1536
+      ],
+      "samples": 128,
+      "render_seconds": null,
+      "core_emission_strength": 0.7,
+      "file_sha256": "768222a634fbca7dba6f8ef9ab62bc1ab4856295b0d1c113feb72bf90ed7c62e"
+    },
+    {
+      "file": "outer-surface-closeup.png",
+      "frame": 1,
+      "camera": "OuterMacro",
+      "resolution": [
+        1600,
+        1200
+      ],
+      "samples": 128,
+      "render_seconds": null,
+      "core_emission_strength": 0.7,
+      "file_sha256": "5ffc0a6ba7b432c755dd1864c474aa96532c24ab8be652b80013d264dcb61473"
+    },
+    {
+      "file": "inner-precision-closeup.png",
+      "frame": 1,
+      "camera": "InnerMacro",
+      "resolution": [
+        1600,
+        1200
+      ],
+      "samples": 128,
+      "render_seconds": null,
+      "core_emission_strength": 0.7,
+      "file_sha256": "e8634223eec8ed88ae858d42d844664ef656b74905e18862967c4c8fc2ef67c0"
+    },
+    {
+      "file": "core-light.png",
+      "frame": 1,
+      "camera": "CoreRelation",
+      "resolution": [
+        1600,
+        1200
+      ],
+      "samples": 128,
+      "render_seconds": null,
+      "core_emission_strength": 0.7,
+      "file_sha256": "3c61cd8e42cd04d825bf1b3c2b0d18aa3b6119abce664107623a12260ddc1ac0"
+    },
+    {
+      "file": "core-unlit-control.png",
+      "frame": 1,
+      "camera": "CoreRelation",
+      "resolution": [
+        1600,
+        1200
+      ],
+      "samples": 128,
+      "render_seconds": null,
+      "core_emission_strength": 0,
+      "file_sha256": "680b96460b50d513af209f37e85f01bbffaa7f99f9cb2dda484ab95e79a1f38a"
+    },
+    {
+      "file": "clay-control.png",
+      "frame": 1,
+      "camera": "ThreeQuarter",
+      "resolution": [
+        1536,
+        1536
+      ],
+      "samples": 128,
+      "render_seconds": 15.846878399999923,
+      "core_emission_strength": 0.699999988079071,
+      "file_sha256": "329bb7345a38a4b2f87040e7486952dadd563ced4f09c6f222b1f1c3377eebe8"
+    }
+  ],
+  "videos": [
+    {
+      "file": "idle-material.mp4",
+      "frames": [
+        1,
+        240
+      ],
+      "decoded_frames": 240,
+      "size": [
+        960,
+        960
+      ],
+      "fps": 24,
+      "samples": 32,
+      "denoiser": "OPTIX",
+      "persistent_data": true,
+      "render_seconds": 282.82136560000004,
+      "file_sha256": "72ec04973fb4a06e837e826f42854c459604089c89128baa5750db402d3548be",
+      "decoded_visual_review_frames": [
+        1,
+        49,
+        97,
+        145,
+        193,
+        240
+      ]
+    }
+  ]
+}

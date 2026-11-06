@@ -45,3 +45,5 @@ python art/witness-core/r1-b/compose_previews.py
 ```
 
 [parameters.json](parameters.json) 是尺寸、轴、运动范围、函数参数与预览配置的来源。建模 / 验证 / 视频仅使用 Blender 自带组件；拼版需要系统 Python + Pillow。构建器只接受新的 `--background --factory-startup` 进程，不替换打开的用户工程。交付不含缓存、备份或视频逐帧中间图。
+
+后续材质研究见 [R1-C](r1-c/README.md)：读取本灰模并另存材质工程，保留本阶段源文件与原始预览。
