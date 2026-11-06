@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { EXPANSE } from '../src/components/expanse/parameters.ts';
-import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, heightAt, sampleJourney, worldVertices, structureDistance } from '../src/components/expanse/world.ts';
+import { buildMonuments, buildTerrainData, buildWedgeData, fingerprint, heightAt, sampleJourney, valleyAt, worldVertices, structureDistance } from '../src/components/expanse/world.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const results = {};
@@ -27,12 +27,30 @@ const changedSeed = structuredClone(EXPANSE); changedSeed.seed++;
 assert.notEqual(fingerprint(buildTerrainData(changedSeed, EXPANSE.terrain.resolution.mobile).positions), results.mobile.fingerprint);
 const monuments = buildMonuments(EXPANSE);
 assert.deepEqual(monuments, buildMonuments(EXPANSE));
-assert(monuments.length <= 10, 'Restraint: no procedural block forest');
+assert(monuments.length <= 12, 'Restraint: no procedural block forest');
+for (const z of [1900,1100,200,-800,-2000,-3200]) {
+  const spine=valleyAt(z,EXPANSE), floor=heightAt(spine.x,z,EXPANSE);
+  assert(heightAt(spine.x-500,z,EXPANSE)-floor > 30, 'Left bank wraps the channel');
+  assert(heightAt(spine.x+500,z,EXPANSE)-floor > 30, 'Right bank wraps the channel');
+}
+const debris=monuments.filter(m => m.family === 'Foreground Debris');
+const field=monuments.filter(m => m.family === 'Mid Monoliths');
+const hero=monuments.filter(m => m.family === 'Hero Structure');
+assert(debris.length > 0 && field.length > 0 && hero.length > 0, 'All three structure roles remain represented');
+assert(Math.min(...debris.map(m => m.position[2])) > Math.max(...field.map(m => m.position[2])), 'Debris precedes the monolith field');
+assert(Math.min(...field.map(m => m.position[2])) > Math.max(...hero.map(m => m.position[2])), 'Destination stays beyond the field');
+for(let i=0;i<=20;i++) {
+  const pose=sampleJourney(i/100,EXPANSE), start=sampleJourney(0,EXPANSE);
+  assert(new Vector3(...pose.position).distanceTo(new Vector3(...start.position)) < 1e-9, 'First 20% holds position');
+  assert(new Vector3(...pose.target).distanceTo(new Vector3(...start.target)) < 1e-9, 'First 20% holds direction');
+  assert(Math.abs(pose.fov-start.fov)+Math.abs(pose.roll-start.roll) < 1e-9);
+}
 const burial = monuments.map(m => {
   assert(m.position.every(Number.isFinite)); assert(m.scale.every(x => x > 0));
   const vertices = worldVertices(m);
   const signed = vertices.map(v => v.y - heightAt(v.x,v.z,EXPANSE));
   assert(Math.min(...signed) < -30 && Math.max(...signed) > 10, m.id + ': real partial terrain occlusion');
+  if(m.family === 'Foreground Debris') assert(Math.max(...signed) < 50, m.id + ': debris exposes a low fragment rather than a complete building');
   let footingDepth = Infinity;
   for (const quality of ['desktop','mobile']) for (let u=0;u<=16;u++) for (let v=0;v<=16;v++) {
     const bottom = new Vector3((u/16-.5)*m.scale[0], -.5*m.scale[1], (v/16-.5)*m.scale[2])
@@ -77,7 +95,7 @@ for (let i=0;i<=1000;i++) {
     minimumTerrainClearance=Math.min(minimumTerrainClearance,position[1]-radius-meshHeight(x,z,quality));
   }
   for(const monument of monuments) minimumStructureClearance=Math.min(minimumStructureClearance,structureDistance(position,monument)-radius);
-  if ([0,250,550,800,1000].includes(i)) poses.push({progress:p,...pose});
+  if ([0,200,450,550,750,1000].includes(i)) poses.push({progress:p,...pose});
 }
 assert(minimumTerrainClearance > 8, 'Camera sphere has terrain clearance');
 assert(minimumStructureClearance > 15, 'Camera sphere stays outside conservative OBBs');

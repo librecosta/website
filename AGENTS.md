@@ -2,7 +2,7 @@
 
 ## 当前范围与工程
 
-- 当前 P1-A2 在 `/lab/expanse` 研究稀疏半埋巨构、地形包裹与原生滚动驱动的连续镜头；正常界面只保留品牌和轻提示，调试信息限 `?debug=1`。正式首页保持基础 HTML，后续世界与资产精修需独立授权。
+- 当前 P1-A3 在 `/lab/expanse` 研究浅谷推进：前景谷地、低矮半埋残片、中景斜插柱阵、远方主体分层显露。正常界面只保留品牌、轻提示和底部细进度线；隐藏滚动条外观，保留原生滚动，调试信息限 `?debug=1`。正式首页保持基础 HTML，后续世界与资产精修需独立授权。
 - 使用 Next.js App Router、React、TypeScript、Three.js、React Three Fiber、GSAP / ScrollTrigger 与 pnpm；禁止 Astro。依赖采用兼容的稳定版本并保留 lockfile。
 - 优先静态导出；不接入后台、数据库、CMS、认证或其他业务系统。不预建 Scene Manager、渲染管线、插件架构或空目录。
 - `src/app/` 保存真实 HTML 页面。未来的 3D 场景作为独立客户端模块按需加载，HTML 阅读不能依赖 Canvas 初始化成功。

@@ -13,7 +13,7 @@ const ExpanseCanvas = dynamic(() => import('./ExpanseCanvas'), { ssr: false });
 function Unavailable() {
   return <div className={styles.unavailable} role="status">
     <h1>The Expanse</h1>
-    <p>苍白荒原中，倾斜的巨构半埋于起伏地表。前方，两座巨板围出通向远方的门槛。</p>
+    <p>苍白浅谷沿沙丘延伸，低矮残片半埋于近处。倾斜柱阵之后，更高的巨构隐入远方。</p>
     <p>三维视图暂不可用。此体验需要 WebGL2。</p>
     <button type="button" onClick={() => window.location.reload()}>刷新后重试</button>
   </div>;
@@ -29,6 +29,7 @@ class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void 
 export default function ExpanseLab() {
   const root = useRef<HTMLElement>(null), hint = useRef<HTMLParagraphElement>(null);
   const debugOutput = useRef<HTMLOutputElement>(null);
+  const progressBar = useRef<HTMLDivElement>(null), progressFill = useRef<HTMLSpanElement>(null);
   const signal = useRef<JourneySignal>({ value: 0, raw: 0, invalidate: () => {} });
   const [mobile, setMobile] = useState(false), [mediaReduced, setMediaReduced] = useState(false);
   const [debug, setDebug] = useState(false), [forceReduced, setForceReduced] = useState(false);
@@ -53,7 +54,10 @@ export default function ExpanseLab() {
     signal.current.raw = 0;
     const paint = () => {
       signal.current.invalidate();
-      if (hint.current) hint.current.style.opacity = String(1 - Math.min(1, signal.current.value * 18));
+      if (hint.current) hint.current.style.opacity = String(1 - Math.min(1, signal.current.value * 5));
+      const progress = Math.max(0, Math.min(1, signal.current.raw));
+      if (progressFill.current) progressFill.current.style.transform = `scaleX(${progress})`;
+      progressBar.current?.setAttribute('aria-valuenow', String(Math.round(progress * 100)));
       if (debugOutput.current) debugOutput.current.value = `${(signal.current.raw * 100).toFixed(1)}% / ${(signal.current.value * 100).toFixed(1)}%`;
     };
     const context = gsap.context(() => {
@@ -74,7 +78,7 @@ export default function ExpanseLab() {
   };
   return <main ref={root} className={styles.journey} data-reduced={reduced || contextLost} data-ready={ready}
     style={{ '--journey-screens': EXPANSE.journey.screens } as CSSProperties}>
-    <figure className={styles.stage} aria-label="苍白荒原中，少量倾斜巨构半埋于地表，远方双板之间留有巨大的门槛。">
+    <figure className={styles.stage} aria-label="两侧沙丘围出浅谷，近处残片半埋，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas signal={signal} mobile={mobile} reduced={reduced}
           debug={debug} onReady={onReady} onContextLost={onContextLost} />}
@@ -83,12 +87,18 @@ export default function ExpanseLab() {
       <Link href="/" className={styles.brand} aria-label="LibreCosta 首页">LibreCosta</Link>
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <figcaption className={styles.srOnly}>以页面滚动走近遗落巨构。随时停止，向上滚动可以原路返回。</figcaption>
-      {!reduced && !contextLost && <p ref={hint} className={styles.hint}>滚动，走向远方<span aria-hidden="true" /></p>}
+      {!reduced && !contextLost && <>
+        <p ref={hint} className={styles.hint}>滚动，沿谷前行</p>
+        <div ref={progressBar} className={styles.progress} role="progressbar" aria-label="旅程进度"
+          aria-valuemin={0} aria-valuemax={100} aria-valuenow={0}>
+          <span ref={progressFill} />
+        </div>
+      </>}
       {reduced && <p className={styles.staticNote}>静态观览 · 已减少动态效果</p>}
-      <noscript><div className={styles.unavailable}><p>苍白荒原，倾斜巨构，通向远方的门槛。启用 JavaScript 后可进入空间。</p></div></noscript>
+      <noscript><div className={styles.unavailable}><p>苍白浅谷，半埋残片，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} aria-label="场景调试">
         <output ref={debugOutput} aria-label="滚动进度与相机进度">0% / 0%</output>
-        <div>{[0,.25,.55,.8,1].map(p => <button key={p} type="button" onClick={() => seek(p)}>{Math.round(p * 100)}%</button>)}</div>
+        <div>{[0,.2,.45,.55,.75,1].map(p => <button key={p} type="button" onClick={() => seek(p)}>{Math.round(p * 100)}%</button>)}</div>
         <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />静态模式验证</label>
       </aside>}
     </figure>

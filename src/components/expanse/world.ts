@@ -21,25 +21,41 @@ function noise(x: number, z: number, seed: number) {
     lerp(hash(ix, iz + 1, seed), hash(ix + 1, iz + 1, seed), u), v) * 2 - 1;
 }
 
+export function valleyAt(z: number, world: WorldParameters) {
+  const nodes = world.terrain.valleySpine;
+  let i = 0;
+  while (i < nodes.length - 2 && z < nodes[i + 1].z) i++;
+  const a = nodes[i], b = nodes[i + 1];
+  const t = smoothstep(0, 1, (a.z - z) / (a.z - b.z));
+  return { x: lerp(a.x,b.x,t), floor: lerp(a.floor,b.floor,t), width: lerp(a.width,b.width,t) };
+}
+
+function ridgeHeight(x: number, z: number, ridge: { readonly center: readonly number[];
+  readonly radius: readonly number[]; readonly height: number; readonly rotation: number; readonly leeScale: number },
+  world: WorldParameters) {
+  const centerX = valleyAt(ridge.center[1],world).x + ridge.center[0];
+  const dx=x-centerX, dz=z-ridge.center[1], c=Math.cos(ridge.rotation), s=Math.sin(ridge.rotation);
+  const localX=dx*c-dz*s;
+  const u=localX/(ridge.radius[0]*(localX>0 ? ridge.leeScale : 1));
+  const v=(dx*s+dz*c)/ridge.radius[1];
+  return ridge.height*Math.exp(-2.2*(u*u+v*v));
+}
+
 export function heightAt(x: number, z: number, world: WorldParameters): number {
-  const terrain = world.terrain;
-  let massing = 0;
-  for (const mass of terrain.masses) {
-    const dx = x - mass.center[0], dz = z - mass.center[1];
-    const c = Math.cos(mass.rotation), s = Math.sin(mass.rotation);
-    const u = (dx * c - dz * s) / mass.radius[0];
-    const v = (dx * s + dz * c) / mass.radius[1];
-    massing += mass.height * Math.exp(-2.5 * (u * u + v * v));
-  }
-  let detail = 0;
-  terrain.noise.forEach((layer, i) => {
-    detail += layer.amplitude * noise(x / layer.wavelength, z / layer.wavelength, world.seed + i * 113);
+  const terrain=world.terrain, spine=valleyAt(z,world), profile=terrain.basinProfile;
+  const lateral=x-spine.x, edge=Math.max(0,Math.abs(lateral)-spine.width);
+  const bank=profile.bankHeight*(1-Math.exp(-Math.pow(edge/profile.bankRun,2)))
+    *Math.exp(-Math.pow(edge/profile.outerFalloff,4))*(lateral<0 ? profile.leftScale : profile.rightScale);
+  let dunes=0, burial=0, detail=0;
+  for(const ridge of terrain.duneLayers) dunes+=ridgeHeight(x,z,ridge,world);
+  for(const mask of terrain.burialMasks) burial+=ridgeHeight(x,z,mask,world);
+  terrain.noise.forEach((layer,i) => {
+    detail+=layer.amplitude*noise(x/layer.wavelength,z/layer.wavelength,world.seed+i*113);
   });
-  const corridor = terrain.corridor;
-  const centerX = Math.sin((z + 400) / corridor.bendLength) * corridor.bend;
-  const side = smoothstep(corridor.halfWidth, corridor.halfWidth + corridor.blendWidth, Math.abs(x - centerX));
-  return terrain.baseHeight + massing * lerp(corridor.massRetention, 1, side)
-    + detail * lerp(0.12, 1, side);
+  const mask=terrain.pathMask;
+  const side=smoothstep(mask.halfWidth,mask.halfWidth+mask.blendWidth,Math.abs(lateral));
+  return terrain.baseHeight+spine.floor+bank+(dunes+burial)*lerp(mask.massRetention,1,side)
+    +detail*lerp(.12,1,side);
 }
 
 export function buildTerrainData(world: WorldParameters, segments: readonly number[]) {
@@ -84,10 +100,10 @@ export function localVertices(kind: Monument['kind']): Vector3[] {
 }
 
 export function buildMonuments(world: WorldParameters): Monument[] {
-  return world.structures.map(part => {
+  return [...world.debrisDistribution,...world.structures].map(part => {
     const radians = part.orientation.map(v => v * Math.PI / 180);
     const quaternion = new Quaternion().setFromEuler(new Euler(radians[0], radians[1], radians[2], 'YXZ'));
-    const [x,z] = part.center;
+    const z=part.center[1], x=valleyAt(z,world).x+part.center[0];
     // Rotate the actual lower face first; put EVERY sampled footing below terrain.
     // Burial then lowers the complete rigid object, rather than clipping/coloring it.
     let originY = Infinity;
@@ -158,8 +174,11 @@ function channel(world: WorldParameters, progress: number, value: (i: number) =>
 export function sampleJourney(progress: number, world: WorldParameters, mobile = false) {
   const keys = world.journey.keys;
   const position = [0,1,2].map(axis => channel(world, progress, i => keys[i].position[axis])) as [number,number,number];
+  position[0] += valleyAt(position[2],world).x;
   position[1] += heightAt(position[0], position[2], world);
   const target = [0,1,2].map(axis => channel(world, progress, i => keys[i].target[axis])) as [number,number,number];
+  target[0] += valleyAt(target[2],world).x;
+  target[1] += valleyAt(target[2],world).floor;
   return { position, target: target as Vec3,
     roll: channel(world, progress, i => keys[i].roll),
     fov: channel(world, progress, i => keys[i].fov) + (mobile ? world.journey.mobileFovExtra : 0) };

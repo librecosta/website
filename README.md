@@ -1,7 +1,7 @@
 
 # LibreCosta Website
 
-LibreCosta 远岸开物官网。正式首页维持基础 HTML；独立实验页 `/lab/expanse` 以原生滚动穿越苍白荒原与半埋巨构。
+LibreCosta 远岸开物官网。正式首页维持基础 HTML；独立实验页 `/lab/expanse` 以原生滚动沿苍白浅谷推进，依次显露低矮残片、倾斜柱阵与远方主体。
 
 ## 本地开发
 
@@ -12,7 +12,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-打开 [本地实验页](http://127.0.0.1:3000/lab/expanse)，滚动前进、停止或反向返回。`?debug=1` 提供进度跳转与静态模式检查；正常模式没有观察点 Tab 或研究说明面板。类型检查、生成／路径约束与生产静态导出：
+打开 [本地实验页](http://127.0.0.1:3000/lab/expanse)，前 20% 静止远眺，继续滚动推进，随时停止或反向返回。底部细线显示原生滚动进度。`?debug=1` 提供进度跳转与静态模式检查。类型检查、生成／路径约束与生产静态导出：
 
 ```sh
 pnpm check
@@ -36,6 +36,6 @@ World First, Detail Later：先确认世界的几何、尺度、构图与光线�
 
 P1-A 将 81 个实验二进制（约 122.2 MB）用 `git rm --cached` 移出当前索引，所有本地源文件保留，未改写历史；这不会删除历史 Git 对象或立即缩小已有 `.git`。旧文档中的生成物以本地路径说明，重建步骤保留于各研究目录。
 
-生成工程、模型、纹理、视频及审查截图默认忽略；浏览器截图放 `.local/p1-a/`。网站 `public/` 的 PNG/WebP 等图片格式仍可提交。正式资产需先说明用途、来源和优化后大小，再在 `.gitignore` 写精确路径例外，审查暂存清单后提交，不用 `git add -f` 绕过约束。
+生成工程、模型、纹理、视频及审查截图默认忽略；浏览器截图放 `.local/p1-a3/`。网站 `public/` 的 PNG/WebP 等图片格式仍可提交。正式资产需先说明用途、来源和优化后大小，再在 `.gitignore` 写精确路径例外，审查暂存清单后提交，不用 `git add -f` 绕过约束。
 
 Official website: https://librecosta.com . Operated by Chengdu Yuanan Kaiwu Technology Co., Ltd.
