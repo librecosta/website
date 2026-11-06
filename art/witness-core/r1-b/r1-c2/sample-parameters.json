@@ -1,0 +1,21 @@
+{
+  "revision": "R1-C2 sample only",
+  "source_materials": "../r1-c/witness-core-materials.blend",
+  "sample": {"length": 2.6, "height": 1.8, "beam_width": 0.72, "depth": 0.72, "bevel": 0.012, "bevel_segments": 3},
+  "units": "Blender units; the 0.72 beam matches Ring C. Physical world scale is not frozen.",
+  "atlas_size": 2048, "bake_margin_px": 16,
+  "variants": {
+    "A": {"name": "R1-C baseline", "method": "Unmodified R1-C procedural shaders"},
+    "B": {"name": "Fine forged", "pit_cell_scale": 22, "pit_bump_distance": 0.0022, "pit_bump_strength": 0.65,
+          "roughness": [0.40, 0.68], "color_low": [0.027,0.031,0.034,1], "color_high": [0.063,0.068,0.071,1],
+          "inner_roughness": [0.30,0.37], "machining_wave_scale": 35, "machining_bump_distance": 0.00025},
+    "C": {"name": "Stylized shallow tooling", "pit_cell_scale": 7.5, "tool_shape": "Rounded square stamp, Minkowski exponent 3", "pit_bump_distance": 0.004, "pit_bump_strength": 0.65,
+          "roughness": [0.38, 0.75], "color_low": [0.022,0.026,0.029,1], "color_high": [0.075,0.081,0.085,1],
+          "inner_roughness": [0.31,0.40], "machining_wave_scale": 25, "machining_bump_distance": 0.0004}
+  },
+  "scope": "Shared identical low-poly L corner. B/C are authored procedural height/roughness/color, baked to actual UV textures; no high-poly sculpt or physical displacement. Bevel shaders are retained from baseline during baking to preserve crisp edges.",
+  "render": {"medium_size": [1440,1080], "close_size": [1440,1080], "samples": 96,
+             "medium_camera": [4,-7,4], "medium_target": [0.15,0,-0.05], "medium_scale": 3.65,
+             "close_camera": [3,-6,3], "close_target": [0.72,-0.25,-0.12], "close_scale": 1.28,
+             "engine": "CYCLES", "seed": 42, "exposure": 0, "look": "AgX - Medium High Contrast"}
+}

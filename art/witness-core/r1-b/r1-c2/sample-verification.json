@@ -1,0 +1,190 @@
+{
+  "source_r1c_unchanged": true,
+  "blender": "5.2.3 LTS",
+  "sample_blend_sha256": "0e62514a320853b1073aa17e28b630e99d94c9b1e92831c5c3a97d610c7e3607",
+  "sample_parameters_sha256": "d58c931297d878f38edc43806db50c1567d495bd91338f0ce8a1997d29b5f5e3",
+  "shared_identical_mesh": true,
+  "geometry_and_uv_sha256": "a2f0d67f11bed7a03e7156b67d9528d1ea13ad16dad486cd588973b909649956",
+  "closed_manifold": true,
+  "volume": 1.9069719552089244,
+  "high_poly_sculpt": false,
+  "physical_displacement": false,
+  "textures": {
+    "B": {
+      "basecolor": {
+        "file": "textures/B-basecolor.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "sha256": "5b8c14654b5985bc99c340d8a0fec691b8eaac77a109c7dd823d5c8da09e5154",
+        "valid_surface_min": [
+          0.19607844948768616,
+          0.20784315466880798,
+          0.21568629145622253
+        ],
+        "valid_surface_max": [
+          0.35686275362968445,
+          0.3686274588108063,
+          0.3803921937942505
+        ],
+        "valid_surface_std": [
+          0.026957649737596512,
+          0.028554795309901237,
+          0.02972857467830181
+        ]
+      },
+      "roughness": {
+        "file": "textures/B-roughness.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "sha256": "ee8d7b7ec61ef8444503adc25e84df26b8cb9c5fe8ac3c7e47535d4f7dc57458",
+        "valid_surface_min": [
+          0.29411765933036804,
+          0.29411765933036804,
+          0.29411765933036804
+        ],
+        "valid_surface_max": [
+          0.6431372761726379,
+          0.6431372761726379,
+          0.6431372761726379
+        ],
+        "valid_surface_std": [
+          0.05644268915057182,
+          0.05644268915057182,
+          0.05644268915057182
+        ]
+      },
+      "normal": {
+        "file": "textures/B-normal.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "sha256": "6802fe1c196ff87af09cbb5482c888847150b74c96d224b3743d906d762e248b",
+        "valid_surface_min": [
+          0.44705885648727417,
+          0.44705885648727417,
+          0.9960784912109375
+        ],
+        "valid_surface_max": [
+          0.5529412031173706,
+          0.5490196347236633,
+          1.0
+        ],
+        "valid_surface_std": [
+          0.007689664606004953,
+          0.007234137039631605,
+          9.87462917692028e-05
+        ]
+      }
+    },
+    "C": {
+      "basecolor": {
+        "file": "textures/C-basecolor.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "sha256": "375ac820b85c040cd18b421d8cb5523c1ec1ed606d047a45f687c523ef1e4d56",
+        "valid_surface_min": [
+          0.1882353127002716,
+          0.2039215862751007,
+          0.21176472306251526
+        ],
+        "valid_surface_max": [
+          0.35686275362968445,
+          0.3686274588108063,
+          0.3803921937942505
+        ],
+        "valid_surface_std": [
+          0.022534549236297607,
+          0.023838207125663757,
+          0.024694912135601044
+        ]
+      },
+      "roughness": {
+        "file": "textures/C-roughness.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "sha256": "462a39c17ddd5c8015e27253dde4ab1516efe874448a78bf080427f9a8e9b41f",
+        "valid_surface_min": [
+          0.29411765933036804,
+          0.29411765933036804,
+          0.29411765933036804
+        ],
+        "valid_surface_max": [
+          0.6980392336845398,
+          0.6980392336845398,
+          0.6980392336845398
+        ],
+        "valid_surface_std": [
+          0.054543569684028625,
+          0.054543569684028625,
+          0.05454356595873833
+        ]
+      },
+      "normal": {
+        "file": "textures/C-normal.png",
+        "size": [
+          2048,
+          2048
+        ],
+        "sha256": "abe2ddd045898803f51e2551ae2bfc2fd37a285366a5179a19be5404d2d5560d",
+        "valid_surface_min": [
+          0.44705885648727417,
+          0.44705885648727417,
+          0.9960784912109375
+        ],
+        "valid_surface_max": [
+          0.5529412031173706,
+          0.5490196347236633,
+          1.0
+        ],
+        "valid_surface_std": [
+          0.007842516526579857,
+          0.007175414357334375,
+          6.701688835164532e-05
+        ]
+      }
+    }
+  },
+  "glb": {
+    "B": {
+      "file": "exports/B-fine-forged.glb",
+      "sha256": "861e0df497590a50343056db838ff82c78010991b2d4ecc3244625001daac240",
+      "image_count": 3,
+      "material_count": 2,
+      "checks": {
+        "embedded_images": true,
+        "basecolor_images": true,
+        "roughness_images": true,
+        "normal_images": true,
+        "uv_and_normals": true,
+        "explicit_tangents": true,
+        "roundtrip_positions_within_1e5_quantization": true
+      }
+    },
+    "C": {
+      "file": "exports/C-stylized-tooling.glb",
+      "sha256": "bf4278216c27ab687ecb0969b056d7f7fd1a0394afc9902df07b6796c86e0d5f",
+      "image_count": 3,
+      "material_count": 2,
+      "checks": {
+        "embedded_images": true,
+        "basecolor_images": true,
+        "roughness_images": true,
+        "normal_images": true,
+        "uv_and_normals": true,
+        "explicit_tangents": true,
+        "roundtrip_positions_within_1e5_quantization": true
+      }
+    }
+  },
+  "covered_uv_pixel_count": 1598770,
+  "pass": true
+}
