@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { EXPANSE, LIGHTING_LOOKS, SURFACE_VIEWS, WIND_VIEWS, type JourneySignal, type LightingLook, type SurfaceView, type WindView } from './parameters';
+import { BASE_SKY, EXPANSE, FINISHED_SKY, LIGHTING_LOOKS, SKY_LAYERS, SURFACE_VIEWS, WIND_VIEWS,
+  type JourneySignal, type LightingLook, type SkyLayers, type SurfaceView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
 import styles from './expanse.module.css';
 
@@ -42,6 +43,7 @@ export default function ExpanseLab() {
   const [debug, setDebug] = useState(false), [forceReduced, setForceReduced] = useState(false);
   const [surfaceView, setSurfaceView] = useState<SurfaceView>('finalMaterial');
   const [lightingLook, setLightingLook] = useState<LightingLook>(EXPANSE.atmosphere.defaultLook);
+  const [skyLayers, setSkyLayers] = useState(FINISHED_SKY);
   const [windView, setWindView] = useState<WindView>('transport');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
   const reduced = mediaReduced || forceReduced;
@@ -100,7 +102,8 @@ export default function ExpanseLab() {
     <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
-          debug={debug} surfaceView={surfaceView} lightingLook={lightingLook} windView={windView} onReady={onReady} onContextLost={onContextLost} />}
+          debug={debug} surfaceView={surfaceView} lightingLook={lightingLook} skyLayers={skyLayers}
+          windView={windView} onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
       <Link href="/" className={styles.brand} aria-label="LibreCosta 首页">LibreCosta</Link>
@@ -128,6 +131,18 @@ export default function ExpanseLab() {
         <label>风沙 <select value={windView} onChange={event => setWindView(event.target.value as WindView)}>
           {Object.entries(WIND_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
+        <fieldset className={styles.skyDebug}>
+          <legend>天空分层</legend>
+          {(Object.keys(SKY_LAYERS) as (keyof SkyLayers)[]).map(layer => (
+            <label key={layer}>
+              <input type="checkbox" checked={skyLayers[layer]}
+                onChange={event => setSkyLayers({ ...skyLayers, [layer]: event.target.checked })} />
+              {SKY_LAYERS[layer]}
+            </label>
+          ))}
+          <button type="button" onClick={() => setSkyLayers(BASE_SKY)}>仅解析天空</button>
+          <button type="button" onClick={() => setSkyLayers(FINISHED_SKY)}>启用全部</button>
+        </fieldset>
       </aside>}
     </figure>
   </main>;

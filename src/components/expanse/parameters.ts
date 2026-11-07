@@ -11,6 +11,12 @@ export const WIND_VIEWS = {
   static: '静态基线', transport: '近地沙尘', wind: '风场', source: '起沙源', concentration: '浓度场',
 } as const;
 export type WindView = keyof typeof WIND_VIEWS;
+export const SKY_LAYERS = {
+  broad: '大尺度色场', veil: '高空云纱', haze: '地平线薄霾', micro: '微纹理',
+} as const;
+export type SkyLayers = Record<keyof typeof SKY_LAYERS, boolean>;
+export const BASE_SKY: SkyLayers = { broad: false, veil: false, haze: false, micro: false };
+export const FINISHED_SKY: SkyLayers = { broad: true, veil: true, haze: true, micro: true };
 
 const passage = { scroll: 0.35, path: 0.356, slope: 0.646729 } as const;
 
@@ -216,6 +222,13 @@ export const EXPANSE = {
     // Normalized cross section: one deep, narrow opening on the +Z face.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } },
   atmosphere: {
+    skyFinish: {
+      broadTint: [0.064, 0.045, 0.026],
+      fieldFade: [0.04, 0.21],
+      veilOpacity: 0.28,
+      hazeTint: [0.93, 0.90, 0.835], hazeHeight: 0.19, hazeOpacity: 0.29,
+      distantHaze: 0.16,
+    },
     sky: {
       turbidity: 3.4, rayleigh: 1.4, mieCoefficient: 0.006, mieDirectionalG: 0.78,
       exposure: 1.36, saturation: 0.46, blackLevel: 0.515, whiteLevel: 0.952,
@@ -228,15 +241,41 @@ export const EXPANSE = {
     defaultLook: 'sideLight',
     // The fixed maps cover the casters and their downhill ground projections.
     looks: {
-      soft: {
-        sunPosition: [-4350, 4750, 2600], sunColor: '#fff4e4', sunIntensity: 2.85,
-        hemisphereSky: '#e2edf5', hemisphereGround: '#b9ad99', hemisphereIntensity: 1.8,
-        shadowStrength: 0.85, shadowBounds: [-2560, 2450, 3450, -1800, 5600, 13900],
-      },
       sideLight: {
         sunPosition: [-6250, 2830, 1570], sunColor: '#fff0d6', sunIntensity: 3.9,
         hemisphereSky: '#e3edf5', hemisphereGround: '#b2a694', hemisphereIntensity: 1.48,
         shadowStrength: 0.95, shadowBounds: [-3120, 2820, 2810, -980, 5600, 16000],
+        air: null,
+      },
+      sculptural: {
+        sunPosition: [7700, 3650, 1900], sunColor: '#fff0db', sunIntensity: 3.35,
+        hemisphereSky: '#e1ebf7', hemisphereGround: '#b3a693', hemisphereIntensity: 1.35,
+        shadowStrength: 0.97, shadowBounds: [-3220, 3550, 2750, -1330, 7650, 16500],
+        air: {
+          sky: { turbidity: 2.8, rayleigh: 1.4, mieCoefficient: 0.005, mieDirectionalG: 0.77,
+            saturation: 0.32, blackLevel: 0.27, whiteLevel: 0.96, horizonTint: [1.026, 1.008, 0.954], horizonTintHeight: 0.24 },
+          fogRange: [1900, 13200], distantFog: [0.36, 0.96], nearMist: null,
+        },
+      },
+      backlit: {
+        sunPosition: [9200, 2400, -5550], sunColor: '#ffe9cc', sunIntensity: 2.75,
+        hemisphereSky: '#e1e9f3', hemisphereGround: '#beb09a', hemisphereIntensity: 2.15,
+        shadowStrength: 0.9, shadowBounds: [-3320, 3620, 1970, -1100, 7790, 17450],
+        air: {
+          sky: { turbidity: 4.6, rayleigh: 1.4, mieCoefficient: 0.013, mieDirectionalG: 0.74,
+            saturation: 0.28, blackLevel: 0.27, whiteLevel: 0.94, horizonTint: [1.036, 1.009, 0.941], horizonTintHeight: 0.27 },
+          fogRange: [1350, 11400], distantFog: [0.45, 0.97], nearMist: null,
+        },
+      },
+      layered: {
+        sunPosition: [-4050, 5100, 2950], sunColor: '#fff3e3', sunIntensity: 2.65,
+        hemisphereSky: '#e4edf5', hemisphereGround: '#c0b29e', hemisphereIntensity: 1.76,
+        shadowStrength: 0.87, shadowBounds: [-2480, 2400, 3630, -1990, 6030, 13800],
+        air: {
+          sky: { turbidity: 3.2, rayleigh: 1.4, mieCoefficient: 0.006, mieDirectionalG: 0.76,
+            saturation: 0.28, blackLevel: 0.31, whiteLevel: 0.96, horizonTint: [1.032, 1.008, 0.952], horizonTintHeight: 0.24 },
+          fogRange: [2300, 13700], distantFog: [0.43, 0.98], nearMist: [1050, 5400, 0.14],
+        },
       },
     },
     shadowResolution: { desktop: 2560, mobile: 1280 },
@@ -285,4 +324,9 @@ export const EXPANSE = {
 
 export type WorldParameters = typeof EXPANSE;
 export type LightingLook = keyof WorldParameters['atmosphere']['looks'];
-export const LIGHTING_LOOKS: Record<LightingLook, string> = { soft: '明亮柔光', sideLight: '雕塑感侧光' };
+export const LIGHTING_LOOKS: Record<LightingLook, string> = {
+  sideLight: '原版 · P1-J3',
+  sculptural: 'A · 雕塑式侧光',
+  backlit: 'B · 薄霾逆光',
+  layered: 'C · 柔和日照与分层空气',
+};
