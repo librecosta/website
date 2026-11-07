@@ -1,5 +1,5 @@
 import { Color, DataTexture, DataUtils, HalfFloatType, LinearFilter, LinearSRGBColorSpace, MathUtils, RepeatWrapping, RGBAFormat, Vector3, Vector4, type Material } from 'three';
-import { EXPANSE, type LightingLook, type SkyLayers } from './parameters';
+import { EXPANSE, type LightingLook, type SkyView } from './parameters';
 import { forSkyDirection, SKY_HEIGHT, SKY_WIDTH } from './sky-field';
 
 const skySize = [96, 64] as const;
@@ -95,40 +95,39 @@ export function createAtmosphere(look: LightingLook) {
     distantFade: new Vector4(...distantFadeDepth, ...(air?.distantFog ?? distantFog)),
     uniforms: {
       airSky: { value: texture },
-      airHorizonHaze: { value: true },
     },
   };
 }
 
 export type Atmosphere = ReturnType<typeof createAtmosphere>;
 
-export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, layers: Omit<SkyLayers, 'micro'>) {
+export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, view: SkyView) {
   const start = performance.now();
-  const { broadTint, fieldFade, maxOpticalDepth, cloudLightLow, cloudLightHigh,
+  const { fieldValue, fieldWarmth, fieldMist, maxOpticalDepth, cloudLightLow, cloudLightHigh,
     hazeTint, hazeHeight, hazeOpacity } = EXPANSE.atmosphere.skyFinish;
   const { data, base, uniforms } = atmosphere;
-  // The fourth mask channel holds envelope × filament, so only 256 optical depths are possible.
-  const opacityByDensity = layers.veil
-    ? Float32Array.from({ length: 256 }, (_, density) => -Math.expm1(-maxOpticalDepth * density / 255))
-    : null;
+  const main = view === 'color' || view === 'main';
+  const secondary = view === 'color' || view === 'secondary';
+  const opacityByDensity = Float32Array.from({ length: 256 }, (_, density) => -Math.expm1(-maxOpticalDepth * density / 255));
   for (let row = 0; row < SKY_HEIGHT; row++) {
     const elevation = (row / (SKY_HEIGHT - 1)) ** 2;
-    const broadFade = layers.broad ? MathUtils.smoothstep(elevation, ...fieldFade) : 0;
     const cloudHue = MathUtils.smoothstep(elevation, 0.12, 0.54);
     const cloudLight = cloudLightLow.map((low, channel) => MathUtils.lerp(low, cloudLightHigh[channel], cloudHue));
-    const haze = layers.haze ? hazeOpacity * (1 - MathUtils.smoothstep(elevation, 0, hazeHeight)) : 0;
+    const horizonHaze = hazeOpacity * (1 - MathUtils.smoothstep(elevation, 0, hazeHeight));
     const offset = row * SKY_WIDTH * 4;
     for (let i = offset; i < offset + SKY_WIDTH * 4; i += 4) {
-      const broad = (2 * field[i] / 255 - 1) * broadFade;
-      const opacity = opacityByDensity ? opacityByDensity[field[i + 3]] : 0;
+      const brightness = (2 * field[i] / 255 - 1) * fieldValue;
+      const thermal = 2 * field[i + 3] / 255 - 1;
+      const haze = horizonHaze + (1 - horizonHaze) * fieldMist * field[i + 3] / 255;
+      const density = Math.min(255, (main ? field[i + 1] : 0) + (secondary ? field[i + 2] : 0));
+      const opacity = opacityByDensity[density];
       for (let channel = 0; channel < 3; channel++) {
-        const sky = base[i + channel] + broad * broadTint[channel];
+        const sky = base[i + channel] + brightness + thermal * fieldWarmth[channel];
         const clouded = MathUtils.lerp(sky, cloudLight[channel], opacity);
         data[i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(clouded, hazeTint[channel], haze));
       }
     }
   }
-  uniforms.airHorizonHaze.value = layers.haze;
   uniforms.airSky.value.needsUpdate = true;
   return performance.now() - start;
 }
@@ -169,7 +168,7 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
         #include <fog_pars_fragment>
         varying vec3 vAirRay;
         ${sampleSky}
-        ${distant ? 'uniform vec4 airDistantFade; uniform bool airHorizonHaze;' : ''}
+        ${distant ? 'uniform vec4 airDistantFade;' : ''}
         ${nearMist ? 'uniform vec3 airNearMist;' : ''}
       `)
       .replace('#include <colorspace_fragment>', `
@@ -185,10 +184,8 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
           if (fogAmount > 0.0) {
             vec3 ray = vAirRay / airDepth;
             ${distant ? `
-              if (airHorizonHaze) {
-                float haze = 1.0 - smoothstep(0.0, float(${hazeHeight}), ray.y);
-                fogAmount = mix(fogAmount, 1.0, haze * float(${distantHaze}));
-              }
+              float haze = 1.0 - smoothstep(0.0, float(${hazeHeight}), ray.y);
+              fogAmount = mix(fogAmount, 1.0, haze * float(${distantHaze}));
             ` : ''}
             gl_FragColor.rgb = mix(gl_FragColor.rgb, skyRadiance(ray), fogAmount);
           }

@@ -1,4 +1,4 @@
-import { DataTexture, LinearFilter, MathUtils, RepeatWrapping, RGBAFormat, Vector3 } from 'three';
+import { MathUtils, Vector3 } from 'three';
 import { EXPANSE } from './parameters';
 import { valueNoise } from './world';
 
@@ -19,60 +19,72 @@ export function forSkyDirection(visit: (offset: number, x: number, y: number, z:
   }
 }
 
+const TAU = 2 * Math.PI;
+const { clamp, degToRad, lerp, smoothstep } = MathUtils;
+
+// Blend the two periodic copies within one noise cell of the flow meridian.
+function flowNoise(angle: number, across: number, cells: number, seed: number) {
+  const along = angle * cells / TAU;
+  const sample = valueNoise(along, across, seed);
+  const seam = smoothstep(Math.abs(along), cells / 2 - 1, cells / 2 + 1);
+  return seam > 0 ? lerp(sample, valueNoise(along - Math.sign(along) * cells, across, seed), seam) : sample;
+}
+
 export function createSkyField() {
   const start = performance.now();
-  const bands = EXPANSE.atmosphere.skyFinish.veils.map((band, index) => {
-    const { azimuth, elevation, tilt, halfLength, halfWidth } = band;
-    const a = MathUtils.degToRad(azimuth), e = MathUtils.degToRad(elevation), t = MathUtils.degToRad(tilt);
-    const center = new Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e));
-    const east = new Vector3(Math.cos(a), 0, Math.sin(a));
-    const up = new Vector3(-Math.sin(a) * Math.sin(e), Math.cos(e), Math.cos(a) * Math.sin(e));
-    const along = east.clone().multiplyScalar(Math.cos(t)).addScaledVector(up, Math.sin(t));
-    const across = up.multiplyScalar(Math.cos(t)).addScaledVector(east, -Math.sin(t));
-    return { center, along: along.divideScalar(Math.tan(MathUtils.degToRad(halfLength))),
-      across: across.divideScalar(Math.tan(MathUtils.degToRad(halfWidth))),
-      coverage: band.coverage, seed: EXPANSE.seed + 297 + 137 * index };
-  });
+  const { flow } = EXPANSE.atmosphere.skyFinish;
+  const a = degToRad(flow.azimuth), e = degToRad(flow.elevation), t = degToRad(flow.tilt);
+  const origin = new Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e));
+  const east = new Vector3(Math.cos(a), 0, Math.sin(a));
+  const up = new Vector3(-Math.sin(a) * Math.sin(e), Math.cos(e), Math.cos(a) * Math.sin(e));
+  const along = east.clone().multiplyScalar(Math.cos(t)).addScaledVector(up, Math.sin(t));
+  const across = up.multiplyScalar(Math.cos(t)).addScaledVector(east, -Math.sin(t));
+  const halfWidth = degToRad(flow.halfWidth), bend = degToRad(flow.bend);
+  const branches = flow.branches.map(branch => ({ ...branch, offset: degToRad(branch.offset), halfWidth: degToRad(branch.halfWidth) }));
+  const widthBase = 0.95, widthLong = 0.24, widthShort = 0.18;
+  const maxWidth = widthBase + widthLong + widthShort;
+  const cloudLimit = Math.sin(bend + Math.max(halfWidth * maxWidth,
+    ...branches.map(branch => Math.abs(branch.offset) + branch.halfWidth * maxWidth)));
+  const seed = EXPANSE.seed + 297;
   const data = new Uint8Array(SKY_WIDTH * SKY_HEIGHT * 4);
   const ray = new Vector3();
   forSkyDirection((offset, x, y, z) => {
-    const a = 2.25 * x + 1.6 * z, b = 3.2 * y + 1.1 * z;
-    const broad = 0.74 * valueNoise(a + 0.62, b + 0.23, EXPANSE.seed + 84)
-      + 0.26 * valueNoise(2.1 * a - 1.24, 2.1 * b + 2.32, EXPANSE.seed + 135);
-    ray.set(x, y, z);
-    let uncovered = 1, clear = 1;
-    for (const { center, along, across, coverage, seed } of bands) {
-      // Project onto the tangent plane at the band's authored sky direction.
-      const depth = ray.dot(center);
-      if (depth <= 0) continue;
-      const u = ray.dot(along) / depth, v = ray.dot(across) / depth;
-      const envelope = coverage * (1 - MathUtils.smoothstep(u * u + v * v, 0.06, 1));
-      if (envelope <= 0) continue;
-
-      const bend = 0.38 * u * u + 0.23 * valueNoise(1.55 * u, 1.1 * v, seed);
-      const strand = v + bend;
-      const split = strand + 0.105 * valueNoise(2.5 * u, 3.1 * strand, seed + 1);
-      const fibers = 0.58 * valueNoise(1.25 * u + 0.3, 6.9 * strand + 1.1, seed + 2)
-        + 0.29 * valueNoise(2.7 * u - 1.7, 15 * split, seed + 3)
-        + 0.13 * valueNoise(5.3 * u, 29 * split - 1.6, seed + 4);
-      const breaks = 0.24 + 0.76 * MathUtils.smoothstep(valueNoise(3.4 * u, 4.1 * strand, seed + 5), -0.55, 0.31);
-      const filament = MathUtils.smoothstep(fibers, -0.38, 0.52) * breaks;
-      uncovered *= 1 - envelope;
-      clear *= 1 - envelope * filament;
-    }
-    const envelope = 1 - uncovered, density = 1 - clear;
+    // Cartesian projections keep the low-contrast field continuous even at zenith.
+    const broad = 0.72 * valueNoise(1.9 * x + 0.45 * z + 0.62, 2.7 * y + 0.9 * z + 0.23, seed + 7)
+      + 0.28 * valueNoise(3.1 * x - 1.7 * z - 1.24, 3.7 * y + 1.6 * z + 2.32, seed + 8);
+    const mist = valueNoise(1.35 * x - 0.9 * z + 1.4, 1.7 * y + 0.8 * z - 0.8, seed + 9);
     data[offset] = Math.round(255 * (0.5 + 0.5 * broad));
-    data[offset + 1] = Math.round(255 * envelope);
-    data[offset + 2] = envelope > 0 ? Math.round(255 * density / envelope) : 0;
-    data[offset + 3] = Math.round(data[offset + 1] * data[offset + 2] / 255);
+    data[offset + 3] = Math.round(255 * (0.5 + 0.5 * mist));
+
+    ray.set(x, y, z);
+    // Skip directions outside every possible ribbon, including the flow poles.
+    const side = ray.dot(across);
+    if (Math.abs(side) >= cloudLimit) return;
+    const lat = Math.asin(clamp(side, -1, 1));
+    const lon = Math.atan2(ray.dot(along), ray.dot(origin));
+    const spine = bend * (0.63 * Math.sin(1 + lon) + 0.37 * Math.sin(2 * lon - 1.4));
+    const local = lat - spine;
+    const width = widthBase + widthLong * Math.sin(2 * lon + 0.9) + widthShort * Math.sin(5 * lon - 1.4);
+    const density = 0.82 + 0.18 * flowNoise(lon, 0.6, 19, seed);
+    const main = flow.density * (1 - smoothstep(Math.abs(local), halfWidth * width * 0.11, halfWidth * width));
+    let secondary = 0;
+    for (const branch of branches) {
+      const separation = branch.offset * (0.62 + 0.38 * Math.sin(lon * 2 + branch.phase));
+      const envelope = 1 - smoothstep(Math.abs(local - separation), 0, branch.halfWidth * width);
+      secondary += branch.density * (0.72 + 0.28 * Math.cos(lon * 3 - branch.phase)) * envelope;
+    }
+    if (main + secondary <= 0) return;
+
+    const strand = local * (1 + 0.23 * Math.sin(3 * lon - 0.4)) + 0.042 * flowNoise(lon, 4 * local + 1.3, 13, seed + 1);
+    const fork = strand + 0.025 * flowNoise(lon, 15 * strand + 3.5, 24, seed + 2);
+    const fibers = 0.53 * flowNoise(lon, 33 * strand + 4.2, 12, seed + 3)
+      + 0.32 * flowNoise(lon, 62 * fork - 1.1, 26, seed + 4)
+      + 0.15 * flowNoise(lon, 105 * fork + 2.8, 39, seed + 5);
+    const feather = smoothstep(fibers, -0.31, 0.38);
+    const lowFade = lerp(0.26, 1, smoothstep(y, 0.018, 0.18));
+    const contrast = lowFade * density * (0.13 + 0.87 * feather);
+    data[offset + 1] = Math.round(255 * main * contrast);
+    data[offset + 2] = Math.round(255 * secondary * contrast);
   });
   return { data, generationMs: performance.now() - start };
-}
-
-export function createSkyDiagnostics(data: Uint8Array) {
-  const texture = new DataTexture(data, SKY_WIDTH, SKY_HEIGHT, RGBAFormat);
-  texture.wrapS = RepeatWrapping;
-  texture.minFilter = texture.magFilter = LinearFilter;
-  texture.needsUpdate = true;
-  return texture;
 }

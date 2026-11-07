@@ -11,14 +11,8 @@ export const WIND_VIEWS = {
   static: '静态基线', transport: '近地沙尘', wind: '风场', source: '起沙源', concentration: '浓度场',
 } as const;
 export type WindView = keyof typeof WIND_VIEWS;
-export const SKY_LAYERS = {
-  broad: '大尺度色场', veil: '高空云纱', haze: '地平线薄霾', micro: '微纹理',
-} as const;
-export type SkyLayers = Record<keyof typeof SKY_LAYERS, boolean>;
-export const BASE_SKY: SkyLayers = { broad: false, veil: false, haze: false, micro: false };
-export const FINISHED_SKY: SkyLayers = { broad: true, veil: true, haze: true, micro: true };
 export const SKY_VIEWS = {
-  color: '最终光色', envelope: '云域包络', filaments: '纤维遮罩', opticalDepth: '光学厚度 τ',
+  color: '最终合成', background: '底场', main: '主云带', secondary: '次云带',
 } as const;
 export type SkyView = keyof typeof SKY_VIEWS;
 
@@ -227,18 +221,21 @@ export const EXPANSE = {
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } },
   atmosphere: {
     skyFinish: {
-      broadTint: [0.064, 0.045, 0.026],
-      fieldFade: [0.012, 0.095],
+      fieldValue: 0.045,
+      fieldWarmth: [0.022, 0.003, -0.019],
+      fieldMist: 0.09,
       maxOpticalDepth: 0.56,
       cloudLightLow: [0.98, 0.957, 0.92], cloudLightHigh: [0.95, 0.966, 0.99],
       hazeTint: [0.93, 0.90, 0.835], hazeHeight: 0.14, hazeOpacity: 0.27,
       distantHaze: 0.16,
-      // Azimuth from -Z toward +X. Positive tilt rises toward +X near the opening view.
-      veils: [
-        { azimuth: -23, elevation: 18, halfLength: 28, halfWidth: 8, tilt: -15, coverage: 0.97 },
-        { azimuth: 27, elevation: 22, halfLength: 21, halfWidth: 6.5, tilt: -2, coverage: 0.75 },
-        { azimuth: -5, elevation: 43, halfLength: 29, halfWidth: 7, tilt: 8, coverage: 0.64 },
-      ],
+      // Angles in degrees. Azimuth starts at -Z; positive tilt rises toward +X.
+      flow: {
+        azimuth: -8, elevation: 22, tilt: -13, halfWidth: 8, density: 0.94, bend: 8.5,
+        branches: [
+          { offset: 16, halfWidth: 5.2, density: 0.43, phase: 0.7 },
+          { offset: -8, halfWidth: 3.8, density: 0.22, phase: -1.1 },
+        ],
+      },
     },
     sky: {
       turbidity: 3.4, rayleigh: 1.4, mieCoefficient: 0.006, mieDirectionalG: 0.78,
