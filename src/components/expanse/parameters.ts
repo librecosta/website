@@ -1,7 +1,12 @@
 export type Vec3 = readonly [number, number, number];
 export type JourneySignal = { value: number; raw: number; invalidate: () => void };
-export const SURFACE_VIEWS = ['finalMaterial', 'slope', 'concavity', 'valley', 'sandCoverage', 'exposedCrust', 'drift'] as const;
-export type SurfaceView = typeof SURFACE_VIEWS[number];
+export const SURFACE_VIEWS = {
+  original: 'Original terrain',
+  dunes: 'Dune geometry only',
+  ripples: 'Dune geometry + ripple normals',
+  finalMaterial: 'Final sand material',
+} as const;
+export type SurfaceView = keyof typeof SURFACE_VIEWS;
 
 // Continuous dune banks; authored offsets are measured from the valley spine.
 export const EXPANSE = {
@@ -72,6 +77,33 @@ export const EXPANSE = {
     pathMask: { halfWidth: 65, blendWidth: 440, massRetention: 0.12 },
     noise: [{ wavelength: 1320, amplitude: 5 }, { wavelength: 500, amplitude: 1.3 }],
   },
+  aeolian: {
+    // X/Z downwind direction. The authored ridge turns are relative to this.
+    wind: [1, -0.5],
+    corridor: [0.90, 3.05],
+    reliefNoise: { wavelength: 690, strength: 0.09 },
+    sand: { color: '#ddd0b8', roughness: 0.94 },
+    ripples: {
+      // [wavelength, micro-height amplitude, near fade start, far cutoff], in world units.
+      broad: [5.9, 0.115, 275, 760],
+      fine: [2.55, 0.042, 120, 310],
+      bend: [3.5, 1.3],
+      spacingWarp: 4.1,
+      antialias: [0.10, 0.34], // cycles per pixel
+      roughnessVariation: 0.035,
+    },
+    // Centers are lateral to the valley spine. Length is tip-to-tip, widths
+    // run from the brink to each toe, and positive bend sweeps the tips downwind.
+    ridges: [
+      { center: [-710, 850], turn: 20, length: 1350, stoss: 450, lee: 230, height: 104, bend: 110, brink: 39 },
+      { center: [630, 280], turn: 49, length: 1640, stoss: 460, lee: 210, height: 92, bend: 138, brink: 40 },
+      { center: [-640, -1880], turn: 36, length: 2050, stoss: 520, lee: 210, height: 90, bend: 115, brink: 41 },
+      { center: [990, -2400], turn: 49, length: 2330, stoss: 690, lee: 265, height: 114, bend: 175, brink: 43 },
+      { center: [-1220, -4810], turn: -23, length: 2580, stoss: 940, lee: 330, height: 115, bend: 360, brink: 49 },
+      { center: [1020, -4440], turn: 54, length: 2170, stoss: 730, lee: 290, height: 112, bend: 210, brink: 48 },
+    ],
+  },
+  // P1-B2 research baseline. The live aeolian terrain does not consume it.
   surface: {
     analysisStep: 25, neighborhoodWidth: 0.15, minimumNeighborhoodCells: 1.5,
     flatSlope: [8, 25], slopeDisplayMax: 45,

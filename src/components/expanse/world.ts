@@ -94,6 +94,49 @@ export function buildTerrainData(world: WorldParameters, segments: readonly numb
   return { positions, indices };
 }
 
+export function duneRelief(world: WorldParameters) {
+  const { wind, ridges, corridor, reliefNoise } = world.aeolian;
+  const bearing = Math.atan2(wind[1], wind[0]);
+  const shapes = ridges.map(ridge => {
+    const [offset, z] = ridge.center;
+    const angle = bearing + ridge.turn * Math.PI / 180;
+    const roundedRun = (run: number) => Math.hypot(run, ridge.brink) - ridge.brink;
+    return { ...ridge, x: valleyAt(z, world).x + offset, z, wx: Math.cos(angle), wz: Math.sin(angle),
+      stossRun: roundedRun(ridge.stoss), leeRun: roundedRun(ridge.lee) };
+  });
+  return (x: number, z: number) => {
+    const spine = valleyAt(z, world);
+    const bank = smoothstep(...corridor, Math.abs(x - spine.x) / spine.width);
+    if (bank === 0) return 0;
+    let relief = 0;
+    for (const shape of shapes) {
+      const dx = x - shape.x, dz = z - shape.z;
+      const u = (-dx * shape.wz + dz * shape.wx) / (shape.length / 2);
+      if (Math.abs(u) >= 1) continue;
+      const v = dx * shape.wx + dz * shape.wz - shape.bend * u * u;
+      if (v <= -shape.stoss || v >= shape.lee) continue;
+      const run = v < 0 ? shape.stossRun : shape.leeRun;
+      const rounded = Math.hypot(v, shape.brink) - shape.brink;
+      // Zero derivatives at the rounded brink, both toes and both tips.
+      const profile = (1 - rounded / run) * (1 - u * u);
+      relief += shape.height * profile * profile;
+    }
+    if (relief === 0) return 0;
+    const variation = valueNoise(x / reliefNoise.wavelength, z / reliefNoise.wavelength, world.seed + 241);
+    return relief * bank * (1 + variation * reliefNoise.strength);
+  };
+}
+
+export function buildAeolianTerrain(world: WorldParameters, segments: readonly number[], original = false) {
+  const base = buildTerrainData(world, segments);
+  if (original) return base;
+  const reliefAt = duneRelief(world);
+  for (let i = 0; i < base.positions.length; i += 3) {
+    base.positions[i + 1] += reliefAt(base.positions[i], base.positions[i + 2]);
+  }
+  return base;
+}
+
 export type Monument = {
   id: string;
   family: string;

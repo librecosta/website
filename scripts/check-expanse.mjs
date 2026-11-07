@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
 import { EXPANSE } from '../src/components/expanse/parameters.ts';
-import { buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, valleyAt, valueNoise, worldVertices, structureDistance } from '../src/components/expanse/world.ts';
+import { buildAeolianTerrain, duneRelief, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, valleyAt, valueNoise, worldVertices, structureDistance } from '../src/components/expanse/world.ts';
 import { analyzeSurface, buildDrifts, buildSurfaceTerrain } from '../src/components/expanse/surface.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
@@ -40,7 +40,7 @@ for (const quality of ['desktop', 'mobile']) {
   const b = buildSurfaceTerrain(EXPANSE, buildTerrainData(EXPANSE, segments), duplicate, valueNoise,
     buildDrifts(EXPANSE, duplicate.relief, monuments, projection));
   assert.deepEqual(a, b, 'Same seed and parameters must produce identical mesh buffers');
-  rendered[quality] = a.positions;
+
   assert.equal(a.positions.length, (segments[0] + 1) * (segments[1] + 1) * 3);
   assert.equal(a.indices.length, segments[0] * segments[1] * 6);
   let peakSlope = 0, min = Infinity, max = -Infinity, maxAdded = 0, maxThin = 0, maxDrift = 0;
@@ -74,6 +74,43 @@ const changedSeed = structuredClone(EXPANSE); changedSeed.seed++;
 const sameBase = buildTerrainData(EXPANSE, EXPANSE.terrain.resolution.mobile);
 assert.notEqual(fingerprint(buildSurfaceTerrain(changedSeed, sameBase, analysis, valueNoise).masks.sandCoverage),
   fingerprint(buildSurfaceTerrain(EXPANSE, sameBase, analysis, valueNoise).masks.sandCoverage), 'The seed affects coverage even on a fixed heightfield');
+const aeolian = {};
+const relief = duneRelief(EXPANSE);
+for (let z = 1100; z >= -3900; z -= 25) {
+  const { x, width } = valleyAt(z, EXPANSE);
+  assert.equal(relief(x - width * 0.8, z), 0, 'The dune layer leaves the near valley floor intact');
+  assert.equal(relief(x + width * 0.8, z), 0, 'The dune layer leaves the far valley floor intact');
+}
+const isolatedRidge = { center: [1200, 0], turn: 0, length: 1000, stoss: 540, lee: 210, height: 105, bend: 160, brink: 35 };
+const aeolianFixture = { ...EXPANSE, aeolian: { ...EXPANSE.aeolian, wind: [1, 0], ridges: [isolatedRidge],
+  reliefNoise: { ...EXPANSE.aeolian.reliefNoise, strength: 0 } } };
+const isolatedRelief = duneRelief(aeolianFixture), crest = valleyAt(0, EXPANSE).x + 1200;
+assert.equal(isolatedRelief(crest, 0), 105, 'Configured height at the center of the brink');
+assert(isolatedRelief(crest - 160, 0) > isolatedRelief(crest + 160, 0) * 4, 'A long stoss slope and much shorter lee slope');
+assert.equal(isolatedRelief(crest - 540, 0), 0);
+assert.equal(isolatedRelief(crest + 210, 0), 0);
+assert(isolatedRelief(crest + 90, 375) > isolatedRelief(crest, 375), 'The flank follows the authored downwind curve');
+for (const quality of ['desktop', 'mobile']) {
+  const segments = EXPANSE.terrain.resolution[quality];
+  const base = buildAeolianTerrain(EXPANSE, segments, true);
+  const dunes = buildAeolianTerrain(EXPANSE, segments);
+  assert.deepEqual(dunes, buildAeolianTerrain(EXPANSE, segments), 'Dunes are deterministic');
+  assert.deepEqual(dunes.indices, base.indices, 'Dune relief does not change terrain topology');
+  rendered[quality] = dunes.positions;
+  let peakLift = 0, peakSlope = 0;
+  const [nx, nz] = segments, { width, depth } = EXPANSE.terrain;
+  for (let iz = 0; iz <= nz; iz++) for (let ix = 0; ix <= nx; ix++) {
+    const i = (iz * (nx + 1) + ix) * 3, y = dunes.positions[i + 1];
+    assert(Number.isFinite(y) && y >= base.positions[i + 1], 'The dunes add finite relief');
+    assert(dunes.positions[i] === base.positions[i] && dunes.positions[i + 2] === base.positions[i + 2],
+      'Heightfield displacement is vertical only');
+    peakLift = Math.max(peakLift, y - base.positions[i + 1]);
+    if (ix < nx) peakSlope = Math.max(peakSlope, Math.abs(dunes.positions[i + 4] - y) / (width / nx));
+    if (iz < nz) peakSlope = Math.max(peakSlope, Math.abs(dunes.positions[i + (nx + 1) * 3 + 1] - y) / (depth / nz));
+  }
+  assert(peakLift > 50 && peakLift < 160 && peakSlope < 1.15, 'Dunes add resolvable crests without spikes');
+  aeolian[quality] = { baseFingerprint: fingerprint(base.positions), fingerprint: fingerprint(dunes.positions), peakLift, peakSlope };
+}
 assert.deepEqual(monuments, buildMonuments(EXPANSE));
 for (const monument of monuments) {
   assert(monument.position.every(Number.isFinite));
@@ -277,6 +314,6 @@ for(let i=0;i<=100;i++) {
 const peak=visibility.reduce((a,b) => b.blocked>a.blocked?b:a);
 assert(visibility.slice(50).every(v=>v.blocked===0),'The removed central plate no longer masks the destination on approach');
 meshes.forEach(m => m.geometry.dispose()); material.dispose();
-console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, terrain: results,
+console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, aeolian, hardpanResearch: results,
   instances: monuments.length, minimumLeftSaddleRelief, comparedLandmarks, burial, pathValidation,
   wedgeVolume,heroVolume,arrivalFraming,occlusion:{peak,samples:visibility.filter((v,i)=>i%5===0)} }, null, 2));

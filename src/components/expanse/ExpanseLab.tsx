@@ -105,7 +105,7 @@ export default function ExpanseLab() {
         <div>{[0,.25,.5,.65,.75,1].map(p => <button key={p} type="button" onClick={() => seek(p)}>{Math.round(p * 100)}%</button>)}</div>
         <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />静态模式验证</label>
         <label>地表 <select value={surfaceView} onChange={event => setSurfaceView(event.target.value as SurfaceView)}>
-          {SURFACE_VIEWS.map(view => <option key={view}>{view}</option>)}
+          {Object.entries(SURFACE_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
       </aside>}
     </figure>

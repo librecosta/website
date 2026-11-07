@@ -1,7 +1,7 @@
-import type { SurfaceView, WorldParameters } from './parameters';
+import type { WorldParameters } from './parameters';
 import type { Monument } from './world';
 
-type Mask = Exclude<SurfaceView, 'finalMaterial'>;
+type Mask = 'slope' | 'concavity' | 'valley' | 'sandCoverage' | 'exposedCrust' | 'drift';
 
 type HeightSource = {
   heightAt: (x: number, z: number, world: WorldParameters) => number;
