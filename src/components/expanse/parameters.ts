@@ -5,8 +5,8 @@ export type JourneySignal = { value: number; raw: number; invalidate: () => void
 export const EXPANSE = {
   seed: 7137,
   terrain: {
-    // Extend the existing heightfield beyond the destination for the distant
-    // grove, keeping the near edge and longitudinal grid spacing unchanged.
+    // Extend the existing heightfield beyond the destination, keeping the
+    // near edge and longitudinal grid spacing unchanged.
     width: 7200, depth: 16200, centerZ: -4700, baseHeight: -4,
     resolution: { desktop: [280, 630], mobile: [144, 336] },
     valleySpine: [
@@ -71,11 +71,10 @@ export const EXPANSE = {
       { wavelength: 120, amplitude: 0.3 },
     ],
   },
-  // Two authored remnants groups. Exposure is an upper-surface height above
-  // terrain, not a burial percentage or a visible clipping plane.
+  // Exposure limits the upper surface above the sampled sand.
   remnants: [
-    { id: 'basin-left-edge', family: 'Basin Remnant', kind: 'box', center: [-430, 500],
-      scale: [300, 650, 160], orientation: [4, -35, -32], burial: 0, exposure: 20 },
+    { id: 'basin-left-edge', family: 'Basin Remnant', kind: 'box', center: [-455, 285],
+      scale: [180, 145, 415], orientation: [6, 31, -10], burial: 0, exposure: 35 },
     { id: 'basin-right-cut', family: 'Basin Remnant', kind: 'box', center: [410, -100],
       scale: [200, 500, 125], orientation: [-5, 20, 30], burial: 0, exposure: 14 },
   ],
@@ -89,19 +88,33 @@ export const EXPANSE = {
       ideal: { center: [500, -3600], yaw: 12, burial: 190 },
       disturbed: { offset: [150, 110], orientation: [-6, -30, -24], settlement: 30 } },
   ],
-  // A distant authored grove, using the destination's same tapered solid.
-  // Its staggered depths only emerge after approaching the mid-field.
+  // Broad markers punctuate the slender stelae. Gaps separate runs that
+  // recede across the horizon, with the right bank screening more of them.
   distantStelae: [
-    { id: 'stele-west', family: 'Distant Stelae', kind: 'slotted', center: [-2900, -8800],
-      scale: [410, 1500, 250], orientation: [0, 18, 0], burial: 500 },
-    { id: 'stele-west-tall', family: 'Distant Stelae', kind: 'slotted', center: [-2300, -10000],
-      scale: [570, 2100, 350], orientation: [0, 24, 0], burial: 600 },
-    { id: 'stele-saddle', family: 'Distant Stelae', kind: 'slotted', center: [-1650, -9200],
-      scale: [370, 1360, 230], orientation: [0, 22, 0], burial: 500 },
-    { id: 'stele-return', family: 'Distant Stelae', kind: 'slotted', center: [-900, -11000],
-      scale: [480, 1770, 300], orientation: [0, 16, 0], burial: 540 },
-    { id: 'stele-far-edge', family: 'Distant Stelae', kind: 'slotted', center: [-350, -9700],
-      scale: [310, 1140, 190], orientation: [0, 26, 0], burial: 430 },
+    { id: 'stele-west-1', family: 'Distant Stelae', kind: 'slotted', center: [-10100, -19900],
+      scale: [430, 1950, 250], orientation: [0, 18, 0], burial: 400 },
+    { id: 'stele-west-2', family: 'Distant Stelae', kind: 'slotted', center: [-8450, -18800],
+      scale: [185, 1250, 140], orientation: [0, 18, 0], burial: 360 },
+    { id: 'stele-west-3', family: 'Distant Stelae', kind: 'slotted', center: [-8450, -20000],
+      scale: [270, 1540, 180], orientation: [0, 18, 0], burial: 400 },
+    { id: 'stele-west-4', family: 'Distant Stelae', kind: 'slotted', center: [-8850, -26300],
+      scale: [360, 1570, 230], orientation: [0, 18, 0], burial: 400 },
+    { id: 'stele-west-5', family: 'Distant Stelae', kind: 'slotted', center: [-8600, -29000],
+      scale: [660, 2150, 320], orientation: [0, 18, 0], burial: 400 },
+    { id: 'stele-west-6', family: 'Distant Stelae', kind: 'slotted', center: [-8070, -30900],
+      scale: [200, 1460, 140], orientation: [0, 18, 0], burial: 450 },
+    { id: 'stele-west-7', family: 'Distant Stelae', kind: 'slotted', center: [-7800, -35800],
+      scale: [400, 1770, 205], orientation: [0, 18, 0], burial: 400 },
+    { id: 'stele-west-8', family: 'Distant Stelae', kind: 'slotted', center: [-6500, -38000],
+      scale: [245, 1560, 155], orientation: [0, 18, 0], burial: 420 },
+    { id: 'stele-east-1', family: 'Distant Stelae', kind: 'slotted', center: [7510, -21500],
+      scale: [340, 1910, 230], orientation: [0, 18, 0], burial: 430 },
+    { id: 'stele-east-2', family: 'Distant Stelae', kind: 'slotted', center: [9000, -23900],
+      scale: [195, 1930, 130], orientation: [0, 18, 0], burial: 450 },
+    { id: 'stele-east-3', family: 'Distant Stelae', kind: 'slotted', center: [13900, -30600],
+      scale: [420, 2580, 220], orientation: [0, 18, 0], burial: 440 },
+    { id: 'stele-east-4', family: 'Distant Stelae', kind: 'slotted', center: [17000, -35500],
+      scale: [615, 2840, 330], orientation: [0, 18, 0], burial: 460 },
   ],
   hero: { id: 'still-monolith', family: 'Hero Structure', kind: 'slotted', center: [70, -6000],
     scale: [920, 2400, 560], orientation: [0, 24, 0], burial: 520,
@@ -109,7 +122,8 @@ export const EXPANSE = {
     // Normalized cross section: one deep, narrow opening on the +Z face.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } },
   atmosphere: {
-    sky: '#dedfd9', fogNear: 850, fogFar: 10000,
+    sky: '#dedfd9', fogNear: 850, fogFar: 10000, cameraFar: 46000,
+    distantSilhouette: '#c9cdc3', distantFadeDepth: [18500, 39000],
     terrainColor: '#d0cabc', monumentColor: '#92958d',
     sunPosition: [-2600, 2800, 900], sunTarget: [0, 0, -2100],
     // Cover the tall hero as well as the near basin, without a moving shadow rig.

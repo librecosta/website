@@ -27,7 +27,10 @@ const changedSeed = structuredClone(EXPANSE); changedSeed.seed++;
 assert.notEqual(fingerprint(buildTerrainData(changedSeed, EXPANSE.terrain.resolution.mobile).positions), results.mobile.fingerprint);
 const monuments = buildMonuments(EXPANSE);
 assert.deepEqual(monuments, buildMonuments(EXPANSE));
-assert(monuments.length <= 12, 'Restraint: no procedural block forest');
+for (const monument of monuments) {
+  assert(monument.position.every(Number.isFinite));
+  assert(monument.scale.every(value => Number.isFinite(value) && value > 0));
+}
 for (const z of [1900,1100,200,-800,-2000,-3200]) {
   const spine=valleyAt(z,EXPANSE), floor=heightAt(spine.x,z,EXPANSE);
   assert(heightAt(spine.x-500,z,EXPANSE)-floor > 30, 'Left bank wraps the channel');
@@ -40,11 +43,22 @@ assert.equal(hero.length,1,'One distant destination');
 assert.equal(field.length,2,'Keep the outward pair; remove the central masking plate');
 assert(!monuments.some(m => m.id==='field-veil' || m.id==='basin-right-return'),'Remove the annotated intrusive pieces');
 const grove=monuments.filter(m => m.family==='Distant Stelae');
-assert(grove.length===5 && grove.every(m => m.kind===hero[0].kind && m.position[2]<hero[0].position[2]),'A distant grove shares the destination geometry');
+assert(monuments.length-grove.length<=5 && grove.length<=12,'Keep the valley open and horizon runs sparse');
+assert(grove.some(m => m.position[0]<0) && grove.some(m => m.position[0]>0),'Horizon stelae flank the destination');
+const terrainEnd=EXPANSE.terrain.centerZ-EXPANSE.terrain.depth/2;
+assert(grove.every(m => m.kind===hero[0].kind && m.position[2]<terrainEnd &&
+  m.position[1]-m.scale[1]/2<0),'Horizon silhouettes share the stele geometry and extend below the sand line');
 for(const remnant of monuments.filter(m => m.family==='Basin Remnant')) {
- const topDirection=new Vector3(0,1,0).applyQuaternion(new Quaternion().fromArray(remnant.quaternion));
+ const rotation=new Quaternion().fromArray(remnant.quaternion);
  const side=remnant.position[0]-valleyAt(remnant.position[2],EXPANSE).x;
- assert(side*topDirection.x<0,'Remnant upper axis leans inward toward the valley');
+ if(side<0) {
+  const depthDirection=new Vector3(0,0,1).applyQuaternion(rotation);
+  assert(remnant.scale[2]>2*remnant.scale[1] && Math.abs(depthDirection.y)<.2 && depthDirection.x>0,
+   'The fallen left slab lies along the sand with its end facing the valley');
+ } else {
+  const topDirection=new Vector3(0,1,0).applyQuaternion(rotation);
+  assert(topDirection.x<0,'The right remnant leans inward toward the valley');
+ }
 }
 assert(EXPANSE.hero.scale[1] > Math.max(...field.map(m => m.scale[1]))*2,'Hero has a distinct scale hierarchy');
 const shadowCamera=new OrthographicCamera(...EXPANSE.atmosphere.shadowBounds);
@@ -65,12 +79,13 @@ for(let z=1000;z>=-5100;z-=25) {
   }
 }
 assert(minimumLeftSaddleRelief > 80, 'Left crests join as raised sand, with no trough returning to the valley floor');
-const burial = monuments.map(m => {
-  assert(m.position.every(Number.isFinite)); assert(m.scale.every(x => x > 0));
+// Horizon silhouettes are screened by the intervening dunes. Footing checks
+// apply to structures placed within the actual terrain grid.
+const burial = monuments.filter(m => m.family!=='Distant Stelae').map(m => {
   const vertices = worldVertices(m,EXPANSE);
   const signed = vertices.map(v => v.y - heightAt(v.x,v.z,EXPANSE));
   assert(Math.min(...signed) < -30 && Math.max(...signed) > (m.family==='Basin Remnant'?2:10), m.id + ': real partial terrain occlusion');
-  if(m.family==='Basin Remnant') assert(Math.max(...signed)<28,m.id+': only a low structural edge is exposed');
+  if(m.family==='Basin Remnant') assert(Math.max(...signed)<45,m.id+': only a low structural edge is exposed');
   let footingDepth = Infinity;
   for (const quality of ['desktop','mobile']) for (let u=0;u<=16;u++) for (let v=0;v<=16;v++) {
     const bottom = new Vector3((u/16-.5)*m.scale[0], -.5*m.scale[1], (v/16-.5)*m.scale[2])
@@ -126,7 +141,7 @@ const pathValidation = { samples:1001, cameraRadius:radius, minimumTerrainCleara
 // A landmark visible in the authored film gate must remain inside a narrow one.
 let comparedLandmarks=0;
 for(const pose of poses) {
-  const reference=new PerspectiveCamera(pose.fov,EXPANSE.journey.framingAspect,3,11000);
+  const reference=new PerspectiveCamera(pose.fov,EXPANSE.journey.framingAspect,3,EXPANSE.atmosphere.cameraFar);
   reference.position.set(...pose.position); reference.lookAt(...pose.target); reference.rotateZ(pose.roll); reference.updateMatrixWorld();
   for(const aspect of [1.5,1,390/844]) {
     const fitted=reference.clone(); fitted.aspect=aspect;
@@ -142,7 +157,7 @@ for(const pose of poses) {
   }
 }
 assert(comparedLandmarks>0);
-const arrival=sampleJourney(1,EXPANSE), arrivalCamera=new PerspectiveCamera(arrival.fov,EXPANSE.journey.framingAspect,3,11000);
+const arrival=sampleJourney(1,EXPANSE), arrivalCamera=new PerspectiveCamera(arrival.fov,EXPANSE.journey.framingAspect,3,EXPANSE.atmosphere.cameraFar);
 arrivalCamera.position.set(...arrival.position); arrivalCamera.lookAt(...arrival.target); arrivalCamera.updateMatrixWorld();
 // Underground vertices do not belong to the visible silhouette. Clamp them to
 // the actual sand surface before testing the whole exposed destination.

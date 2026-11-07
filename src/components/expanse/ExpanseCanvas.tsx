@@ -3,8 +3,9 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
-  ACESFilmicToneMapping, BoxGeometry, BufferAttribute, BufferGeometry, InstancedMesh,
-  MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, WebGLRenderer,
+  ACESFilmicToneMapping, BoxGeometry, BufferAttribute, BufferGeometry, Color, InstancedMesh, MathUtils,
+  MeshBasicMaterial, MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, WebGLRenderer,
+  type Material,
 } from 'three';
 import { EXPANSE, type JourneySignal } from './parameters';
 import { buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
@@ -21,7 +22,9 @@ function solidGeometry(data: ReturnType<typeof buildWedgeData>) {
   return g;
 }
 
-function Instances({ items, geometry, material }: { items: Monument[]; geometry: BufferGeometry; material: MeshStandardMaterial }) {
+function Instances({ items, geometry, material, distant = false }: {
+  items: Monument[]; geometry: BufferGeometry; material: Material; distant?: boolean;
+}) {
   const mesh = useRef<InstancedMesh>(null);
   const invalidate = useThree(s => s.invalidate);
   useLayoutEffect(() => {
@@ -32,13 +35,24 @@ function Instances({ items, geometry, material }: { items: Monument[]; geometry:
       transform.scale.set(...item.scale); transform.updateMatrix(); object.setMatrixAt(i, transform.matrix);
     });
     object.instanceMatrix.needsUpdate = true;
+    if (distant) {
+      const { sky, distantSilhouette, distantFadeDepth } = EXPANSE.atmosphere;
+      const skyColor = new Color(sky);
+      const stoneColor = new Color(distantSilhouette);
+      const tint = new Color();
+      items.forEach((item, i) => {
+        const fade = MathUtils.smoothstep(-item.position[2], ...distantFadeDepth);
+        object.setColorAt(i, tint.copy(stoneColor).lerp(skyColor, fade * 0.8));
+      });
+      if (object.instanceColor) object.instanceColor.needsUpdate = true;
+    }
     object.computeBoundingBox(); object.computeBoundingSphere(); invalidate();
     return () => object.dispose();
-  }, [items, geometry, material, invalidate]);
-  // Concave stelae receive their own shadow inside the actual groove. Convex
-  // blocks retain the existing shadow policy to avoid grazing-face map acne.
-  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow
-    receiveShadow={items[0]?.kind === 'slotted'} dispose={null} />;
+  }, [items, geometry, material, distant, invalidate]);
+  // The main stele receives self-shadow inside its groove. The horizon batch
+  // sits outside the useful range of the fixed shadow map.
+  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow={!distant}
+    receiveShadow={!distant && items[0]?.kind === 'slotted'} dispose={null} />;
 }
 
 function World({ mobile }: { mobile: boolean }) {
@@ -46,7 +60,8 @@ function World({ mobile }: { mobile: boolean }) {
   const batches = useMemo(() => {
     const all = buildMonuments(EXPANSE);
     return { box: all.filter(x => x.kind === 'box'), wedge: all.filter(x => x.kind === 'wedge'),
-      slotted: all.filter(x => x.kind === 'slotted') };
+      slotted: all.filter(x => x.kind === 'slotted' && x.family !== 'Distant Stelae'),
+      distant: all.filter(x => x.family === 'Distant Stelae') };
   }, []);
   const resources = useMemo(() => {
     const data = buildTerrainData(EXPANSE, EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop']);
@@ -58,24 +73,28 @@ function World({ mobile }: { mobile: boolean }) {
       slotted: solidGeometry(buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale)),
       ground: new MeshStandardMaterial({ color: EXPANSE.atmosphere.terrainColor, roughness: 1, metalness: 0 }),
       stone: new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true }),
+      // The instance tints carry the atmospheric falloff beyond the foreground fog.
+      // Normal depth testing lets the sand crests still mask the bases.
+      distant: new MeshBasicMaterial({ fog: false, toneMapped: false }),
       fingerprint: fingerprint(data.positions),
     };
   }, [mobile, batches]);
   useLayoutEffect(() => {
     gl.domElement.dataset.terrain = resources.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
-    gl.domElement.dataset.instances = String(batches.box.length + batches.wedge.length + batches.slotted.length);
+    gl.domElement.dataset.instances = String(batches.box.length + batches.wedge.length + batches.slotted.length + batches.distant.length);
     gl.shadowMap.needsUpdate = true; invalidate();
   }, [resources, gl, invalidate, mobile, batches]);
   useEffect(() => () => {
     resources.terrain.dispose(); resources.box.dispose(); resources.wedge?.dispose(); resources.slotted.dispose();
-    resources.ground.dispose(); resources.stone.dispose();
+    resources.ground.dispose(); resources.stone.dispose(); resources.distant.dispose();
   }, [resources]);
   return <group dispose={null}>
     <mesh geometry={resources.terrain} material={resources.ground} receiveShadow />
     <Instances items={batches.box} geometry={resources.box} material={resources.stone} />
     {resources.wedge && <Instances items={batches.wedge} geometry={resources.wedge} material={resources.stone} />}
     <Instances items={batches.slotted} geometry={resources.slotted} material={resources.stone} />
+    <Instances items={batches.distant} geometry={resources.slotted} material={resources.distant} distant />
   </group>;
 }
 
@@ -143,7 +162,7 @@ export default function ExpanseCanvas(props: Props) {
   return <Canvas className={styles.canvas} data-rendering={visible ? 'on-demand' : 'paused'}
     style={{ pointerEvents: 'none', touchAction: 'pan-y' }}
     frameloop={visible ? 'demand' : 'never'} dpr={[1, props.mobile ? 1.25 : 1.5]}
-    camera={{ near: 3, far: 11000, fov: 47 }} shadows={{ type: PCFShadowMap }}
+    camera={{ near: 3, far: a.cameraFar, fov: 47 }} shadows={{ type: PCFShadowMap }}
     gl={defaults => {
       const canvas = defaults.canvas as HTMLCanvasElement;
       const context = canvas.getContext('webgl2', { antialias: !props.mobile, alpha: false, powerPreference: 'high-performance' });
