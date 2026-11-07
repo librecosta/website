@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { EXPANSE, type JourneySignal } from './parameters';
+import { EXPANSE, SURFACE_VIEWS, type JourneySignal, type SurfaceView } from './parameters';
 import styles from './expanse.module.css';
 
 const ExpanseCanvas = dynamic(() => import('./ExpanseCanvas'), { ssr: false });
@@ -33,6 +33,7 @@ export default function ExpanseLab() {
   const signal = useRef<JourneySignal>({ value: 0, raw: 0, invalidate: () => {} });
   const [mobile, setMobile] = useState(false), [mediaReduced, setMediaReduced] = useState(false);
   const [debug, setDebug] = useState(false), [forceReduced, setForceReduced] = useState(false);
+  const [surfaceView, setSurfaceView] = useState<SurfaceView>('finalMaterial');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
   const reduced = mediaReduced || forceReduced;
   const onReady = useCallback(() => setReady(true), []);
@@ -84,7 +85,7 @@ export default function ExpanseLab() {
     <figure className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas signal={signal} mobile={mobile} reduced={reduced}
-          debug={debug} onReady={onReady} onContextLost={onContextLost} />}
+          debug={debug} surfaceView={surfaceView} onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
       <Link href="/" className={styles.brand} aria-label="LibreCosta 首页">LibreCosta</Link>
@@ -103,6 +104,9 @@ export default function ExpanseLab() {
         <output ref={debugOutput} aria-label="滚动进度与相机进度">0% / 0%</output>
         <div>{[0,.25,.5,.65,.75,1].map(p => <button key={p} type="button" onClick={() => seek(p)}>{Math.round(p * 100)}%</button>)}</div>
         <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />静态模式验证</label>
+        <label>地表 <select value={surfaceView} onChange={event => setSurfaceView(event.target.value as SurfaceView)}>
+          {SURFACE_VIEWS.map(view => <option key={view}>{view}</option>)}
+        </select></label>
       </aside>}
     </figure>
   </main>;

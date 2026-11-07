@@ -7,12 +7,13 @@ import {
   MeshBasicMaterial, MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, WebGLRenderer,
   type Material,
 } from 'three';
-import { EXPANSE, type JourneySignal } from './parameters';
-import { buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
+import { EXPANSE, type JourneySignal, type SurfaceView } from './parameters';
+import { analyzeSurface, buildDrifts, buildSurfaceTerrain } from './surface';
+import { buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, fingerprint, fitVerticalFov, heightAt, sampleJourney, valleyAt, valueNoise, worldVertices, type Monument } from './world';
 import styles from './expanse.module.css';
 
 type Props = { signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
-  onReady: () => void; onContextLost: () => void };
+  surfaceView: SurfaceView; onReady: () => void; onContextLost: () => void };
 
 function solidGeometry(data: ReturnType<typeof buildWedgeData>) {
   const g = new BufferGeometry();
@@ -20,6 +21,24 @@ function solidGeometry(data: ReturnType<typeof buildWedgeData>) {
   g.setIndex(new BufferAttribute(data.indices, 1));
   g.computeVertexNormals();
   return g;
+}
+
+function createSurfaceMaterial() {
+  const { hardpan, sand } = EXPANSE.surface.material;
+  const material = new MeshStandardMaterial({ color: hardpan.color, roughness: hardpan.roughness, metalness: 0 });
+  const sandColor = new Color(sand.color);
+  material.onBeforeCompile = shader => {
+    shader.uniforms.paleSandColor = { value: sandColor };
+    shader.uniforms.paleSandRoughness = { value: sand.roughness };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float sandCoverage;\nvarying float vSandCoverage;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSandCoverage = sandCoverage;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vSandCoverage;\nuniform vec3 paleSandColor;\nuniform float paleSandRoughness;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, paleSandColor, vSandCoverage);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, paleSandRoughness, vSandCoverage);');
+  };
+  return material;
 }
 
 function Instances({ items, geometry, material, distant = false }: {
@@ -55,30 +74,51 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant && items[0]?.kind === 'slotted'} dispose={null} />;
 }
 
-function World({ mobile }: { mobile: boolean }) {
+function World({ mobile, surfaceView }: { mobile: boolean; surfaceView: SurfaceView }) {
   const { invalidate, gl } = useThree();
+  const analysis = useMemo(() => analyzeSurface(EXPANSE, { heightAt, valleyAt }), []);
+  const monuments = useMemo(() => buildMonuments(EXPANSE), []);
+  const drifts = useMemo(() => buildDrifts(EXPANSE, analysis.relief, monuments, { worldVertices, valleyAt }), [analysis, monuments]);
   const batches = useMemo(() => {
-    const all = buildMonuments(EXPANSE);
-    return { box: all.filter(x => x.kind === 'box'), wedge: all.filter(x => x.kind === 'wedge'),
-      slotted: all.filter(x => x.kind === 'slotted' && x.family !== 'Distant Stelae'),
-      distant: all.filter(x => x.family === 'Distant Stelae') };
-  }, []);
+    return { box: monuments.filter(x => x.kind === 'box'), wedge: monuments.filter(x => x.kind === 'wedge'),
+      slotted: monuments.filter(x => x.kind === 'slotted' && x.family !== 'Distant Stelae'),
+      distant: monuments.filter(x => x.family === 'Distant Stelae') };
+  }, [monuments]);
   const resources = useMemo(() => {
-    const data = buildTerrainData(EXPANSE, EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop']);
+    const base = buildTerrainData(EXPANSE, EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop']);
+    const data = buildSurfaceTerrain(EXPANSE, base, analysis, valueNoise, drifts);
     const terrain = new BufferGeometry();
     terrain.setAttribute('position', new BufferAttribute(data.positions, 3));
+    terrain.setAttribute('sandCoverage', new BufferAttribute(data.masks.sandCoverage, 1));
     terrain.setIndex(new BufferAttribute(data.indices, 1)); terrain.computeVertexNormals(); terrain.computeBoundingSphere();
     return {
       terrain, box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? solidGeometry(buildWedgeData()) : null,
       slotted: solidGeometry(buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale)),
-      ground: new MeshStandardMaterial({ color: EXPANSE.atmosphere.terrainColor, roughness: 1, metalness: 0 }),
+      ground: createSurfaceMaterial(),
+      debugGround: new MeshBasicMaterial({ vertexColors: true, fog: false, toneMapped: false }),
       stone: new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true }),
       // The instance tints carry the atmospheric falloff beyond the foreground fog.
       // Normal depth testing lets the sand crests still mask the bases.
       distant: new MeshBasicMaterial({ fog: false, toneMapped: false }),
       fingerprint: fingerprint(data.positions),
+      masks: data.masks,
     };
-  }, [mobile, batches]);
+  }, [mobile, batches, analysis, drifts]);
+  useLayoutEffect(() => {
+    gl.domElement.dataset.surfaceView = surfaceView;
+    if (surfaceView !== 'finalMaterial') {
+      const mask = resources.masks[surfaceView];
+      const attribute = resources.terrain.getAttribute('color') ?? new BufferAttribute(new Float32Array(mask.length * 3), 3);
+      const colors = attribute.array as Float32Array;
+      const gray = new Color();
+      for (let i = 0; i < mask.length; i++) {
+        gray.setRGB(mask[i], mask[i], mask[i], SRGBColorSpace).toArray(colors, i * 3);
+      }
+      resources.terrain.setAttribute('color', attribute);
+      attribute.needsUpdate = true;
+    }
+    invalidate();
+  }, [gl, invalidate, resources, surfaceView]);
   useLayoutEffect(() => {
     gl.domElement.dataset.terrain = resources.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
@@ -87,10 +127,10 @@ function World({ mobile }: { mobile: boolean }) {
   }, [resources, gl, invalidate, mobile, batches]);
   useEffect(() => () => {
     resources.terrain.dispose(); resources.box.dispose(); resources.wedge?.dispose(); resources.slotted.dispose();
-    resources.ground.dispose(); resources.stone.dispose(); resources.distant.dispose();
+    resources.ground.dispose(); resources.debugGround.dispose(); resources.stone.dispose(); resources.distant.dispose();
   }, [resources]);
   return <group dispose={null}>
-    <mesh geometry={resources.terrain} material={resources.ground} receiveShadow />
+    <mesh geometry={resources.terrain} material={surfaceView === 'finalMaterial' ? resources.ground : resources.debugGround} receiveShadow />
     <Instances items={batches.box} geometry={resources.box} material={resources.stone} />
     {resources.wedge && <Instances items={batches.wedge} geometry={resources.wedge} material={resources.stone} />}
     <Instances items={batches.slotted} geometry={resources.slotted} material={resources.stone} />
@@ -183,7 +223,7 @@ export default function ExpanseCanvas(props: Props) {
       shadow-radius={a.shadowRadius[quality]} shadow-bias={a.shadowBias} shadow-normalBias={a.shadowNormalBias}>
       <orthographicCamera attach="shadow-camera" args={[...a.shadowBounds]} />
     </directionalLight>
-    <World mobile={props.mobile} />
+    <World mobile={props.mobile} surfaceView={props.surfaceView} />
     <Observation {...props} />
   </Canvas>;
 }

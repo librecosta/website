@@ -1,5 +1,7 @@
 export type Vec3 = readonly [number, number, number];
 export type JourneySignal = { value: number; raw: number; invalidate: () => void };
+export const SURFACE_VIEWS = ['finalMaterial', 'slope', 'concavity', 'valley', 'sandCoverage', 'exposedCrust', 'drift'] as const;
+export type SurfaceView = typeof SURFACE_VIEWS[number];
 
 // Continuous dune banks; authored offsets are measured from the valley spine.
 export const EXPANSE = {
@@ -70,6 +72,24 @@ export const EXPANSE = {
     pathMask: { halfWidth: 65, blendWidth: 440, massRetention: 0.12 },
     noise: [{ wavelength: 1320, amplitude: 5 }, { wavelength: 500, amplitude: 1.3 }],
   },
+  surface: {
+    analysisStep: 25, neighborhoodWidth: 0.15, minimumNeighborhoodCells: 1.5,
+    flatSlope: [8, 25], slopeDisplayMax: 45,
+    curvature: [0.000045, 0.001], corridor: [0.42, 1.6],
+    cover: { bias: 0.14, flat: 0.38, concavity: 0.27, valley: 0.18, exposure: 0.32, noise: 0.07 },
+    sandNoise: [{ wavelength: 410, weight: 2 / 3 }, { wavelength: 205, weight: 1 / 3 }],
+    thicknessFraction: 0.025,
+    material: {
+      hardpan: { color: '#cbd0cc', roughness: 0.84 },
+      sand: { color: '#d9cbb2', roughness: 0.98 },
+    },
+    drift: {
+      targets: ['basin-left-edge', 'field-axis'], wind: [1, -0.5],
+      reliefLimit: 0.032, widthLimit: 0.025, leeRamp: 0.18, leeDecay: 1.05,
+      leeExtent: [2.4, 3.2], crossFade: [0.08, 0.5],
+      steepSlope: [18, 33], protectedValley: [0.72, 0.98],
+    },
+  },
   // Exposure limits the upper surface above the sampled sand.
   remnants: [
     { id: 'basin-left-edge', family: 'Basin Remnant', kind: 'box', center: [-455, 285],
@@ -123,7 +143,7 @@ export const EXPANSE = {
   atmosphere: {
     sky: '#e1e4e3', fogNear: 1500, fogFar: 11000, cameraFar: 46000,
     distantSilhouette: '#c9d0ca', distantFadeDepth: [18500, 39000],
-    terrainColor: '#d8ccb4', monumentColor: '#999b95',
+    monumentColor: '#999b95',
     sunPosition: [-6100, 3400, 900], sunTarget: [0, 0, -2800],
     // One static map covers the structures and their contact patches along the valley.
     shadowBounds: [-3480, 3350, 3000, -1550, 3600, 11100],

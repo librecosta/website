@@ -14,7 +14,7 @@ function hash(x: number, z: number, seed: number) {
 }
 
 // Smooth value noise, not an unbounded random height per vertex.
-function noise(x: number, z: number, seed: number) {
+export function valueNoise(x: number, z: number, seed: number) {
   const ix = Math.floor(x), iz = Math.floor(z);
   const u = smoothstep(0, 1, x - ix), v = smoothstep(0, 1, z - iz);
   return lerp(lerp(hash(ix, iz, seed), hash(ix + 1, iz, seed), u),
@@ -63,7 +63,7 @@ export function heightAt(x: number, z: number, world: WorldParameters): number {
     dunes+=fold.height*Math.exp(-2.2*(u*u+v*v));
   }
   terrain.noise.forEach((layer,i) => {
-    detail+=layer.amplitude*noise(x/layer.wavelength,z/layer.wavelength,world.seed+i*113);
+    detail+=layer.amplitude*valueNoise(x/layer.wavelength,z/layer.wavelength,world.seed+i*113);
   });
   const mask=terrain.pathMask;
   const side=smoothstep(mask.halfWidth,mask.halfWidth+mask.blendWidth,Math.abs(lateral));
