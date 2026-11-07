@@ -7,13 +7,14 @@ import {
   MeshBasicMaterial, MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, WebGLRenderer,
   type Material,
 } from 'three';
-import { EXPANSE, type JourneySignal, type SurfaceView } from './parameters';
+import { EXPANSE, type JourneySignal, type LightingLook, type SurfaceView } from './parameters';
 import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
 import { createAeolianMaterial } from './aeolian-material';
+import { SkyGradient } from './SkyGradient';
 import styles from './expanse.module.css';
 
 type Props = { signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
-  surfaceView: SurfaceView; onReady: () => void; onContextLost: () => void };
+  surfaceView: SurfaceView; lightingLook: LightingLook; onReady: () => void; onContextLost: () => void };
 
 function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array }) {
   const g = new BufferGeometry();
@@ -38,7 +39,7 @@ function Instances({ items, geometry, material, distant = false }: {
     object.instanceMatrix.needsUpdate = true;
     if (distant) {
       const { sky, distantSilhouette, distantFadeDepth } = EXPANSE.atmosphere;
-      const skyColor = new Color(sky);
+      const skyColor = new Color(sky.horizon);
       const stoneColor = new Color(distantSilhouette);
       const tint = new Color();
       items.forEach((item, i) => {
@@ -56,7 +57,7 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant && items[0]?.kind === 'slotted'} dispose={null} />;
 }
 
-function World({ mobile, surfaceView }: { mobile: boolean; surfaceView: SurfaceView }) {
+function World({ mobile, surfaceView, lightingLook }: Pick<Props, 'mobile' | 'surfaceView' | 'lightingLook'>) {
   const { invalidate, gl } = useThree();
   const monuments = useMemo(() => buildMonuments(EXPANSE), []);
   const batches = useMemo(() => {
@@ -92,8 +93,9 @@ function World({ mobile, surfaceView }: { mobile: boolean; surfaceView: SurfaceV
     gl.domElement.dataset.terrain = terrain.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
     gl.domElement.dataset.instances = String(batches.box.length + batches.wedge.length + batches.slotted.length + batches.distant.length);
+    gl.domElement.dataset.lightingLook = lightingLook;
     gl.shadowMap.needsUpdate = true; invalidate();
-  }, [terrain, gl, invalidate, mobile, batches]);
+  }, [terrain, gl, invalidate, mobile, batches, lightingLook]);
   useEffect(() => () => terrain.geometry.dispose(), [terrain]);
   useEffect(() => () => {
     resources.box.dispose(); resources.wedge?.dispose(); resources.slotted.dispose();
@@ -169,8 +171,11 @@ export default function ExpanseCanvas(props: Props) {
     const object = new Object3D(); object.position.set(...EXPANSE.atmosphere.sunTarget); return object;
   }, []);
   const a = EXPANSE.atmosphere;
+  const look = a.looks[props.lightingLook];
   const quality = props.mobile ? 'mobile' : 'desktop';
   const shadowResolution = a.shadowResolution[quality];
+  // Changing mapSize alone doesn't resize Three's existing shadow render target.
+  // A new light on quality changes gives each tier its own correctly sized map.
   return <Canvas className={styles.canvas} data-rendering={visible ? 'on-demand' : 'paused'}
     style={{ pointerEvents: 'none', touchAction: 'pan-y' }}
     frameloop={visible ? 'demand' : 'never'} dpr={[1, props.mobile ? 1.25 : 1.5]}
@@ -184,16 +189,17 @@ export default function ExpanseCanvas(props: Props) {
       renderer.outputColorSpace = SRGBColorSpace; renderer.shadowMap.autoUpdate = false;
       return renderer;
     }} fallback={<p>苍白荒原与半埋巨构。三维视图需要 WebGL2。</p>}>
-    <color attach="background" args={[a.sky]} />
-    <fog attach="fog" args={[a.sky, a.fogNear, a.fogFar]} />
-    <hemisphereLight args={[a.hemisphereSky, a.hemisphereGround, a.hemisphereIntensity]} />
+    <color attach="background" args={[a.sky.horizon]} />
+    <fog attach="fog" args={[a.sky.horizon, a.fogNear, a.fogFar]} />
+    <SkyGradient />
+    <hemisphereLight color={look.hemisphereSky} groundColor={look.hemisphereGround} intensity={look.hemisphereIntensity} />
     <primitive object={target} />
-    <directionalLight position={[...a.sunPosition]} target={target} color={a.sunColor} intensity={a.sunIntensity}
-      castShadow shadow-mapSize={[shadowResolution, shadowResolution]}
+    <directionalLight key={quality} position={[...look.sunPosition]} target={target} color={look.sunColor} intensity={look.sunIntensity}
+      castShadow shadow-mapSize={[shadowResolution, shadowResolution]} shadow-intensity={look.shadowStrength}
       shadow-radius={a.shadowRadius[quality]} shadow-bias={a.shadowBias} shadow-normalBias={a.shadowNormalBias}>
-      <orthographicCamera attach="shadow-camera" args={[...a.shadowBounds]} />
+      <orthographicCamera attach="shadow-camera" args={[...look.shadowBounds]} />
     </directionalLight>
-    <World mobile={props.mobile} surfaceView={props.surfaceView} />
+    <World mobile={props.mobile} surfaceView={props.surfaceView} lightingLook={props.lightingLook} />
     <Observation {...props} />
   </Canvas>;
 }

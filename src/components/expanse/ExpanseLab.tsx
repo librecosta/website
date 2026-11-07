@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { EXPANSE, SURFACE_VIEWS, type JourneySignal, type SurfaceView } from './parameters';
+import { EXPANSE, LIGHTING_LOOKS, SURFACE_VIEWS, type JourneySignal, type LightingLook, type SurfaceView } from './parameters';
 import styles from './expanse.module.css';
 
 const ExpanseCanvas = dynamic(() => import('./ExpanseCanvas'), { ssr: false });
@@ -34,6 +34,7 @@ export default function ExpanseLab() {
   const [mobile, setMobile] = useState(false), [mediaReduced, setMediaReduced] = useState(false);
   const [debug, setDebug] = useState(false), [forceReduced, setForceReduced] = useState(false);
   const [surfaceView, setSurfaceView] = useState<SurfaceView>('finalMaterial');
+  const [lightingLook, setLightingLook] = useState<LightingLook>(EXPANSE.atmosphere.defaultLook);
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
   const reduced = mediaReduced || forceReduced;
   const onReady = useCallback(() => setReady(true), []);
@@ -85,7 +86,7 @@ export default function ExpanseLab() {
     <figure className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas signal={signal} mobile={mobile} reduced={reduced}
-          debug={debug} surfaceView={surfaceView} onReady={onReady} onContextLost={onContextLost} />}
+          debug={debug} surfaceView={surfaceView} lightingLook={lightingLook} onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
       <Link href="/" className={styles.brand} aria-label="LibreCosta 首页">LibreCosta</Link>
@@ -106,6 +107,9 @@ export default function ExpanseLab() {
         <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />静态模式验证</label>
         <label>地表 <select value={surfaceView} onChange={event => setSurfaceView(event.target.value as SurfaceView)}>
           {Object.entries(SURFACE_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
+        </select></label>
+        <label>光照 <select value={lightingLook} onChange={event => setLightingLook(event.target.value as LightingLook)}>
+          {Object.entries(LIGHTING_LOOKS).map(([look, label]) => <option key={look} value={look}>{label}</option>)}
         </select></label>
       </aside>}
     </figure>

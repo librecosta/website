@@ -174,17 +174,28 @@ export const EXPANSE = {
     // Normalized cross section: one deep, narrow opening on the +Z face.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } },
   atmosphere: {
-    sky: '#e1e4e3', fogNear: 1500, fogFar: 11000, cameraFar: 46000,
-    distantSilhouette: '#c9d0ca', distantFadeDepth: [18500, 39000],
+    sky: { horizon: '#e8e4d9', upper: '#cbd8e0', gradientTop: 0.66 },
+    fogNear: 1750, fogFar: 12900, cameraFar: 46000,
+    distantSilhouette: '#bac0bd', distantFadeDepth: [15700, 40800],
     monumentColor: '#999b95',
-    sunPosition: [-6100, 3400, 900], sunTarget: [0, 0, -2800],
-    // One static map covers the structures and their contact patches along the valley.
-    shadowBounds: [-3480, 3350, 3000, -1550, 3600, 11100],
+    sunTarget: [0, 0, -2800],
+    defaultLook: 'sideLight',
+    // The fixed maps cover the casters and their downhill ground projections.
+    looks: {
+      soft: {
+        sunPosition: [-4350, 4750, 2600], sunColor: '#fff4e4', sunIntensity: 2.85,
+        hemisphereSky: '#e2edf5', hemisphereGround: '#b9ad99', hemisphereIntensity: 1.8,
+        shadowStrength: 0.85, shadowBounds: [-2560, 2450, 3450, -1800, 5600, 13900],
+      },
+      sideLight: {
+        sunPosition: [-6250, 2830, 1570], sunColor: '#fff0d6', sunIntensity: 3.9,
+        hemisphereSky: '#e3edf5', hemisphereGround: '#b2a694', hemisphereIntensity: 1.48,
+        shadowStrength: 0.95, shadowBounds: [-3120, 2820, 2810, -980, 5600, 16000],
+      },
+    },
     shadowResolution: { desktop: 2560, mobile: 1280 },
-    shadowRadius: { desktop: 2.5, mobile: 1.5 },
-    shadowBias: -0.00022, shadowNormalBias: 2.2,
-    sunColor: '#fff1d7', sunIntensity: 3.85,
-    hemisphereSky: '#e6edf3', hemisphereGround: '#a49c8a', hemisphereIntensity: 1.4,
+    shadowRadius: { desktop: 1.75, mobile: 1.25 },
+    shadowBias: -0.00014, shadowNormalBias: 1.35,
     exposure: 1.03,
   },
   journey: {
@@ -205,3 +216,5 @@ export const EXPANSE = {
 } as const;
 
 export type WorldParameters = typeof EXPANSE;
+export type LightingLook = keyof WorldParameters['atmosphere']['looks'];
+export const LIGHTING_LOOKS: Record<LightingLook, string> = { soft: '明亮柔光', sideLight: '雕塑感侧光' };

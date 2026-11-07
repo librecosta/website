@@ -146,12 +146,23 @@ for(const remnant of monuments.filter(m => m.family==='Basin Remnant')) {
  }
 }
 assert(EXPANSE.hero.scale[1] > Math.max(...field.map(m => m.scale[1]))*2,'Hero has a distinct scale hierarchy');
-const shadowCamera=new OrthographicCamera(...EXPANSE.atmosphere.shadowBounds);
-shadowCamera.position.set(...EXPANSE.atmosphere.sunPosition); shadowCamera.lookAt(...EXPANSE.atmosphere.sunTarget); shadowCamera.updateMatrixWorld();
-for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
-  for(const v of worldVertices(monument,EXPANSE)) {
-    const p=v.project(shadowCamera);
-    assert(Math.abs(p.x)<1 && Math.abs(p.y)<1 && Math.abs(p.z)<1,monument.id + ': caster fits the static shadow frustum');
+const shadowReceiverFloor=-100;
+assert(rendered.desktop.every((v, i) => i%3!==1 || v>=shadowReceiverFloor) &&
+       rendered.mobile.every((v, i) => i%3!==1 || v>=shadowReceiverFloor), 'Shadow receiver floor is below the terrain');
+for(const [look, {sunPosition, shadowBounds}] of Object.entries(EXPANSE.atmosphere.looks)) {
+  const shadowCamera=new OrthographicCamera(...shadowBounds);
+  const target=new Vector3(...EXPANSE.atmosphere.sunTarget);
+  shadowCamera.position.set(...sunPosition); shadowCamera.lookAt(target); shadowCamera.updateMatrixWorld();
+  const shade=target.sub(shadowCamera.position).normalize();
+  for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
+    for(const v of worldVertices(monument,EXPANSE)) {
+      // The box is convex: checking the two ends also contains the shadow ray between them.
+      const floor=v.clone().addScaledVector(shade, Math.max(0,(shadowReceiverFloor-v.y)/shade.y));
+      for(const point of [v, floor]) {
+        const p=point.project(shadowCamera);
+        assert(Math.abs(p.x)<1 && Math.abs(p.y)<1 && Math.abs(p.z)<1,`${look}: ${monument.id} and its ground shadow fit the static frustum`);
+      }
+    }
   }
 }
 assert(Math.min(...field.map(m => m.position[2])) > Math.max(...hero.map(m => m.position[2])), 'Destination stays beyond the field');
