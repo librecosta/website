@@ -58,7 +58,8 @@ export function heightAt(x: number, z: number, world: WorldParameters): number {
   for(const fold of terrain.crosswindFolds) {
     const dx=x-valleyAt(fold.center[1],world).x-fold.center[0], dz=z-fold.center[1];
     const c=Math.cos(fold.rotation), s=Math.sin(fold.rotation);
-    const u=(dx*c-dz*s)/fold.radius[0], v=(dx*s+dz*c)/fold.radius[1];
+    const u=(dx*c-dz*s)/fold.radius[0];
+    const v=(dx*s+dz*c)/fold.radius[1]+fold.sweep*u*u;
     dunes+=fold.height*Math.exp(-2.2*(u*u+v*v));
   }
   terrain.noise.forEach((layer,i) => {

@@ -63,9 +63,11 @@ for(const remnant of monuments.filter(m => m.family==='Basin Remnant')) {
 assert(EXPANSE.hero.scale[1] > Math.max(...field.map(m => m.scale[1]))*2,'Hero has a distinct scale hierarchy');
 const shadowCamera=new OrthographicCamera(...EXPANSE.atmosphere.shadowBounds);
 shadowCamera.position.set(...EXPANSE.atmosphere.sunPosition); shadowCamera.lookAt(...EXPANSE.atmosphere.sunTarget); shadowCamera.updateMatrixWorld();
-for(const v of worldVertices(hero[0],EXPANSE)) {
- const p=v.project(shadowCamera);
- assert(Math.abs(p.x)<1 && Math.abs(p.y)<1 && Math.abs(p.z)<1,'The entire hero fits the static shadow frustum');
+for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
+  for(const v of worldVertices(monument,EXPANSE)) {
+    const p=v.project(shadowCamera);
+    assert(Math.abs(p.x)<1 && Math.abs(p.y)<1 && Math.abs(p.z)<1,monument.id + ': caster fits the static shadow frustum');
+  }
 }
 assert(Math.min(...field.map(m => m.position[2])) > Math.max(...hero.map(m => m.position[2])), 'Destination stays beyond the field');
 assert(sampleJourney(.01,EXPANSE).position[2] < sampleJourney(0,EXPANSE).position[2]-10, 'First scroll produces travel, no dead segment');

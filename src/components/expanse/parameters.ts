@@ -21,12 +21,12 @@ export const EXPANSE = {
       { z: -5500, x: 50, floor: 45, width: 250 },
       { z: -7400, x: 0, floor: 50, width: 370 },
     ],
-    basinProfile: { bankHeight: 70, bankRun: 650, outerFalloff: 2500, leftScale: 1.05, rightScale: 0.92 },
-    crestBlend: 32,
+    basinProfile: { bankHeight: 70, bankRun: 700, outerFalloff: 2500, leftScale: 1.05, rightScale: 0.92 },
+    crestBlend: 42,
     // Each ribbon extends through the whole valley; height never falls back to
     // zero between longitudinal nodes. The left shoulder merges into its bank.
     crestRibbons: [
-      { id: 'left-bank', side: -1, reliefScale: 0.35, innerWidth: 0.86, outerWidth: 1.2, nodes: [
+      { id: 'left-bank', side: -1, reliefScale: 0.35, innerWidth: 0.96, outerWidth: 1.2, nodes: [
         { z: 3400, offset: -1050, width: 850, height: 75 },
         { z: 1400, offset: -1100, width: 900, height: 100 },
         { z: 400, offset: -900, width: 850, height: 125 },
@@ -48,28 +48,27 @@ export const EXPANSE = {
         { z: -5400, offset: -1700, width: 1650, height: 175 },
         { z: -7400, offset: -1800, width: 1700, height: 150 },
       ] },
-      { id: 'right-bank', side: 1, reliefScale: 1, innerWidth: 0.9, outerWidth: 1.3, nodes: [
+      { id: 'right-bank', side: 1, reliefScale: 1, innerWidth: 0.85, outerWidth: 1.52, nodes: [
         { z: 3400, offset: 580, width: 840, height: 130 },
-        { z: 1200, offset: 720, width: 1000, height: 155 },
-        { z: -300, offset: 600, width: 780, height: 180 },
-        { z: -1800, offset: 750, width: 1050, height: 170 },
-        { z: -3300, offset: 960, width: 1250, height: 195 },
-        { z: -5200, offset: 1150, width: 1450, height: 165 },
+        { z: 1200, offset: 760, width: 1050, height: 144 },
+        { z: -300, offset: 660, width: 840, height: 156 },
+        { z: -1800, offset: 860, width: 1140, height: 164 },
+        { z: -3300, offset: 1080, width: 1300, height: 178 },
+        { z: -5200, offset: 1160, width: 1450, height: 164 },
         { z: -7400, offset: 1250, width: 1700, height: 130 },
       ] },
     ],
-    // Two broad crosswind folds share the continuous left bank underneath.
-    // Their footprints overlap heavily; they are not a repeated dune scatter.
+    // Broad oblique folds sit on the continuous banks. Sweep bends the crest
+    // across its long axis. On the right a low shoulder leads into a wider fold.
     crosswindFolds: [
-      { center: [-850, 450], radius: [900, 850], height: 125, rotation: -0.35 },
-      { center: [-580, -850], radius: [1000, 1150], height: 230, rotation: 0.28 },
+      { center: [-880, 510], radius: [980, 970], height: 125, rotation: -0.35, sweep: 0.25 },
+      { center: [-620, -920], radius: [1080, 1250], height: 213, rotation: 0.28, sweep: -0.33 },
+      { center: [600, 510], radius: [940, 620], height: 61, rotation: 0.55, sweep: -0.38 },
+      { center: [970, -1890], radius: [1460, 790], height: 93, rotation: -0.6, sweep: 0.48 },
+      { center: [-1040, -4330], radius: [1350, 1030], height: 53, rotation: 0.42, sweep: -0.26 },
     ],
     pathMask: { halfWidth: 65, blendWidth: 440, massRetention: 0.12 },
-    noise: [
-      { wavelength: 1100, amplitude: 6 },
-      { wavelength: 350, amplitude: 2 },
-      { wavelength: 120, amplitude: 0.3 },
-    ],
+    noise: [{ wavelength: 1320, amplitude: 5 }, { wavelength: 500, amplitude: 1.3 }],
   },
   // Exposure limits the upper surface above the sampled sand.
   remnants: [
@@ -122,15 +121,18 @@ export const EXPANSE = {
     // Normalized cross section: one deep, narrow opening on the +Z face.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } },
   atmosphere: {
-    sky: '#dedfd9', fogNear: 850, fogFar: 10000, cameraFar: 46000,
-    distantSilhouette: '#c9cdc3', distantFadeDepth: [18500, 39000],
-    terrainColor: '#d0cabc', monumentColor: '#92958d',
-    sunPosition: [-2600, 2800, 900], sunTarget: [0, 0, -2100],
-    // Cover the tall hero as well as the near basin, without a moving shadow rig.
-    shadowBounds: [-4700, 4400, 3750, -2650, 50, 10000],
-    sunColor: '#fff0d7', sunIntensity: 3.4,
-    hemisphereSky: '#dce3e4', hemisphereGround: '#8f887b', hemisphereIntensity: 1.2,
-    exposure: 0.98,
+    sky: '#e1e4e3', fogNear: 1500, fogFar: 11000, cameraFar: 46000,
+    distantSilhouette: '#c9d0ca', distantFadeDepth: [18500, 39000],
+    terrainColor: '#d8ccb4', monumentColor: '#999b95',
+    sunPosition: [-6100, 3400, 900], sunTarget: [0, 0, -2800],
+    // One static map covers the structures and their contact patches along the valley.
+    shadowBounds: [-3480, 3350, 3000, -1550, 3600, 11100],
+    shadowResolution: { desktop: 2560, mobile: 1280 },
+    shadowRadius: { desktop: 2.5, mobile: 1.5 },
+    shadowBias: -0.00022, shadowNormalBias: 2.2,
+    sunColor: '#fff1d7', sunIntensity: 3.85,
+    hemisphereSky: '#e6edf3', hemisphereGround: '#a49c8a', hemisphereIntensity: 1.4,
+    exposure: 1.03,
   },
   journey: {
     screens: 4, scrubSeconds: 0.18, cameraRadius: 12, reducedProgress: 0,

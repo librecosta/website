@@ -159,6 +159,8 @@ export default function ExpanseCanvas(props: Props) {
     const object = new Object3D(); object.position.set(...EXPANSE.atmosphere.sunTarget); return object;
   }, []);
   const a = EXPANSE.atmosphere;
+  const quality = props.mobile ? 'mobile' : 'desktop';
+  const shadowResolution = a.shadowResolution[quality];
   return <Canvas className={styles.canvas} data-rendering={visible ? 'on-demand' : 'paused'}
     style={{ pointerEvents: 'none', touchAction: 'pan-y' }}
     frameloop={visible ? 'demand' : 'never'} dpr={[1, props.mobile ? 1.25 : 1.5]}
@@ -177,8 +179,8 @@ export default function ExpanseCanvas(props: Props) {
     <hemisphereLight args={[a.hemisphereSky, a.hemisphereGround, a.hemisphereIntensity]} />
     <primitive object={target} />
     <directionalLight position={[...a.sunPosition]} target={target} color={a.sunColor} intensity={a.sunIntensity}
-      castShadow shadow-mapSize={[props.mobile ? 1024 : 2048, props.mobile ? 1024 : 2048]}
-      shadow-bias={-.0006} shadow-normalBias={3}>
+      castShadow shadow-mapSize={[shadowResolution, shadowResolution]}
+      shadow-radius={a.shadowRadius[quality]} shadow-bias={a.shadowBias} shadow-normalBias={a.shadowNormalBias}>
       <orthographicCamera attach="shadow-camera" args={[...a.shadowBounds]} />
     </directionalLight>
     <World mobile={props.mobile} />
