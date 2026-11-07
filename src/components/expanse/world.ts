@@ -1,4 +1,4 @@
-import { Euler, Quaternion, ShapeUtils, Vector2, Vector3 } from 'three';
+import { Box3, Euler, Matrix4, Quaternion, Ray, ShapeUtils, Vector2, Vector3 } from 'three';
 import type { Vec3, WorldParameters } from './parameters';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -146,6 +146,53 @@ export type Monument = {
   quaternion: [number, number, number, number];
   burial: number;
 };
+
+export function windSurfaceAbove(ground: (x: number, z: number) => number, monuments: Monument[]) {
+  const unitBox = new Box3(new Vector3(-0.5, -0.5, -0.5), new Vector3(0.5, 0.5, 0.5));
+  const obstacles = monuments.filter(item => item.kind === 'box').map(item => {
+    const transform = new Matrix4().compose(new Vector3(...item.position),
+      new Quaternion().fromArray(item.quaternion), new Vector3(...item.scale));
+    return { transform, inverse: transform.clone().invert(), bounds: unitBox.clone().applyMatrix4(transform) };
+  });
+  const ray = new Ray();
+  const hit = new Vector3();
+  return (x: number, z: number) => {
+    let top = ground(x, z);
+    for (const { bounds, inverse, transform } of obstacles) {
+      if (x < bounds.min.x || x > bounds.max.x || z < bounds.min.z || z > bounds.max.z || top >= bounds.max.y) continue;
+      ray.origin.set(x, bounds.max.y + 1, z);
+      ray.direction.set(0, -1, 0);
+      ray.applyMatrix4(inverse);
+      if (ray.intersectBox(unitBox, hit)) top = Math.max(top, hit.applyMatrix4(transform).y);
+    }
+    return top;
+  };
+}
+
+export function sandBedSupply(world: WorldParameters, ground: (x: number, z: number) => number) {
+  const { supply, bedding, corridor, slope, bowlRadius } = world.windMotion.sediment;
+  const angle = Math.atan2(world.aeolian.wind[1], world.aeolian.wind[0]);
+  const wx = Math.cos(angle), wz = Math.sin(angle);
+  return (x: number, z: number) => {
+    let segment = 0;
+    while (segment < supply.length - 2 && z < supply[segment + 1][0]) segment++;
+    const [za, a] = supply[segment], [zb, b] = supply[segment + 1];
+    const regional = lerp(a, b, smoothstep(0, 1, (za - z) / (za - zb)));
+    const spine = valleyAt(z, world);
+    const valley = 1 - smoothstep(...corridor, Math.abs(x - spine.x) / spine.width);
+    const r = bowlRadius;
+    const east = ground(x + r, z), west = ground(x - r, z);
+    const north = ground(x, z + r), south = ground(x, z - r);
+    const gradient = Math.hypot(east - west, north - south) / (2 * r);
+    const bowl = (east + west + north + south) * 0.25 - ground(x, z);
+    const retention = (1 - smoothstep(...slope, gradient)) * lerp(0.55, 1, smoothstep(-3, 3, bowl));
+    const u = (x * wx + z * wz) / bedding[0];
+    const v = (-x * wz + z * wx) / bedding[1];
+    const seams = 0.73 * valueNoise(u + 0.22 * Math.sin(v * 0.8), v, world.seed + 901)
+      + 0.27 * valueNoise(u * 1.7 + 0.8, v * 1.8 - 1.2, world.seed + 913);
+    return regional * valley * retention * lerp(0.10, 1, smoothstep(-0.23, 0.51, seams));
+  };
+}
 
 export function localVertices(kind: Monument['kind'], world: WorldParameters): Vector3[] {
   if (kind !== 'box') {

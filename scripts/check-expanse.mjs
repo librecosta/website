@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
 import { EXPANSE } from '../src/components/expanse/parameters.ts';
-import { buildAeolianTerrain, duneRelief, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, valleyAt, valueNoise, worldVertices, structureDistance } from '../src/components/expanse/world.ts';
+import { buildAeolianTerrain, duneRelief, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, valueNoise, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { analyzeSurface, buildDrifts, buildSurfaceTerrain } from '../src/components/expanse/surface.ts';
+import { createSandTransport, renderedGround } from '../src/components/expanse/sand-transport.ts';
+import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const results = {};
@@ -112,6 +114,117 @@ for (const quality of ['desktop', 'mobile']) {
   aeolian[quality] = { baseFingerprint: fingerprint(base.positions), fingerprint: fingerprint(dunes.positions), peakLift, peakSlope };
 }
 assert.deepEqual(monuments, buildMonuments(EXPANSE));
+const windConfig = EXPANSE.windMotion;
+const transportImpulseConfig = { ...windConfig, bounds: [-425, 405, 310, 975], resolution: [96, 64], gusts: [] };
+const flat = () => 0;
+const quiet = createSandTransport({ ...transportImpulseConfig, baseShear: 0.12 }, [1, 0], flat, flat, { sediment: () => 1 });
+for (let i = 0; i < 64; i++) quiet.advance();
+assert.equal(quiet.balance.lifted, 0, 'A subthreshold wind cannot lift a loose bed');
+assert.throws(() => createSandTransport({ ...windConfig, step: 1 }, [1, 0], flat), /CFL/);
+const impulse = createSandTransport(transportImpulseConfig, [1, 0], flat);
+const [sandNx, sandNz] = transportImpulseConfig.resolution;
+const seedCol = Math.floor(sandNx / 2), seedRow = Math.floor(sandNz / 2);
+impulse.concentration[seedRow * sandNx + seedCol] = 100;
+for (let i = 0; i < 64; i++) impulse.advance();
+const sum = values => values.reduce((total, value) => total + value, 0);
+const column = impulse.concentration.reduce((total, value, i) => total + value * (i % sandNx), 0) / sum(impulse.concentration);
+assert(column > seedCol + 5, 'An isolated plume advects downwind');
+assert(impulse.concentration.some((value, i) => Math.floor(i / sandNx) !== seedRow && value > 0), 'The plume spreads across wind');
+assert(impulse.balance.deposited > 0 && sum(impulse.concentration) < 100, 'The plume settles without fresh lift');
+for (let i = 0; i < 900; i++) impulse.advance();
+assert(impulse.balance.escaped > 0, 'The open downwind edge exports the plume');
+assert(Math.abs((sum(impulse.concentration) + sum(impulse.bed)) * impulse.cellArea + impulse.balance.escaped - 100 * impulse.cellArea) < 1e-9);
+
+const sandGround = renderedGround(rendered.desktop, EXPANSE.terrain.resolution.desktop, EXPANSE.terrain);
+const windSurface = windSurfaceAbove(sandGround, monuments);
+const sand = createSandTransport(windConfig, EXPANSE.aeolian.wind, sandGround, windSurface,
+  { sediment: sandBedSupply(EXPANSE, sandGround), window: windConfig.window });
+const bedStart = sum(sand.bed) * sand.cellArea;
+const viewSamples = [];
+const [columns, rows] = windConfig.resolution, [x0, x1, z0, z1] = windConfig.bounds;
+const dx = (x1 - x0) / columns, dz = (z1 - z0) / rows;
+let peakDensity = 0, maximumBudgetError = 0;
+let moves = 0, preservedCells = 0;
+let dormantSample;
+const sampleBudget = () => {
+  assert(sand.concentration.every(value => Number.isFinite(value) && value >= 0));
+  assert(sand.bed.every(value => Number.isFinite(value) && value >= 0));
+  const airborne = sum(sand.concentration) * sand.cellArea;
+  const { lifted, deposited, escaped, entered } = sand.balance;
+  maximumBudgetError = Math.max(maximumBudgetError,
+    Math.abs(airborne - (lifted - deposited - escaped + entered)),
+    Math.abs(airborne + sum(sand.bed) * sand.cellArea + escaped - entered - bedStart));
+};
+function followAndCheck(cameraZ) {
+  const previous = sand.firstRow, clock = sand.time;
+  const before = sand.concentration.slice(previous * columns, (previous + windConfig.window.rows) * columns);
+  const bed = sand.bed.slice(previous * columns, (previous + windConfig.window.rows) * columns);
+  if (sand.follow(cameraZ)) {
+    moves++;
+    const start = Math.max(previous, sand.firstRow), end = Math.min(previous, sand.firstRow) + windConfig.window.rows;
+    if (previous >= 0 && end > start) {
+      const offset = (start - previous) * columns, count = (end - start) * columns;
+      assert.deepEqual(sand.concentration.subarray(start * columns, end * columns), before.subarray(offset, offset + count));
+      assert.deepEqual(sand.bed.subarray(start * columns, end * columns), bed.subarray(offset, offset + count));
+      preservedCells += count;
+    }
+  }
+  assert.equal(sand.time, clock, 'Moving the window cannot reset or advance the gust clock');
+  assert(sand.windowStart + windConfig.dust.edgeFade < cameraZ - windConfig.dust.viewFade[1]);
+  assert(sand.windowStart + sand.windowDepth - windConfig.dust.edgeFade > cameraZ + 80);
+}
+for (const [index, progress] of [0, .25, .5, .75, 1, .75, .5, .25, 0].entries()) {
+  const [cx, , cz] = sampleJourney(progress, EXPANSE).position;
+  followAndCheck(cz);
+  if (index === 8) {
+    const { cell, airborne, bed, time } = dormantSample;
+    const rate = windConfig.settling * (1 + sand.shelter[cell]);
+    const remaining = airborne * Math.exp(-rate * (sand.time - time));
+    assert(Math.abs(sand.concentration[cell] - remaining) < 1e-12, 'Returning settles a dormant plume without reseeding it');
+    assert(Math.abs(sand.bed[cell] - (bed + airborne - remaining)) < 1e-12);
+  }
+  let visibleDensity = 0, visibleSource = 0;
+  const front = [];
+  for (let row = sand.firstRow; row < sand.firstRow + windConfig.window.rows; row++) for (let col = 0; col < columns; col++) {
+    const d = cz - (z0 + (row + 0.5) * dz);
+    if (d > 150 && d < 850 && Math.abs(x0 + (col + 0.5) * dx - cx) < 375) front.push(row * columns + col);
+  }
+  for (let i = 1; i <= 128; i++) {
+    sand.advance();
+    if (i % 16 === 0) sampleBudget();
+    for (const cell of front) {
+      visibleDensity += sand.concentration[cell];
+      visibleSource += sand.sourceRate[cell];
+      peakDensity = Math.max(peakDensity, sand.concentration[cell]);
+    }
+  }
+  if (index === 0) {
+    const row = Math.floor((cz - 260 - z0) / dz);
+    let cell = row * columns;
+    for (let col = 0; col < columns; col++) {
+      const candidate = row * columns + col;
+      if (sand.concentration[candidate] > sand.concentration[cell]) cell = candidate;
+    }
+    assert(sand.concentration[cell] > 0);
+    dormantSample = { cell, airborne: sand.concentration[cell], bed: sand.bed[cell], time: sand.time };
+  }
+  if (index < 5) viewSamples.push({ progress, density: visibleDensity / (128 * front.length), source: visibleSource / (128 * front.length) });
+}
+for (let i = 1; i <= 160; i++) {
+  const progress = i <= 80 ? i / 80 : (160 - i) / 80;
+  followAndCheck(sampleJourney(progress, EXPANSE).position[2]);
+  sand.advance();
+  if (i % 16 === 0) sampleBudget();
+}
+assert(preservedCells > 0 && moves > 80);
+assert(maximumBudgetError < 1e-6, 'Airborne and total budgets conserve mass to numerical precision');
+assert(sand.balance.lifted > 0 && sand.balance.deposited > 0 && sand.balance.escaped > 0 && sand.balance.entered > 0);
+assert(sand.shelter.some(value => value > 0.25) && sand.solid.some(Boolean), 'The rendered dunes and exposed structures affect wind');
+assert(Math.min(viewSamples[1].density, viewSamples[2].density) > viewSamples[0].density);
+assert(viewSamples[4].density < viewSamples[0].density && viewSamples[4].density > 0);
+results.sandTransport = { step: windConfig.step, threshold: sand.threshold, cfl: sand.cfl, maximumBudgetError,
+  shadowedCells: sand.shelter.filter(value => value > 0.25).length, solidCells: sand.solid.filter(Boolean).length,
+  peakDensity, moves, preservedCells, viewSamples, balance: sand.balance };
 for (const monument of monuments) {
   assert(monument.position.every(Number.isFinite));
   assert(monument.scale.every(value => Number.isFinite(value) && value > 0));
@@ -167,6 +280,35 @@ for(const [look, {sunPosition, shadowBounds}] of Object.entries(EXPANSE.atmosphe
 }
 assert(Math.min(...field.map(m => m.position[2])) > Math.max(...hero.map(m => m.position[2])), 'Destination stays beyond the field');
 assert(sampleJourney(.01,EXPANSE).position[2] < sampleJourney(0,EXPANSE).position[2]-10, 'First scroll produces travel, no dead segment');
+const timing = EXPANSE.journey.timing;
+const mapped = s => mapJourneyProgress(s, timing);
+assert.equal(EXPANSE.journey.screens - 1, 5.5);
+assert.deepEqual([mapped(0), mapped(.35), mapped(1)], [0, .356, 1]);
+assert.deepEqual(sampleJourney(mapped(.35), EXPANSE), sampleJourney(.356, EXPANSE));
+const epsilon = 1e-7;
+for (const [i, node] of timing.entries()) {
+  if (i > 0) assert(Math.abs((mapped(node.scroll) - mapped(node.scroll - epsilon)) / epsilon - node.slope) < 1e-5);
+  if (i < timing.length - 1) {
+    assert(Math.abs((mapped(node.scroll + epsilon) - mapped(node.scroll)) / epsilon - node.slope) < 1e-5);
+    const end = timing[i + 1];
+    const secant = (end.path - node.path) / (end.scroll - node.scroll);
+    // All three quadratic Bernstein coefficients of du/ds must be positive.
+    assert(Math.min(node.slope, 3 * secant - node.slope - end.slope, end.slope) > 0);
+  }
+}
+for (let i = 1; i <= 1000; i++) assert(mapped(i / 1000) > mapped((i - 1) / 1000));
+const worldSteps = [];
+let previousPosition = sampleJourney(0, EXPANSE).position;
+for (let i = 1; i <= 20; i++) {
+  const position = sampleJourney(mapped(i / 20), EXPANSE).position;
+  worldSteps.push(Math.hypot(...position.map((value, axis) => value - previousPosition[axis])));
+  previousPosition = position;
+}
+const peakWorldStep = Math.max(...worldSteps);
+assert(worldSteps.indexOf(peakWorldStep) < 7 && peakWorldStep < 1.3 * worldSteps[0], 'A single mild acceleration before Passage');
+const afterPassage = worldSteps.slice(7, -2);
+assert(afterPassage.every((distance, i) => i === 0 || distance < afterPassage[i - 1] * 1.02), 'No second acceleration in world distance after Passage');
+assert(worldSteps.at(-1) < worldSteps.at(-2) * .35, 'World speed eases down into Arrival');
 let minimumLeftSaddleRelief=Infinity;
 const [left,shoulder]=EXPANSE.terrain.crestRibbons;
 for(let z=1000;z>=-5100;z-=25) {

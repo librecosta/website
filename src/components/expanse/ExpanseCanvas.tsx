@@ -1,20 +1,23 @@
 'use client';
 
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { addAfterEffect, Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
-  ACESFilmicToneMapping, BoxGeometry, BufferAttribute, BufferGeometry, Color, InstancedMesh, MathUtils,
-  MeshBasicMaterial, MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, SRGBColorSpace, WebGLRenderer,
+  ACESFilmicToneMapping, BoxGeometry, BufferAttribute, BufferGeometry, InstancedMesh, MathUtils,
+  MeshBasicMaterial, MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, Quaternion, SRGBColorSpace, WebGLRenderer,
   type Material,
 } from 'three';
-import { EXPANSE, type JourneySignal, type LightingLook, type SurfaceView } from './parameters';
+import { EXPANSE, type JourneySignal, type LightingLook, type SurfaceView, type WindView } from './parameters';
 import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
+import { mapJourneyProgress } from './journey-timing';
 import { createAeolianMaterial } from './aeolian-material';
-import { SkyGradient } from './SkyGradient';
+import { AtmosphericSky } from './AtmosphericSky';
+import { applyAerialPerspective, createAtmosphere, type Atmosphere } from './atmosphere';
+import { SandDust } from './SandDust';
 import styles from './expanse.module.css';
 
-type Props = { signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
-  surfaceView: SurfaceView; lightingLook: LightingLook; onReady: () => void; onContextLost: () => void };
+type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
+  surfaceView: SurfaceView; lightingLook: LightingLook; windView: WindView; onReady: () => void; onContextLost: () => void };
 
 function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array }) {
   const g = new BufferGeometry();
@@ -37,17 +40,6 @@ function Instances({ items, geometry, material, distant = false }: {
       transform.scale.set(...item.scale); transform.updateMatrix(); object.setMatrixAt(i, transform.matrix);
     });
     object.instanceMatrix.needsUpdate = true;
-    if (distant) {
-      const { sky, distantSilhouette, distantFadeDepth } = EXPANSE.atmosphere;
-      const skyColor = new Color(sky.horizon);
-      const stoneColor = new Color(distantSilhouette);
-      const tint = new Color();
-      items.forEach((item, i) => {
-        const fade = MathUtils.smoothstep(-item.position[2], ...distantFadeDepth);
-        object.setColorAt(i, tint.copy(stoneColor).lerp(skyColor, fade * 0.8));
-      });
-      if (object.instanceColor) object.instanceColor.needsUpdate = true;
-    }
     object.computeBoundingBox(); object.computeBoundingSphere(); invalidate();
     return () => object.dispose();
   }, [items, geometry, material, distant, invalidate]);
@@ -57,7 +49,8 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant && items[0]?.kind === 'slotted'} dispose={null} />;
 }
 
-function World({ mobile, surfaceView, lightingLook }: Pick<Props, 'mobile' | 'surfaceView' | 'lightingLook'>) {
+function World({ mobile, surfaceView, lightingLook, windView, visible, debug, atmosphere }:
+  Pick<Props, 'mobile' | 'surfaceView' | 'lightingLook' | 'windView' | 'debug'> & { visible: boolean; atmosphere: Atmosphere }) {
   const { invalidate, gl } = useThree();
   const monuments = useMemo(() => buildMonuments(EXPANSE), []);
   const batches = useMemo(() => {
@@ -72,23 +65,34 @@ function World({ mobile, surfaceView, lightingLook }: Pick<Props, 'mobile' | 'su
     geometry.computeBoundingSphere();
     return { geometry, fingerprint: fingerprint(data.positions) };
   }, [mobile, original]);
+  const geometries = useMemo(() => ({
+    box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? indexedGeometry(buildWedgeData()) : null,
+    slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale)),
+  }), [batches]);
   const resources = useMemo(() => {
-    return {
-      box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? indexedGeometry(buildWedgeData()) : null,
-      slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale)),
-      ground: createAeolianMaterial(),
-      stone: new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true }),
-      // The instance tints carry the atmospheric falloff beyond the foreground fog.
-      // Normal depth testing lets the sand crests still mask the bases.
-      distant: new MeshBasicMaterial({ fog: false, toneMapped: false }),
-    };
-  }, [batches]);
+    const ground = createAeolianMaterial();
+    const stone = new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true });
+    const distant = new MeshBasicMaterial({ color: EXPANSE.atmosphere.distantSilhouette, toneMapped: false });
+    applyAerialPerspective(ground.material, atmosphere);
+    applyAerialPerspective(stone, atmosphere);
+    applyAerialPerspective(distant, atmosphere, true);
+    return { ground, stone, distant };
+  }, [atmosphere]);
   useLayoutEffect(() => {
     resources.ground.uniforms.duneRipples.value = surfaceView === 'ripples' || surfaceView === 'finalMaterial';
     resources.ground.uniforms.duneFinish.value = surfaceView === 'finalMaterial';
     gl.domElement.dataset.surfaceView = surfaceView;
     invalidate();
   }, [gl, invalidate, resources, surfaceView]);
+  useLayoutEffect(() => {
+    gl.domElement.dataset.windView = windView;
+    if (windView === 'static') {
+      delete gl.domElement.dataset.windTime;
+      delete gl.domElement.dataset.sandPeak;
+      delete gl.domElement.dataset.sandWindow;
+    }
+    invalidate();
+  }, [gl, invalidate, windView]);
   useLayoutEffect(() => {
     gl.domElement.dataset.terrain = terrain.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
@@ -98,27 +102,115 @@ function World({ mobile, surfaceView, lightingLook }: Pick<Props, 'mobile' | 'su
   }, [terrain, gl, invalidate, mobile, batches, lightingLook]);
   useEffect(() => () => terrain.geometry.dispose(), [terrain]);
   useEffect(() => () => {
-    resources.box.dispose(); resources.wedge?.dispose(); resources.slotted.dispose();
+    geometries.box.dispose(); geometries.wedge?.dispose(); geometries.slotted.dispose();
+  }, [geometries]);
+  useEffect(() => () => {
     resources.ground.material.dispose(); resources.stone.dispose(); resources.distant.dispose();
   }, [resources]);
   return <group dispose={null}>
     <mesh geometry={terrain.geometry} material={resources.ground.material} receiveShadow />
-    <Instances items={batches.box} geometry={resources.box} material={resources.stone} />
-    {resources.wedge && <Instances items={batches.wedge} geometry={resources.wedge} material={resources.stone} />}
-    <Instances items={batches.slotted} geometry={resources.slotted} material={resources.stone} />
-    <Instances items={batches.distant} geometry={resources.slotted} material={resources.distant} distant />
+    <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />
+    {geometries.wedge && <Instances items={batches.wedge} geometry={geometries.wedge} material={resources.stone} />}
+    <Instances items={batches.slotted} geometry={geometries.slotted} material={resources.stone} />
+    <Instances items={batches.distant} geometry={geometries.slotted} material={resources.distant} distant />
+    {windView !== 'static' && <SandDust terrain={terrain.geometry} monuments={monuments} mobile={mobile}
+      mode={windView} lightingLook={lightingLook} visible={visible} debug={debug} />}
   </group>;
 }
 
-function Observation({ signal, mobile, reduced, debug: inspect, onReady, onContextLost }: Props) {
+function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, windView, visible }:
+  Props & { visible: boolean }) {
   const { camera, invalidate, gl, size } = useThree();
-  const ready = useRef(false), frames = useRef(0), readback = useRef(0);
+  const ready = useRef(false), frames = useRef(0), readback = useRef(false);
+  const lastPose = useRef({ smoothed: -1, aspect: 0, camera, reduced, rotation: new Quaternion(), x: 0, y: 0 });
+  const pointer = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, sampledAt: null as number | null });
+  const animated = visible && windView !== 'static';
   useEffect(() => {
     const current = signal.current;
-    current.invalidate = invalidate;
-    invalidate();
-    return () => { current.invalidate = () => {}; };
-  }, [signal, invalidate, mobile, reduced]);
+    const interval = 1000 / EXPANSE.windMotion.fps[mobile ? 'mobile' : 'desktop'];
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let deadline = 0;
+    const tick = () => {
+      timer = undefined;
+      if (document.hidden || !animated) return;
+      invalidate();
+      const now = performance.now();
+      deadline += interval * (1 + Math.floor(Math.max(0, now - deadline) / interval));
+      timer = setTimeout(tick, Math.max(0, deadline - now));
+    };
+    current.invalidate = () => {
+      if (!visible || document.hidden) return;
+      if (animated) {
+        if (timer === undefined) {
+          deadline = performance.now();
+          tick();
+        }
+      } else {
+        clearTimeout(timer);
+        timer = undefined;
+        invalidate();
+      }
+    };
+    current.invalidate();
+    return () => {
+      clearTimeout(timer);
+      current.invalidate = () => {};
+    };
+  }, [signal, invalidate, mobile, animated, visible]);
+  useEffect(() => {
+    const container = stage.current;
+    if (!container || reduced || !visible) return;
+    const fineHover = window.matchMedia('(any-pointer: fine) and (any-hover: hover)');
+    const motion = pointer.current;
+    const setTarget = (x: number, y: number) => {
+      if (x === motion.targetX && y === motion.targetY) return;
+      motion.targetX = x;
+      motion.targetY = y;
+      // A demand-rendered frame delta can include the entire preceding idle period.
+      motion.sampledAt ??= performance.now();
+      signal.current.invalidate();
+    };
+    const move = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || !fineHover.matches || document.hidden) return;
+      if (event.target instanceof Element && event.target.closest('a, aside')) {
+        setTarget(0, 0);
+        return;
+      }
+      const { left, top, width, height } = container.getBoundingClientRect();
+      setTarget(
+        MathUtils.clamp(2 * (event.clientX - left) / width - 1, -1, 1),
+        MathUtils.clamp(1 - 2 * (event.clientY - top) / height, -1, 1),
+      );
+    };
+    const leave = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse') setTarget(0, 0);
+    };
+    const reset = () => {
+      const moved = motion.x !== 0 || motion.y !== 0;
+      motion.x = motion.y = motion.targetX = motion.targetY = 0;
+      motion.sampledAt = null;
+      if (moved) signal.current.invalidate();
+    };
+    container.addEventListener('pointermove', move, { passive: true });
+    container.addEventListener('pointerleave', leave);
+    container.addEventListener('pointercancel', leave);
+    fineHover.addEventListener('change', reset);
+    return () => {
+      container.removeEventListener('pointermove', move);
+      container.removeEventListener('pointerleave', leave);
+      container.removeEventListener('pointercancel', leave);
+      fineHover.removeEventListener('change', reset);
+      reset();
+    };
+  }, [stage, signal, reduced, visible]);
+  useEffect(() => addAfterEffect(() => {
+    if (!readback.current) return;
+    readback.current = false;
+    const dataset = gl.domElement.dataset;
+    dataset.frames = String(frames.current); dataset.drawCalls = String(gl.info.render.calls);
+    dataset.triangles = String(gl.info.render.triangles); dataset.geometries = String(gl.info.memory.geometries);
+    if (!ready.current) { ready.current = true; onReady(); }
+  }), [gl, onReady]);
   useEffect(() => {
     const canvas = gl.domElement;
     const lost = (event: Event) => { event.preventDefault(); onContextLost(); };
@@ -127,41 +219,75 @@ function Observation({ signal, mobile, reduced, debug: inspect, onReady, onConte
     canvas.dataset.webgl = context.getParameter(context.VERSION);
     const debug = context.getExtension('WEBGL_debug_renderer_info');
     canvas.dataset.renderer = debug ? context.getParameter(debug.UNMASKED_RENDERER_WEBGL) : context.getParameter(context.RENDERER);
-    return () => { canvas.removeEventListener('webglcontextlost', lost); cancelAnimationFrame(readback.current); };
+    return () => canvas.removeEventListener('webglcontextlost', lost);
   }, [gl, onContextLost]);
   // Sole camera writer: GSAP changes only signal.value, never camera properties.
   useFrame(() => {
-    const progress = reduced ? EXPANSE.journey.reducedProgress : signal.current.value;
-    const pose = sampleJourney(progress, EXPANSE);
-    camera.position.set(...pose.position);
-    camera.up.set(0,1,0); camera.lookAt(pose.target[0],pose.target[1],pose.target[2]);
-    camera.rotateZ(pose.roll);
-    const fittedFov = fitVerticalFov(pose.fov, size.width / size.height, EXPANSE.journey.framingAspect);
-    if ((camera as PerspectiveCamera).fov !== fittedFov) {
-      (camera as PerspectiveCamera).fov = fittedFov;
-      (camera as PerspectiveCamera).updateProjectionMatrix();
+    const smoothed = signal.current.value;
+    const aspect = size.width / size.height;
+    const previous = lastPose.current;
+    const dataset = gl.domElement.dataset;
+    const motion = pointer.current;
+    const settings = EXPANSE.journey.pointer;
+    if (!reduced && visible && !document.hidden && motion.sampledAt !== null) {
+      const now = performance.now();
+      const weight = -Math.expm1(-(now - motion.sampledAt) / settings.responseMs);
+      motion.x = MathUtils.lerp(motion.x, motion.targetX, weight);
+      motion.y = MathUtils.lerp(motion.y, motion.targetY, weight);
+      if (Math.max(Math.abs(motion.x - motion.targetX), Math.abs(motion.y - motion.targetY)) <= settings.settleDistance) {
+        motion.x = motion.targetX;
+        motion.y = motion.targetY;
+        motion.sampledAt = null;
+      } else {
+        motion.sampledAt = now;
+        signal.current.invalidate();
+      }
     }
-    gl.domElement.dataset.progress = progress.toFixed(5);
+    const baseChanged = previous.smoothed !== smoothed || previous.aspect !== aspect || previous.camera !== camera || previous.reduced !== reduced;
+    if (baseChanged) {
+      const progress = reduced ? EXPANSE.journey.reducedProgress : mapJourneyProgress(smoothed, EXPANSE.journey.timing);
+      const pose = sampleJourney(progress, EXPANSE);
+      camera.position.set(...pose.position);
+      camera.up.set(0,1,0); camera.lookAt(pose.target[0],pose.target[1],pose.target[2]);
+      camera.rotateZ(pose.roll);
+      previous.rotation.copy(camera.quaternion);
+      const fittedFov = fitVerticalFov(pose.fov, aspect, EXPANSE.journey.framingAspect);
+      if ((camera as PerspectiveCamera).fov !== fittedFov) {
+        (camera as PerspectiveCamera).fov = fittedFov;
+        (camera as PerspectiveCamera).updateProjectionMatrix();
+      }
+      previous.smoothed = smoothed; previous.aspect = aspect; previous.camera = camera; previous.reduced = reduced;
+      dataset.progress = progress.toFixed(5);
+      if (inspect) {
+        dataset.camera = JSON.stringify(pose.position.map(x => +x.toFixed(3)));
+        dataset.fov = fittedFov.toFixed(3);
+      }
+    }
+    const x = reduced ? 0 : motion.x;
+    const y = reduced ? 0 : motion.y;
+    if (baseChanged || previous.x !== x || previous.y !== y) {
+      camera.quaternion.copy(previous.rotation);
+      camera.rotateY(MathUtils.degToRad(-x * settings.yawDegrees));
+      camera.rotateX(MathUtils.degToRad(y * settings.pitchDegrees));
+      previous.x = x;
+      previous.y = y;
+      if (inspect) dataset.rotation = JSON.stringify(camera.quaternion.toArray().map(x => +x.toFixed(6)));
+    }
     if (inspect) {
-      gl.domElement.dataset.scrollProgress = signal.current.raw.toFixed(5);
-      gl.domElement.dataset.camera = JSON.stringify(pose.position.map(x => +x.toFixed(3)));
-      gl.domElement.dataset.rotation = JSON.stringify(camera.quaternion.toArray().map(x => +x.toFixed(6)));
-      gl.domElement.dataset.fov = fittedFov.toFixed(3);
+      dataset.scrollProgress = signal.current.raw.toFixed(5);
+      dataset.smoothedProgress = smoothed.toFixed(5);
     }
     frames.current++;
-    cancelAnimationFrame(readback.current);
-    readback.current = requestAnimationFrame(() => {
-      const dataset = gl.domElement.dataset;
-      dataset.frames = String(frames.current); dataset.drawCalls = String(gl.info.render.calls);
-      dataset.triangles = String(gl.info.render.triangles); dataset.geometries = String(gl.info.memory.geometries);
-      if (!ready.current) { ready.current = true; onReady(); }
-    });
-  });
+    readback.current = true;
+  }, -1);
   return null;
 }
 
 export default function ExpanseCanvas(props: Props) {
   const [visible, setVisible] = useState(true);
+  const windView = props.reduced ? 'static' : props.windView;
+  const atmosphere = useMemo(() => createAtmosphere(props.lightingLook), [props.lightingLook]);
+  useEffect(() => () => atmosphere.uniforms.airSky.value.dispose(), [atmosphere]);
   useEffect(() => {
     const update = () => setVisible(!document.hidden);
     update(); document.addEventListener('visibilitychange', update);
@@ -189,9 +315,9 @@ export default function ExpanseCanvas(props: Props) {
       renderer.outputColorSpace = SRGBColorSpace; renderer.shadowMap.autoUpdate = false;
       return renderer;
     }} fallback={<p>苍白荒原与半埋巨构。三维视图需要 WebGL2。</p>}>
-    <color attach="background" args={[a.sky.horizon]} />
-    <fog attach="fog" args={[a.sky.horizon, a.fogNear, a.fogFar]} />
-    <SkyGradient />
+    <color attach="background" args={[atmosphere.horizon]} />
+    <fog attach="fog" args={[atmosphere.horizon, a.fogNear, a.fogFar]} />
+    <AtmosphericSky atmosphere={atmosphere} />
     <hemisphereLight color={look.hemisphereSky} groundColor={look.hemisphereGround} intensity={look.hemisphereIntensity} />
     <primitive object={target} />
     <directionalLight key={quality} position={[...look.sunPosition]} target={target} color={look.sunColor} intensity={look.sunIntensity}
@@ -199,7 +325,8 @@ export default function ExpanseCanvas(props: Props) {
       shadow-radius={a.shadowRadius[quality]} shadow-bias={a.shadowBias} shadow-normalBias={a.shadowNormalBias}>
       <orthographicCamera attach="shadow-camera" args={[...look.shadowBounds]} />
     </directionalLight>
-    <World mobile={props.mobile} surfaceView={props.surfaceView} lightingLook={props.lightingLook} />
-    <Observation {...props} />
+    <World mobile={props.mobile} surfaceView={props.surfaceView} lightingLook={props.lightingLook}
+      windView={windView} visible={visible} debug={props.debug} atmosphere={atmosphere} />
+    <Observation {...props} windView={windView} visible={visible} />
   </Canvas>;
 }

@@ -7,6 +7,12 @@ export const SURFACE_VIEWS = {
   finalMaterial: 'Final sand material',
 } as const;
 export type SurfaceView = keyof typeof SURFACE_VIEWS;
+export const WIND_VIEWS = {
+  static: '静态基线', transport: '近地沙尘', wind: '风场', source: '起沙源', concentration: '浓度场',
+} as const;
+export type WindView = keyof typeof WIND_VIEWS;
+
+const passage = { scroll: 0.35, path: 0.356, slope: 0.646729 } as const;
 
 // Continuous dune banks; authored offsets are measured from the valley spine.
 export const EXPANSE = {
@@ -85,12 +91,16 @@ export const EXPANSE = {
     sand: { color: '#ddd0b8', roughness: 0.94 },
     ripples: {
       // [wavelength, micro-height amplitude, near fade start, far cutoff], in world units.
-      broad: [8.6, 0.062, 245, 620],
-      fine: [3.75, 0.015, 105, 260],
+      broad: [8.6, 0.056, 300, 820],
+      fine: [3.75, 0.024, 125, 340],
+      bedScale: [28, 64],
+      bedFade: [480, 1540],
+      bedRelief: 0.88,
+      bedTint: 0.043,
       warpScale: [77, 124],
       bend: 4.2,
       spacingWarp: 13,
-      antialias: [0.09, 0.30], // cycles per pixel
+      antialias: [0.11, 0.32], // cycles per pixel
       roughnessVariation: 0.035,
     },
     // Centers are lateral to the valley spine. Length is tip-to-tip, widths
@@ -103,6 +113,38 @@ export const EXPANSE = {
       { center: [-1220, -4810], turn: -23, length: 2580, stoss: 940, lee: 330, height: 115, bend: 360, brink: 49 },
       { center: [1020, -4440], turn: 54, length: 2170, stoss: 730, lee: 290, height: 112, bend: 210, brink: 48 },
     ],
+  },
+  windMotion: {
+    fps: { desktop: 60, mobile: 30 },
+    bounds: [-625, 625, -5600, 1370], // minX, maxX, minZ, maxZ in world units
+    resolution: [112, 656],
+    window: { rows: 172, stride: 4, lead: 1510, backgroundTravel: 3.2, backgroundAge: 1.1 },
+    metersPerUnit: 0.08,
+    step: 1 / 32,
+    threshold: { grainDiameter: 0.00023, grainDensity: 2650, airDensity: 1.2, gravity: 9.81, bagnoldFactor: 0.10 },
+    baseShear: 0.275,
+    maxShear: 0.50,
+    transportPerShear: 11,
+    // Amplitude (m/s of friction velocity), wavelength and propagation speed in SI units.
+    gusts: [[0.132, 27, 4.0], [0.070, 14, 3.1]],
+    shelterDistances: [1.6, 3.5, 6.7, 11.0],
+    shelterAngles: [4, 23],
+    diffusion: 0.15, // m²/s
+    settling: 0.39, // 1/s
+    liftRate: 9, // mg/m²/s before the dimensionless excess-shear multiplier
+    looseBed: 4000, // mg/m² of fine material available at full erodibility
+    sediment: {
+      // World Z and relative loose-sand availability, independent of the camera.
+      supply: [[1370, 0.28], [450, 0.48], [-800, 0.90], [-2010, 0.98], [-3150, 0.33], [-3740, 0.095], [-5600, 0.04]],
+      bedding: [205, 105], corridor: [0.55, 1.62], slope: [0.17, 0.58], bowlRadius: 55,
+    },
+    dust: {
+      tint: '#f0e5d2',
+      extinction: 0.009, // m²/mg, tuned for this scene
+      viewFade: [760, 1240], edgeFade: 85,
+      // Height in metres and fraction of column mass at each level.
+      layers: [[0.095, 0.25], [0.22, 0.27], [0.38, 0.23], [0.57, 0.16], [0.82, 0.09]],
+    },
   },
   // P1-B2 research baseline. The live aeolian terrain does not consume it.
   surface: {
@@ -174,9 +216,13 @@ export const EXPANSE = {
     // Normalized cross section: one deep, narrow opening on the +Z face.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } },
   atmosphere: {
-    sky: { horizon: '#e8e4d9', upper: '#cbd8e0', gradientTop: 0.66 },
+    sky: {
+      turbidity: 3.4, rayleigh: 1.4, mieCoefficient: 0.006, mieDirectionalG: 0.78,
+      exposure: 1.36, saturation: 0.46, blackLevel: 0.515, whiteLevel: 0.952,
+      horizonTint: [1.035, 1.008, 0.917], horizonTintHeight: 0.25,
+    },
     fogNear: 1750, fogFar: 12900, cameraFar: 46000,
-    distantSilhouette: '#bac0bd', distantFadeDepth: [15700, 40800],
+    distantSilhouette: '#bac0bd', distantFadeDepth: [15700, 40800], distantFog: [0.3, 0.94],
     monumentColor: '#999b95',
     sunTarget: [0, 0, -2800],
     defaultLook: 'sideLight',
@@ -199,8 +245,30 @@ export const EXPANSE = {
     exposure: 1.03,
   },
   journey: {
-    screens: 4, scrubSeconds: 0.18, cameraRadius: 12, reducedProgress: 0,
+    screens: 6.5, scrubSeconds: 0.18, cameraRadius: 12, reducedProgress: 0,
     framingAspect: 2,
+    pointer: { yawDegrees: 1.8, pitchDegrees: 1.05, responseMs: 250, settleDistance: 0.0025 },
+    passage,
+    // Fit to distance along the authored camera path. Slopes are du/ds, not world speed.
+    timing: [
+      { scroll: 0, path: 0, slope: 1.801769 },
+      { scroll: 0.08, path: 0.117203, slope: 1.271323 },
+      { scroll: 0.148854, path: 0.199999, slope: 1.131017 },
+      { scroll: 0.24, path: 0.279979, slope: 0.747732 },
+      passage,
+      { scroll: 0.387131, path: 0.38, slope: 0.649709 },
+      { scroll: 0.48, path: 0.434632, slope: 0.559748 },
+      { scroll: 0.56, path: 0.479207, slope: 0.560138 },
+      { scroll: 0.644351, path: 0.53, slope: 0.684866 },
+      { scroll: 0.71, path: 0.576402, slope: 0.753057 },
+      { scroll: 0.770576, path: 0.63, slope: 1.151707 },
+      { scroll: 0.837807, path: 0.730001, slope: 1.629771 },
+      { scroll: 0.905903, path: 0.85, slope: 2.476453 },
+      { scroll: 0.92, path: 0.882689, slope: 2.181154 },
+      { scroll: 0.96, path: 0.957221, slope: 1.542328 },
+      { scroll: 0.98, path: 0.984193, slope: 1.12953 },
+      { scroll: 1, path: 1, slope: 0.031574 },
+    ],
     // Position X is lateral to spine, Y is eye height; target Y is above valley floor.
     keys: [
       { at: 0, position: [20, 70, 1000], target: [0, 170, -2500], roll: 0, fov: 52 },

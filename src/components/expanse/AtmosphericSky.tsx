@@ -1,8 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Color } from 'three';
-import { EXPANSE } from './parameters';
+import { sampleSky, type Atmosphere } from './atmosphere';
 
 const triangle = new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]);
 const vertex = /* glsl */ `
@@ -16,28 +14,22 @@ const vertex = /* glsl */ `
 `;
 const fragment = /* glsl */ `
   varying vec3 vWorldRay;
-  uniform vec3 horizon;
-  uniform vec3 upperSky;
-  uniform float gradientTop;
+  #include <common>
+  #include <dithering_pars_fragment>
+  ${sampleSky}
 
   void main() {
-    float rise = smoothstep(0.0, gradientTop, normalize(vWorldRay).y);
-    gl_FragColor = vec4(mix(horizon, upperSky, rise), 1.0);
+    gl_FragColor = vec4(skyRadiance(normalize(vWorldRay)), 1.0);
     #include <colorspace_fragment>
+    #include <dithering_fragment>
   }
 `;
 
-export function SkyGradient() {
-  const uniforms = useMemo(() => {
-    const sky = EXPANSE.atmosphere.sky;
-    return { horizon: { value: new Color(sky.horizon) }, upperSky: { value: new Color(sky.upper) },
-      gradientTop: { value: sky.gradientTop } };
-  }, []);
-
+export function AtmosphericSky({ atmosphere }: { atmosphere: Atmosphere }) {
   // Draw at far depth after the opaque world so foreground pixels reject the sky.
   return <mesh frustumCulled={false} renderOrder={1}>
     <bufferGeometry><bufferAttribute attach="attributes-position" args={[triangle, 3]} /></bufferGeometry>
-    <shaderMaterial uniforms={uniforms} vertexShader={vertex} fragmentShader={fragment}
-      toneMapped={false} depthWrite={false} />
+    <shaderMaterial uniforms={atmosphere.uniforms} vertexShader={vertex} fragmentShader={fragment}
+      toneMapped={false} depthWrite={false} dithering />
   </mesh>;
 }
