@@ -85,11 +85,12 @@ export const EXPANSE = {
     sand: { color: '#ddd0b8', roughness: 0.94 },
     ripples: {
       // [wavelength, micro-height amplitude, near fade start, far cutoff], in world units.
-      broad: [5.9, 0.115, 275, 760],
-      fine: [2.55, 0.042, 120, 310],
-      bend: [3.5, 1.3],
-      spacingWarp: 4.1,
-      antialias: [0.10, 0.34], // cycles per pixel
+      broad: [8.6, 0.062, 245, 620],
+      fine: [3.75, 0.015, 105, 260],
+      warpScale: [77, 124],
+      bend: 4.2,
+      spacingWarp: 13,
+      antialias: [0.09, 0.30], // cycles per pixel
       roughnessVariation: 0.035,
     },
     // Centers are lateral to the valley spine. Length is tip-to-tip, widths
