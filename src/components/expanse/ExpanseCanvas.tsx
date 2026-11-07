@@ -7,7 +7,7 @@ import {
   MeshBasicMaterial, MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, Quaternion, SRGBColorSpace, WebGLRenderer,
   type Material,
 } from 'three';
-import { EXPANSE, type JourneySignal, type LightingLook, type SkyLayers, type SurfaceView, type WindView } from './parameters';
+import { EXPANSE, type JourneySignal, type LightingLook, type SkyLayers, type SkyView, type SurfaceView, type WindView } from './parameters';
 import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
 import { mapJourneyProgress } from './journey-timing';
 import { createAeolianMaterial } from './aeolian-material';
@@ -17,7 +17,8 @@ import { SandDust } from './SandDust';
 import styles from './expanse.module.css';
 
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
-  surfaceView: SurfaceView; lightingLook: LightingLook; skyLayers: SkyLayers; windView: WindView; onReady: () => void; onContextLost: () => void };
+  surfaceView: SurfaceView; lightingLook: LightingLook; skyLayers: SkyLayers; skyView: SkyView;
+  windView: WindView; onReady: () => void; onContextLost: () => void };
 
 function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array }) {
   const g = new BufferGeometry();
@@ -317,7 +318,7 @@ export default function ExpanseCanvas(props: Props) {
     }} fallback={<p>苍白荒原与半埋巨构。三维视图需要 WebGL2。</p>}>
     <color attach="background" args={[atmosphere.horizon]} />
     <fog attach="fog" args={[atmosphere.horizon, ...atmosphere.fogRange]} />
-    <AtmosphericSky atmosphere={atmosphere} layers={props.skyLayers} />
+    <AtmosphericSky atmosphere={atmosphere} layers={props.skyLayers} view={props.skyView} debug={props.debug} />
     <hemisphereLight color={look.hemisphereSky} groundColor={look.hemisphereGround} intensity={look.hemisphereIntensity} />
     <primitive object={target} />
     <directionalLight key={quality} position={[...look.sunPosition]} target={target} color={look.sunColor} intensity={look.sunIntensity}

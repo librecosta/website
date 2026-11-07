@@ -17,6 +17,10 @@ export const SKY_LAYERS = {
 export type SkyLayers = Record<keyof typeof SKY_LAYERS, boolean>;
 export const BASE_SKY: SkyLayers = { broad: false, veil: false, haze: false, micro: false };
 export const FINISHED_SKY: SkyLayers = { broad: true, veil: true, haze: true, micro: true };
+export const SKY_VIEWS = {
+  color: '最终光色', envelope: '云域包络', filaments: '纤维遮罩', opticalDepth: '光学厚度 τ',
+} as const;
+export type SkyView = keyof typeof SKY_VIEWS;
 
 const passage = { scroll: 0.35, path: 0.356, slope: 0.646729 } as const;
 
@@ -224,10 +228,17 @@ export const EXPANSE = {
   atmosphere: {
     skyFinish: {
       broadTint: [0.064, 0.045, 0.026],
-      fieldFade: [0.04, 0.21],
-      veilOpacity: 0.28,
-      hazeTint: [0.93, 0.90, 0.835], hazeHeight: 0.19, hazeOpacity: 0.29,
+      fieldFade: [0.012, 0.095],
+      maxOpticalDepth: 0.56,
+      cloudLightLow: [0.98, 0.957, 0.92], cloudLightHigh: [0.95, 0.966, 0.99],
+      hazeTint: [0.93, 0.90, 0.835], hazeHeight: 0.14, hazeOpacity: 0.27,
       distantHaze: 0.16,
+      // Azimuth from -Z toward +X. Positive tilt rises toward +X near the opening view.
+      veils: [
+        { azimuth: -23, elevation: 18, halfLength: 28, halfWidth: 8, tilt: -15, coverage: 0.97 },
+        { azimuth: 27, elevation: 22, halfLength: 21, halfWidth: 6.5, tilt: -2, coverage: 0.75 },
+        { azimuth: -5, elevation: 43, halfLength: 29, halfWidth: 7, tilt: 8, coverage: 0.64 },
+      ],
     },
     sky: {
       turbidity: 3.4, rayleigh: 1.4, mieCoefficient: 0.006, mieDirectionalG: 0.78,

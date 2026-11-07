@@ -1,5 +1,6 @@
-import { Color, DataTexture, DataUtils, HalfFloatType, LinearFilter, LinearSRGBColorSpace, MathUtils, RGBAFormat, Vector2, Vector3, Vector4, type Material } from 'three';
-import { EXPANSE, type LightingLook } from './parameters';
+import { Color, DataTexture, DataUtils, HalfFloatType, LinearFilter, LinearSRGBColorSpace, MathUtils, RepeatWrapping, RGBAFormat, Vector3, Vector4, type Material } from 'three';
+import { EXPANSE, type LightingLook, type SkyLayers } from './parameters';
+import { forSkyDirection, SKY_HEIGHT, SKY_WIDTH } from './sky-field';
 
 const skySize = [96, 64] as const;
 const luminance = ([r, g, b]: number[]) => r * 0.2126 + g * 0.7152 + b * 0.0722;
@@ -9,7 +10,8 @@ const luminance = ([r, g, b]: number[]) => r * 0.2126 + g * 0.7152 + b * 0.0722;
 // between the sky and fog.
 // https://github.com/mrdoob/three.js/blob/r187/examples/jsm/objects/Sky.js
 export function createAtmosphere(look: LightingLook) {
-  const { sky: originalSky, looks, sunTarget, fogNear, fogFar, distantFadeDepth, distantFog, skyFinish } = EXPANSE.atmosphere;
+  const start = performance.now();
+  const { sky: originalSky, looks, sunTarget, fogNear, fogFar, distantFadeDepth, distantFog } = EXPANSE.atmosphere;
   const { air, sunPosition } = looks[look];
   const sky = air?.sky ?? originalSky;
   const sunDirection = new Vector3(...sunPosition).sub(new Vector3(...sunTarget)).normalize();
@@ -54,56 +56,94 @@ export function createAtmosphere(look: LightingLook) {
   };
 
   const [width, height] = skySize;
-  const data = new Uint16Array(width * height * 4);
+  const analytic = new Float32Array(width * height * 3);
   for (let row = 0; row < height; row++) {
     const elevation = (row / (height - 1)) ** 2;
     for (let col = 0; col < width; col++) {
-      const rgb = evaluate(elevation, 2 * col / (width - 1) - 1);
-      data.set([...rgb.map(DataUtils.toHalfFloat), DataUtils.toHalfFloat(1)], (row * width + col) * 4);
+      analytic.set(evaluate(elevation, 2 * col / (width - 1) - 1), (row * width + col) * 3);
     }
   }
-  const texture = new DataTexture(data, width, height, RGBAFormat, HalfFloatType);
+
+  // Reproject the small analytic LUT onto the same angular grid as the cloud field.
+  const base = new Float32Array(SKY_WIDTH * SKY_HEIGHT * 4);
+  forSkyDirection((offset, x, y, z) => {
+    const cosine = x * sunDirection.x + y * sunDirection.y + z * sunDirection.z;
+    const u = (0.5 + 0.5 * MathUtils.clamp(cosine, -1, 1)) * (width - 1);
+    const col = Math.min(Math.floor(u), width - 2);
+    const v = Math.sqrt(y) * (height - 1);
+    const lower = Math.min(Math.floor(v), height - 2);
+    const low = 3 * (lower * width + col), high = low + width * 3;
+    for (let channel = 0; channel < 3; channel++) {
+      base[offset + channel] = MathUtils.lerp(
+        MathUtils.lerp(analytic[low + channel], analytic[low + 3 + channel], u - col),
+        MathUtils.lerp(analytic[high + channel], analytic[high + 3 + channel], u - col),
+        v - lower,
+      );
+    }
+  });
+  const data = new Uint16Array(base.length).fill(DataUtils.toHalfFloat(1));
+  const texture = new DataTexture(data, SKY_WIDTH, SKY_HEIGHT, RGBAFormat, HalfFloatType);
+  texture.wrapS = RepeatWrapping;
   texture.colorSpace = LinearSRGBColorSpace;
   texture.minFilter = texture.magFilter = LinearFilter;
-  texture.needsUpdate = true;
   const [r, gHorizon, b] = evaluate(0, -sunDirection.z);
   return {
+    base, data, generationMs: performance.now() - start,
     horizon: new Color(r, gHorizon, b),
     fogRange: air?.fogRange ?? [fogNear, fogFar] as const,
     nearMist: air?.nearMist,
     distantFade: new Vector4(...distantFadeDepth, ...(air?.distantFog ?? distantFog)),
     uniforms: {
       airSky: { value: texture },
-      airSun: { value: sunDirection },
-      airTexel: { value: new Vector2(1 / width, 1 / height) },
       airHorizonHaze: { value: true },
-      airHazeTint: { value: new Vector3(...skyFinish.hazeTint) },
-      airHazeProfile: { value: new Vector2(skyFinish.hazeHeight, skyFinish.hazeOpacity) },
     },
   };
 }
 
 export type Atmosphere = ReturnType<typeof createAtmosphere>;
 
+export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, layers: Omit<SkyLayers, 'micro'>) {
+  const start = performance.now();
+  const { broadTint, fieldFade, maxOpticalDepth, cloudLightLow, cloudLightHigh,
+    hazeTint, hazeHeight, hazeOpacity } = EXPANSE.atmosphere.skyFinish;
+  const { data, base, uniforms } = atmosphere;
+  // The fourth mask channel holds envelope × filament, so only 256 optical depths are possible.
+  const opacityByDensity = layers.veil
+    ? Float32Array.from({ length: 256 }, (_, density) => -Math.expm1(-maxOpticalDepth * density / 255))
+    : null;
+  for (let row = 0; row < SKY_HEIGHT; row++) {
+    const elevation = (row / (SKY_HEIGHT - 1)) ** 2;
+    const broadFade = layers.broad ? MathUtils.smoothstep(elevation, ...fieldFade) : 0;
+    const cloudHue = MathUtils.smoothstep(elevation, 0.12, 0.54);
+    const cloudLight = cloudLightLow.map((low, channel) => MathUtils.lerp(low, cloudLightHigh[channel], cloudHue));
+    const haze = layers.haze ? hazeOpacity * (1 - MathUtils.smoothstep(elevation, 0, hazeHeight)) : 0;
+    const offset = row * SKY_WIDTH * 4;
+    for (let i = offset; i < offset + SKY_WIDTH * 4; i += 4) {
+      const broad = (2 * field[i] / 255 - 1) * broadFade;
+      const opacity = opacityByDensity ? opacityByDensity[field[i + 3]] : 0;
+      for (let channel = 0; channel < 3; channel++) {
+        const sky = base[i + channel] + broad * broadTint[channel];
+        const clouded = MathUtils.lerp(sky, cloudLight[channel], opacity);
+        data[i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(clouded, hazeTint[channel], haze));
+      }
+    }
+  }
+  uniforms.airHorizonHaze.value = layers.haze;
+  uniforms.airSky.value.needsUpdate = true;
+  return performance.now() - start;
+}
+
 export const sampleSky = /* glsl */ `
   uniform sampler2D airSky;
-  uniform vec3 airSun;
-  uniform vec2 airTexel;
-  uniform bool airHorizonHaze;
-  uniform vec3 airHazeTint;
-  uniform vec2 airHazeProfile;
+
+  vec2 skyDirectionUv(vec3 direction) {
+    float u = 0.5 + atan(direction.x, -direction.z + 1e-7) / 6.28318530718;
+    float row = sqrt(clamp(direction.y, 0.0, 1.0)) * float(${SKY_HEIGHT - 1}) + 0.5;
+    return vec2(u, row / float(${SKY_HEIGHT}));
+  }
 
   vec3 skyRadiance(vec3 direction) {
-    vec2 domain = vec2(clamp(dot(direction, airSun), -1.0, 1.0) * 0.5 + 0.5, sqrt(max(direction.y, 0.0)));
-    return texture2D(airSky, domain * (1.0 - airTexel) + 0.5 * airTexel).rgb;
-  }
-
-  float horizonHaze(float elevation) {
-    return airHorizonHaze ? 1.0 - smoothstep(0.0, airHazeProfile.x, elevation) : 0.0;
-  }
-
-  vec3 hazeRadiance(vec3 radiance, float haze) {
-    return mix(radiance, airHazeTint, haze * airHazeProfile.y);
+    return texture2D(airSky, skyDirectionUv(direction)).rgb;
   }
 `;
 
@@ -111,6 +151,7 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
   const compile = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey();
   const nearMist = distant ? null : atmosphere.nearMist;
+  const { hazeHeight, distantHaze } = EXPANSE.atmosphere.skyFinish;
   material.dithering = true;
   material.customProgramCacheKey = () => `${key}:aerial-perspective:${distant}:${Boolean(nearMist)}`;
   material.onBeforeCompile = (shader, renderer) => {
@@ -128,7 +169,7 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
         #include <fog_pars_fragment>
         varying vec3 vAirRay;
         ${sampleSky}
-        ${distant ? 'uniform vec4 airDistantFade;' : ''}
+        ${distant ? 'uniform vec4 airDistantFade; uniform bool airHorizonHaze;' : ''}
         ${nearMist ? 'uniform vec3 airNearMist;' : ''}
       `)
       .replace('#include <colorspace_fragment>', `
@@ -143,9 +184,13 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
           ` : ''}
           if (fogAmount > 0.0) {
             vec3 ray = vAirRay / airDepth;
-            float haze = horizonHaze(ray.y);
-            ${distant ? `fogAmount = mix(fogAmount, 1.0, haze * float(${EXPANSE.atmosphere.skyFinish.distantHaze}));` : ''}
-            gl_FragColor.rgb = mix(gl_FragColor.rgb, hazeRadiance(skyRadiance(ray), haze), fogAmount);
+            ${distant ? `
+              if (airHorizonHaze) {
+                float haze = 1.0 - smoothstep(0.0, float(${hazeHeight}), ray.y);
+                fogAmount = mix(fogAmount, 1.0, haze * float(${distantHaze}));
+              }
+            ` : ''}
+            gl_FragColor.rgb = mix(gl_FragColor.rgb, skyRadiance(ray), fogAmount);
           }
         #endif
         #include <colorspace_fragment>

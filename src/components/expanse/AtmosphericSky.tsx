@@ -2,11 +2,11 @@
 
 import { useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo } from 'react';
-import { Vector2, Vector3 } from 'three';
-import { sampleSky, type Atmosphere } from './atmosphere';
-import { EXPANSE, type SkyLayers } from './parameters';
-import { createSkyField } from './sky-field';
+import { bakeSkyRadiance, sampleSky, type Atmosphere } from './atmosphere';
+import { type SkyLayers, type SkyView } from './parameters';
+import { createSkyDiagnostics, createSkyField } from './sky-field';
 
+const viewIndex: Record<SkyView, number> = { color: 0, envelope: 1, filaments: 2, opticalDepth: 3 };
 const triangle = new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]);
 const vertex = /* glsl */ `
   varying vec3 vWorldRay;
@@ -19,31 +19,20 @@ const vertex = /* glsl */ `
 `;
 const fragment = /* glsl */ `
   varying vec3 vWorldRay;
-  uniform sampler2D skyField;
-  uniform vec3 skyBroadTint;
-  uniform vec2 skyFieldFade;
-  uniform float skyVeilOpacity;
-  uniform bool skyBroad, skyVeil, skyMicro;
+  uniform sampler2D skyDiagnostics;
+  uniform int skyView;
+  uniform bool skyMicro;
   ${sampleSky}
 
   void main() {
     vec3 ray = normalize(vWorldRay);
-    vec3 radiance = skyRadiance(ray);
-    if (skyBroad || skyVeil) {
-      float elevation = max(0.0, ray.y);
-      float fade = smoothstep(skyFieldFade.x, skyFieldFade.y, elevation);
-      vec2 uv = vec2(0.5 + atan(ray.x, -ray.z + 1e-7) / 6.2831853, elevation);
-      vec2 masks = texture2D(skyField, uv).rg;
-      if (skyBroad) {
-        radiance += (2.0 * masks.r - 1.0) * fade * skyBroadTint;
-      }
-      if (skyVeil) {
-        float veil = fade * (1.0 - smoothstep(0.58, 0.94, elevation)) * masks.g * skyVeilOpacity;
-        vec3 veilTint = mix(vec3(0.88, 0.865, 0.835), vec3(0.92, 0.93, 0.95), smoothstep(0.12, 0.54, elevation));
-        radiance = mix(radiance, veilTint, veil);
-      }
+    if (skyView != 0) {
+      vec4 masks = texture2D(skyDiagnostics, skyDirectionUv(ray));
+      float mask = skyView == 1 ? masks.g : skyView == 2 ? masks.b : masks.a;
+      gl_FragColor = vec4(vec3(mask), 1.0);
+      return;
     }
-    gl_FragColor = vec4(hazeRadiance(radiance, horizonHaze(ray.y)), 1.0);
+    gl_FragColor = vec4(skyRadiance(ray), 1.0);
     #include <colorspace_fragment>
     if (skyMicro) {
       // Static, neutral interleaved gradient dither. Half an 8-bit code value
@@ -54,24 +43,25 @@ const fragment = /* glsl */ `
   }
 `;
 
-export function AtmosphericSky({ atmosphere, layers }: { atmosphere: Atmosphere; layers: SkyLayers }) {
+export function AtmosphericSky({ atmosphere, layers, view, debug }:
+  { atmosphere: Atmosphere; layers: SkyLayers; view: SkyView; debug: boolean }) {
   const invalidate = useThree(state => state.invalidate);
+  const canvas = useThree(state => state.gl.domElement);
   const field = useMemo(createSkyField, []);
-  useEffect(() => () => field.dispose(), [field]);
-  const uniforms = useMemo(() => {
-    const { broadTint, fieldFade, veilOpacity } = EXPANSE.atmosphere.skyFinish;
-    return {
-      ...atmosphere.uniforms, airHorizonHaze: { value: layers.haze }, skyField: { value: field },
-      skyBroadTint: { value: new Vector3(...broadTint) }, skyFieldFade: { value: new Vector2(...fieldFade) },
-      skyVeilOpacity: { value: veilOpacity }, skyBroad: { value: layers.broad },
-      skyVeil: { value: layers.veil }, skyMicro: { value: layers.micro },
-    };
-  }, [atmosphere, field, layers]);
+  const diagnostics = useMemo(() => debug ? createSkyDiagnostics(field.data) : null, [debug, field]);
+  useEffect(() => () => diagnostics?.dispose(), [diagnostics]);
+  const { broad, veil, haze, micro } = layers;
+  const uniforms = useMemo(() => ({
+    airSky: atmosphere.uniforms.airSky, skyDiagnostics: { value: diagnostics },
+    skyView: { value: viewIndex[view] }, skyMicro: { value: micro },
+  }), [atmosphere, diagnostics, view, micro]);
   useLayoutEffect(() => {
-    // Standard scene materials share this uniform through onBeforeCompile.
-    atmosphere.uniforms.airHorizonHaze.value = layers.haze;
+    const bakeMs = bakeSkyRadiance(atmosphere, field.data, { broad, veil, haze });
+    canvas.dataset.skyAnalyticMs = atmosphere.generationMs.toFixed(2);
+    canvas.dataset.skyFieldMs = field.generationMs.toFixed(2);
+    canvas.dataset.skyBakeMs = bakeMs.toFixed(2);
     invalidate();
-  }, [atmosphere, layers.haze, invalidate]);
+  }, [atmosphere, field, broad, veil, haze, canvas, invalidate]);
   // Draw at far depth after the opaque world so foreground pixels reject the sky.
   return <mesh frustumCulled={false} renderOrder={1}>
     <bufferGeometry><bufferAttribute attach="attributes-position" args={[triangle, 3]} /></bufferGeometry>

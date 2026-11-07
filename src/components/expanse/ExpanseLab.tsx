@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { BASE_SKY, EXPANSE, FINISHED_SKY, LIGHTING_LOOKS, SKY_LAYERS, SURFACE_VIEWS, WIND_VIEWS,
-  type JourneySignal, type LightingLook, type SkyLayers, type SurfaceView, type WindView } from './parameters';
+import { BASE_SKY, EXPANSE, FINISHED_SKY, LIGHTING_LOOKS, SKY_LAYERS, SKY_VIEWS, SURFACE_VIEWS, WIND_VIEWS,
+  type JourneySignal, type LightingLook, type SkyLayers, type SkyView, type SurfaceView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
 import styles from './expanse.module.css';
 
@@ -44,6 +44,7 @@ export default function ExpanseLab() {
   const [surfaceView, setSurfaceView] = useState<SurfaceView>('finalMaterial');
   const [lightingLook, setLightingLook] = useState<LightingLook>(EXPANSE.atmosphere.defaultLook);
   const [skyLayers, setSkyLayers] = useState(FINISHED_SKY);
+  const [skyView, setSkyView] = useState<SkyView>('color');
   const [windView, setWindView] = useState<WindView>('transport');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
   const reduced = mediaReduced || forceReduced;
@@ -102,7 +103,7 @@ export default function ExpanseLab() {
     <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
-          debug={debug} surfaceView={surfaceView} lightingLook={lightingLook} skyLayers={skyLayers}
+          debug={debug} surfaceView={surfaceView} lightingLook={lightingLook} skyLayers={skyLayers} skyView={skyView}
           windView={windView} onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
@@ -142,6 +143,9 @@ export default function ExpanseLab() {
           ))}
           <button type="button" onClick={() => setSkyLayers(BASE_SKY)}>仅解析天空</button>
           <button type="button" onClick={() => setSkyLayers(FINISHED_SKY)}>启用全部</button>
+          <label className={styles.skyView}>天空视图 <select value={skyView} onChange={event => setSkyView(event.target.value as SkyView)}>
+            {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
+          </select></label>
         </fieldset>
       </aside>}
     </figure>

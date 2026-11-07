@@ -34,6 +34,7 @@
 .debug label { display: flex; gap: 7px; align-items: center; }
 .skyDebug { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; margin: 8px 0 0; padding: 4px 6px; border: 1px solid #a6ad9e; }
 .skyDebug label { white-space: nowrap; }
+.skyView { grid-column: 1 / -1; }
 @media (max-width: 700px) {
   .brand { top: 20px; left: 21px; font-size: 18px; }
   .hint { bottom: 34px; font-size: 10px; }
