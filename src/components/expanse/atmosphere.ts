@@ -105,7 +105,7 @@ export type Atmosphere = ReturnType<typeof createAtmosphere>;
 export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, view: SkyView) {
   const start = performance.now();
   const { fieldValue, fieldWarmth, fieldMist, maxOpticalDepth, cloudLightLow, cloudLightHigh,
-    hazeTint, hazeHeight, hazeOpacity, horizonGlow } = EXPANSE.atmosphere.skyFinish;
+    hazeTint, hazeHeight, hazeOpacity, horizonGlow, zenithGrade } = EXPANSE.atmosphere.skyFinish;
   const { data, base, uniforms } = atmosphere;
   const main = view === 'color' || view === 'main';
   const secondary = view === 'color' || view === 'secondary';
@@ -119,6 +119,8 @@ export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, view:
     const glow = horizonGlow.haloLift.map((lift, channel) => lift * halo + horizonGlow.coreLift[channel] * core);
     const hazeColor = hazeTint.map((tint, channel) => MathUtils.lerp(tint, horizonGlow.lowHazeTint[channel], halo));
     const horizonHaze = hazeOpacity * (1 - MathUtils.smoothstep(elevation, 0, hazeHeight));
+    const zenith = MathUtils.smoothstep(elevation, ...zenithGrade.elevationRange);
+    const zenithScale = zenithGrade.colorScale.map(scale => MathUtils.lerp(1, scale, zenith));
     const offset = row * SKY_WIDTH * 4;
     for (let i = offset; i < offset + SKY_WIDTH * 4; i += 4) {
       const brightness = (2 * field[i] / 255 - 1) * fieldValue;
@@ -132,7 +134,8 @@ export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, view:
         // Roll the added light off near white to preserve color around bright scattering.
         const sky = clear + (lift > 0 ? lift * (1 - MathUtils.smoothstep(clear, 0.865, 1)) : lift);
         const clouded = MathUtils.lerp(sky, cloudLight[channel], opacity);
-        data[i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(clouded, hazeColor[channel], haze));
+        // Grade the composited sky so the high veils and their background deepen together.
+        data[i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(clouded, hazeColor[channel], haze) * zenithScale[channel]);
         data[base.length + i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(sky, hazeColor[channel], haze));
       }
     }

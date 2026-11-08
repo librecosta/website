@@ -234,6 +234,11 @@ export const EXPANSE = {
         coreHeight: 0.22, coreLift: [0.036, 0.005, -0.030],
         lowHazeTint: [0.973, 0.928, 0.78],
       },
+      zenithGrade: {
+        // Sine of the viewing elevation and the linear RGB scale at full weight.
+        elevationRange: [0.30, 0.58],
+        colorScale: [0.725, 0.766, 0.828],
+      },
       distantHaze: 0.16,
       // Angles in degrees. Azimuth starts at -Z; positive tilt rises toward +X.
       flow: {
