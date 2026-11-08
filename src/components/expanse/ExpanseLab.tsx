@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { EXPANSE, LIGHTING_LOOKS, MONUMENT_LAYERS, SKY_VIEWS, SURFACE_VIEWS, WIND_VIEWS,
+import { AUTHORED_MONUMENT_LAYERS, EXPANSE, LIGHTING_LOOKS, MONUMENT_LAYERS, SKY_VIEWS, SURFACE_VIEWS, WIND_VIEWS,
   type JourneySignal, type LightingLook, type MonumentFinish, type MonumentLayer, type MonumentView, type SkyView, type SurfaceView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
 import styles from './expanse.module.css';
@@ -45,7 +45,7 @@ export default function ExpanseLab() {
   const [lightingLook, setLightingLook] = useState<LightingLook>(EXPANSE.atmosphere.defaultLook);
   const [skyView, setSkyView] = useState<SkyView>('color');
   const [monumentView, setMonumentView] = useState<MonumentView>('beveled');
-  const [monumentFinish, setMonumentFinish] = useState<MonumentFinish>('inscriptionB');
+  const [monumentFinish, setMonumentFinish] = useState<MonumentFinish>('authored');
   const [monumentLayer, setMonumentLayer] = useState<MonumentLayer>('full');
   const [windView, setWindView] = useState<WindView>('transport');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
@@ -143,10 +143,14 @@ export default function ExpanseLab() {
           <option value="original">原版</option>
         </select></label>
         <label>主碑材质 <select disabled={monumentView === 'original'} value={monumentView === 'original' ? 'gray' : monumentFinish}
-          onChange={event => setMonumentFinish(event.target.value as MonumentFinish)}>
+          onChange={event => {
+            setMonumentFinish(event.target.value as MonumentFinish);
+            setMonumentLayer('full');
+          }}>
+          <option value="authored">主碑专属平面纹样</option>
           <option value="gray">灰模参照</option>
           {Object.entries(EXPANSE.hero.finish.inscription.looks).map(([finish, look]) =>
-            <option key={finish} value={finish}>{look.label}</option>)}
+            <option key={finish} value={finish}>旧纹刻研究 · {look.label}</option>)}
           <option value="refined">旧研究 · Dressed Mineral</option>
           <option value="mineral">旧版 A · Wind-Worn Mineral</option>
           <option value="composite">旧版 B · Precision Composite Stone</option>
@@ -154,7 +158,8 @@ export default function ExpanseLab() {
         </select></label>
         <label>材质分层 <select disabled={monumentView === 'original' || monumentFinish === 'gray'} value={monumentLayer}
           onChange={event => setMonumentLayer(event.target.value as MonumentLayer)}>
-          {Object.entries(MONUMENT_LAYERS).map(([layer, label]) => <option key={layer} value={layer}>{label}</option>)}
+          {Object.entries(monumentFinish === 'authored' ? AUTHORED_MONUMENT_LAYERS : MONUMENT_LAYERS)
+            .map(([layer, label]) => <option key={layer} value={layer}>{label}</option>)}
         </select></label>
       </aside>}
     </figure>

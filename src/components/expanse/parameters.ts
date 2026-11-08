@@ -221,6 +221,14 @@ export const EXPANSE = {
     // Normalized cross section: one deep, narrow opening on the +Z face.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 },
     finish: {
+      surface: {
+        color: '#a69e91', roughness: 0.78,
+        panelContrast: 0.27, lineContrast: 0.19,
+        fresnel: 0.023, emission: 0.15,
+        lightTint: [1, 0.88, 0.66],
+        // Approximate optical spread in render pixels, restricted to emissive marks.
+        bloom: 0.026, bloomRadius: 1.7,
+      },
       inscription: {
         color: '#a69e91', roughness: 0.75,
         // Section depth in scene units, plus seam contrast in linear reflectance.
@@ -374,7 +382,16 @@ export const EXPANSE = {
 export type WorldParameters = typeof EXPANSE;
 export type MonumentView = 'original' | 'beveled';
 export type InscriptionFinish = keyof WorldParameters['hero']['finish']['inscription']['looks'];
-export type MonumentFinish = 'gray' | 'refined' | InscriptionFinish | keyof WorldParameters['hero']['finish']['studies'];
+export type MonumentFinish = 'authored' | 'gray' | 'refined' | InscriptionFinish | keyof WorldParameters['hero']['finish']['studies'];
+export const AUTHORED_MONUMENT_LAYERS = {
+  full: '完整合成',
+  color: '基础色',
+  panels: '面板遮罩',
+  lines: '精细线纹',
+  fresnel: 'Fresnel · 掠射',
+  emissive: '局部发光',
+  noBloom: '完整合成 · 关闭光晕',
+} as const;
 export const MONUMENT_LAYERS = {
   full: '完整材质',
   color: '基础色',
@@ -384,7 +401,7 @@ export const MONUMENT_LAYERS = {
   cavity: '微凹面遮蔽',
   clear: '完整材质 · 不混合空气色',
 } as const;
-export type MonumentLayer = keyof typeof MONUMENT_LAYERS;
+export type MonumentLayer = keyof typeof MONUMENT_LAYERS | keyof typeof AUTHORED_MONUMENT_LAYERS;
 export type LightingLook = keyof WorldParameters['atmosphere']['looks'];
 export const LIGHTING_LOOKS: Record<LightingLook, string> = {
   sideLight: '原版 · P1-J3',

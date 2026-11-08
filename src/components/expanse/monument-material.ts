@@ -1,15 +1,16 @@
 import { Vector2, Vector3, Vector4, type DataArrayTexture, type DataTexture, type MeshStandardMaterial } from 'three';
 import { createMineralGrain, MINERAL_GRAIN_CELLS } from './monument-grain';
-import { createInscriptionTexture } from './monument-inscription';
-import { EXPANSE, MONUMENT_LAYERS, type InscriptionFinish, type MonumentFinish, type MonumentLayer } from './parameters';
+import { createInscriptionTexture, createSurfaceTexture } from './monument-inscription';
+import { AUTHORED_MONUMENT_LAYERS, EXPANSE, MONUMENT_LAYERS, type InscriptionFinish, type MonumentFinish, type MonumentLayer } from './parameters';
 
-const layers = Object.keys(MONUMENT_LAYERS);
+const layers = Object.keys({ ...MONUMENT_LAYERS, ...AUTHORED_MONUMENT_LAYERS });
 const layerIndex = (layer: MonumentLayer) => layers.indexOf(layer);
 
 export function createMonumentStudy(gray: MeshStandardMaterial) {
   const { scale, finish, topScale, groove } = EXPANSE.hero;
-  const { inscription, refined } = finish;
+  const { inscription, refined, surface } = finish;
   let bakedTier = -1;
+  let surfaceMap: DataArrayTexture | null = null, studyMap: DataArrayTexture | null = null;
   const material = gray.clone();
   const uniforms = {
     steleSize: { value: new Vector3(...scale) },
@@ -20,8 +21,12 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
     steleFinish: { value: new Vector4() },
     steleLayer: { value: 0 },
     steleHasInscription: { value: false },
+    steleAuthored: { value: false },
     steleInscriptionMap: { value: null as DataArrayTexture | null },
     steleInscriptionResponse: { value: new Vector2() },
+    steleSurface: { value: new Vector4(surface.panelContrast, surface.lineContrast, surface.fresnel, surface.emission) },
+    steleLightTint: { value: new Vector3(...surface.lightTint) },
+    steleBloom: { value: new Vector2(surface.bloom, surface.bloomRadius) },
     steleRefined: { value: false },
     steleTaper: { value: new Vector2(...topScale) },
     steleSlot: { value: new Vector4(groove.center, groove.width * 0.5, groove.bottom, groove.top) },
@@ -50,9 +55,12 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
         uniform float steleGrainSize;
         uniform vec4 steleFinish;
         uniform int steleLayer;
-        uniform bool steleHasInscription;
+        uniform bool steleHasInscription, steleAuthored;
         uniform highp sampler2DArray steleInscriptionMap;
         uniform vec2 steleInscriptionResponse;
+        uniform vec4 steleSurface;
+        uniform vec3 steleLightTint;
+        uniform vec2 steleBloom;
         uniform bool steleRefined;
         uniform vec2 steleTaper, stelePassFinish;
         uniform vec4 steleSlot, steleDressing, steleMineral;
@@ -60,7 +68,8 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
         uniform vec4 stelePasses[${refined.passes.length}];
         uniform sampler2D steleGrainMap;
 
-        vec3 steleReadInscription(vec3 p) {
+        vec3 steleReadInscription(vec3 p, out float bloom) {
+          bloom = 0.0;
           vec3 face = normalize(vSteleFace);
           vec3 axis = abs(face);
           float height = p.y / steleSize.y + 0.5;
@@ -82,8 +91,22 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
           float exterior = 1.0 - smoothstep(4.0, 17.0, plane);
           vec2 dx = dFdx(uv), dy = dFdy(uv);
           vec3 neutral = vec3(128.0 / 255.0, 0.0, 0.0);
-          if (exterior <= 0.0) return neutral;
-          return mix(neutral, textureGrad(steleInscriptionMap, vec3(uv, chart), dx, dy).rgb, exterior);
+          if (exterior <= 0.0 || (steleAuthored && chart == 3.0)) return neutral;
+          vec3 mask = textureGrad(steleInscriptionMap, vec3(uv, chart), dx, dy).rgb;
+          if (steleAuthored && steleLayer == ${layerIndex('full')}) {
+            float weight = 1.0 - smoothstep(2900.0, 4750.0, length(vViewPosition));
+            if (weight > 0.0) {
+              // Local screen-space bloom from the emission mask. Surface/depth
+              // still come from the main draw, so the glow cannot veil the slit.
+              vec2 radiusX = steleBloom.y * dx, radiusY = steleBloom.y * dy;
+              bloom = 0.22 * weight * exterior * (
+                textureGrad(steleInscriptionMap, vec3(uv + radiusX, chart), dx, dy).b
+                + textureGrad(steleInscriptionMap, vec3(uv - radiusX, chart), dx, dy).b
+                + textureGrad(steleInscriptionMap, vec3(uv + radiusY, chart), dx, dy).b
+                + textureGrad(steleInscriptionMap, vec3(uv - radiusY, chart), dx, dy).b);
+            }
+          }
+          return mix(neutral, mask, exterior);
         }
 
         float steleHash(vec3 cell) {
@@ -126,9 +149,17 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
           return result;
         }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        vec3 steleBaseColor = diffuseColor.rgb;
+        vec3 authoredMask = vec3(128.0 / 255.0, 0.0, 0.0);
+        float bloom = 0.0;
         float relief = 0.0, cavity = 0.0, inscriptionMask = 0.0;
-        if (steleHasInscription) {
-          vec3 drawing = steleReadInscription(vStelePosition);
+        if (steleAuthored) {
+          authoredMask = steleReadInscription(vStelePosition, bloom);
+          float panel = authoredMask.r - 128.0 / 255.0;
+          diffuseColor.rgb *= 1.0 + steleSurface.x * panel - steleSurface.y * authoredMask.g;
+          roughnessFactor -= 0.10 * panel;
+        } else if (steleHasInscription) {
+          vec3 drawing = steleReadInscription(vStelePosition, bloom);
           float panel = drawing.r - 128.0 / 255.0;
           inscriptionMask = drawing.b;
           diffuseColor.rgb *= 1.0 + 0.28 * panel - steleInscriptionResponse.y * inscriptionMask;
@@ -203,18 +234,33 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
         }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         vec3 steleBaseNormal = normal;
-        // Surface gradient from the procedural height and the view-space surface basis.
-        vec2 heightGradient = vec2(dFdx(relief), dFdy(relief));
-        vec3 surfaceX = dFdx(-vViewPosition), surfaceY = dFdy(-vViewPosition);
-        vec3 acrossX = cross(surfaceY, normal), acrossY = cross(normal, surfaceX);
-        float determinant = dot(surfaceX, acrossX);
-        vec3 gradient = heightGradient.x * acrossX + heightGradient.y * acrossY;
-        normal = normalize(normal - sign(determinant) * gradient / max(abs(determinant), 1e-5));`)
+        if (!steleAuthored) {
+          // Surface gradient for the older procedural studies.
+          vec2 heightGradient = vec2(dFdx(relief), dFdy(relief));
+          vec3 surfaceX = dFdx(-vViewPosition), surfaceY = dFdy(-vViewPosition);
+          vec3 acrossX = cross(surfaceY, normal), acrossY = cross(normal, surfaceX);
+          float determinant = dot(surfaceX, acrossX);
+          vec3 gradient = heightGradient.x * acrossX + heightGradient.y * acrossY;
+          normal = normalize(normal - sign(determinant) * gradient / max(abs(determinant), 1e-5));
+        }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        float steleFresnel = 0.0;
+        vec3 steleEmission = vec3(0.0);
+        if (steleAuthored) {
+          float graze = 1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+          steleFresnel = graze * graze * graze;
+          steleEmission = steleLightTint * (steleSurface.w * authoredMask.b);
+          totalEmissiveRadiance += steleEmission + steleLightTint * (steleSurface.z * steleFresnel + steleBloom.x * bloom);
+        }`)
       .replace('#include <aomap_fragment>', `#include <aomap_fragment>
         reflectedLight.indirectDiffuse *= 1.0 - cavity;`)
       .replace('#include <colorspace_fragment>', `
         #include <colorspace_fragment>
-        if (steleLayer == ${layerIndex('color')}) gl_FragColor.rgb = linearToOutputTexel(vec4(diffuseColor.rgb, 1.0)).rgb;
+        if (steleLayer == ${layerIndex('color')}) gl_FragColor.rgb = linearToOutputTexel(vec4(steleAuthored ? steleBaseColor : diffuseColor.rgb, 1.0)).rgb;
+        if (steleLayer == ${layerIndex('panels')}) gl_FragColor.rgb = vec3(authoredMask.r);
+        if (steleLayer == ${layerIndex('lines')}) gl_FragColor.rgb = vec3(authoredMask.g);
+        if (steleLayer == ${layerIndex('fresnel')}) gl_FragColor.rgb = vec3(sqrt(steleFresnel));
+        if (steleLayer == ${layerIndex('emissive')}) gl_FragColor.rgb = linearToOutputTexel(vec4(steleEmission, 1.0)).rgb;
         if (steleLayer == ${layerIndex('mask')}) gl_FragColor.rgb = vec3(inscriptionMask);
         if (steleLayer == ${layerIndex('roughness')}) gl_FragColor.rgb = vec3(material.roughness);
         if (steleLayer == ${layerIndex('normal')}) {
@@ -224,17 +270,25 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
   };
 
   function select(finishName: Exclude<MonumentFinish, 'gray'>, layer: MonumentLayer) {
+    const authored = finishName === 'authored';
     const designed = Object.hasOwn(inscription.looks, finishName);
+    uniforms.steleAuthored.value = authored;
     uniforms.steleHasInscription.value = designed;
     uniforms.steleRefined.value = finishName === 'refined';
-    if (designed) {
+    if (authored) {
+      surfaceMap ??= createSurfaceTexture();
+      uniforms.steleInscriptionMap.value = surfaceMap;
+      material.color.set(surface.color);
+      material.roughness = surface.roughness;
+    } else if (designed) {
       const look = inscription.looks[finishName as InscriptionFinish];
       if (bakedTier !== look.tier) {
         const texture = createInscriptionTexture(look.tier);
-        uniforms.steleInscriptionMap.value?.dispose();
-        uniforms.steleInscriptionMap.value = texture;
+        studyMap?.dispose();
+        studyMap = texture;
         bakedTier = look.tier;
       }
+      uniforms.steleInscriptionMap.value = studyMap;
       material.color.set(inscription.color);
       material.roughness = inscription.roughness;
       uniforms.steleInscriptionResponse.value.set(look.relief, look.contrast);
@@ -248,7 +302,7 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
       }
     }
     uniforms.steleLayer.value = layerIndex(layer);
-    const fog = layer === 'full';
+    const fog = layer === 'full' || layer === 'noBloom';
     if (material.fog !== fog) {
       material.fog = fog;
       material.needsUpdate = true;
@@ -256,7 +310,9 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
   }
 
   function dispose() {
-    uniforms.steleInscriptionMap.value?.dispose();
+    surfaceMap?.dispose();
+    studyMap?.dispose();
+    surfaceMap = studyMap = null;
     uniforms.steleInscriptionMap.value = null;
     bakedTier = -1;
     uniforms.steleGrainMap.value?.dispose();

@@ -1,8 +1,10 @@
 import { DataArrayTexture, LinearFilter, LinearMipmapLinearFilter } from 'three';
 import { INSCRIPTION_CHART, INSCRIPTION_FACES } from './monument-inscription-layout';
+import { MONUMENT_SURFACE_FACES } from './monument-surface-layout';
 
-export function createInscriptionTexture(tier: number) {
-  const width = 384, height = 960;
+const width = 384, height = 960;
+
+function createChartCanvas() {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -12,18 +14,61 @@ export function createInscriptionTexture(tier: number) {
   context.scale(width / chartWidth, height / chartHeight);
   context.lineJoin = 'miter';
   context.miterLimit = 2;
-
-  const pixelCount = width * height;
-  const atlas = new Uint8Array(pixelCount * INSCRIPTION_FACES.length * 4).fill(255);
-  const gray = (value: number) => {
-    const byte = Math.round(255 * value);
-    return `rgb(${byte}, ${byte}, ${byte})`;
-  };
   const path = (points: readonly (readonly [number, number])[], closed = false) => {
     context.beginPath();
     context.moveTo(...points[0]);
     for (const point of points.slice(1)) context.lineTo(...point);
     if (closed) context.closePath();
+  };
+  return { context, path };
+}
+
+function chartTexture(atlas: Uint8Array, depth: number) {
+  const texture = new DataArrayTexture(atlas, width, height, depth);
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearMipmapLinearFilter;
+  texture.generateMipmaps = texture.needsUpdate = true;
+  return texture;
+}
+
+export function createSurfaceTexture() {
+  const { context, path } = createChartCanvas();
+  const [chartWidth, chartHeight] = INSCRIPTION_CHART;
+  const stride = width * height * 4;
+  const atlas = new Uint8Array(stride * MONUMENT_SURFACE_FACES.length);
+  MONUMENT_SURFACE_FACES.forEach(({ panels, lines, light }, index) => {
+    context.globalCompositeOperation = 'source-over';
+    context.fillStyle = 'rgb(128, 0, 0)';
+    context.fillRect(0, 0, chartWidth, chartHeight);
+    for (const [tone, boundary] of panels) {
+      path(boundary, true);
+      context.fillStyle = `rgb(${Math.round(tone * 255)}, 0, 0)`;
+      context.fill();
+    }
+
+    // The two line registers are independent of the panel tone and each other.
+    context.globalCompositeOperation = 'lighten';
+    for (const [routes, color] of [[lines, 'lime'], [light, 'blue']] as const) {
+      context.strokeStyle = color;
+      for (const [weight, route] of routes) {
+        path(route);
+        context.lineWidth = weight;
+        context.stroke();
+      }
+    }
+    atlas.set(context.getImageData(0, 0, width, height).data, index * stride);
+  });
+  return chartTexture(atlas, MONUMENT_SURFACE_FACES.length);
+}
+
+export function createInscriptionTexture(tier: number) {
+  const { context, path } = createChartCanvas();
+  const [chartWidth, chartHeight] = INSCRIPTION_CHART;
+  const pixelCount = width * height;
+  const atlas = new Uint8Array(pixelCount * INSCRIPTION_FACES.length * 4).fill(255);
+  const gray = (value: number) => {
+    const byte = Math.round(255 * value);
+    return `rgb(${byte}, ${byte}, ${byte})`;
   };
   const stroke = (width: number, value: number) => {
     context.lineWidth = width;
@@ -80,9 +125,5 @@ export function createInscriptionTexture(tier: number) {
     }
   });
 
-  const texture = new DataArrayTexture(atlas, width, height, INSCRIPTION_FACES.length);
-  texture.magFilter = LinearFilter;
-  texture.minFilter = LinearMipmapLinearFilter;
-  texture.generateMipmaps = texture.needsUpdate = true;
-  return texture;
+  return chartTexture(atlas, INSCRIPTION_FACES.length);
 }
