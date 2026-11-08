@@ -11,9 +11,9 @@ import styles from './expanse.module.css';
 
 const ExpanseCanvas = dynamic(() => import('./ExpanseCanvas'), { ssr: false });
 
-function progressText({ raw, value }: JourneySignal, staticView: boolean) {
+function progressText({ raw, value }: Pick<JourneySignal, 'raw' | 'value'>, staticView: boolean) {
   const journey = staticView ? EXPANSE.journey.reducedProgress : mapJourneyProgress(value, EXPANSE.journey.timing);
-  return `原始 ${(raw * 100).toFixed(1)}% / 平滑 ${(value * 100).toFixed(1)}% / 旅程 ${(journey * 100).toFixed(1)}%`;
+  return `章节 ${(raw * 100).toFixed(1)}% / 平滑 ${(value * 100).toFixed(1)}% / 原路径 u=${journey.toFixed(3)}`;
 }
 
 function Unavailable() {
@@ -68,7 +68,7 @@ export default function ExpanseLab() {
   }, []);
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
-    signal.current.value = reduced || contextLost ? EXPANSE.journey.reducedProgress : 0;
+    signal.current.value = 0;
     signal.current.raw = 0;
     const paint = () => {
       signal.current.invalidate();
@@ -116,8 +116,8 @@ export default function ExpanseLab() {
       {reduced && <p className={styles.staticNote}>静态观览 · 已减少动态效果</p>}
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} aria-label="场景调试">
-        <output ref={debugOutput} aria-label="原始滚动、平滑滚动与旅程进度">原始 0.0% / 平滑 0.0% / 旅程 0.0%</output>
-        <div>{([['起点', 0], ['中景', EXPANSE.journey.passage.scroll], ['终点', 1]] as const)
+        <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
+        <div>{([['起点 · Passage', 0], ['50%', .5], ['终点', 1]] as const)
           .map(([label, progress]) => <button key={label} type="button" disabled={reduced || contextLost} onClick={() => seek(progress)}>{label}</button>)}</div>
         <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />验证减少动态效果</label>
         <label>风沙 <select disabled={reduced || contextLost} value={reduced ? 'static' : windView}

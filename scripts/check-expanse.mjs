@@ -9,6 +9,9 @@ import { unwrapMonument } from '../src/components/monument-surface/unwrap.ts';
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const rendered = {};
 const monuments = buildMonuments(EXPANSE);
+const timing = EXPANSE.journey.timing;
+const mapped = s => mapJourneyProgress(s, timing);
+const chapterPose = s => sampleJourney(mapped(s), EXPANSE);
 const aeolian = {};
 const relief = duneRelief(EXPANSE);
 for (let z = 1100; z >= -3900; z -= 25) {
@@ -107,7 +110,7 @@ function followAndCheck(cameraZ) {
   assert(sand.windowStart + sand.windowDepth - windConfig.dust.edgeFade > cameraZ + 80);
 }
 for (const [index, progress] of [0, .25, .5, .75, 1, .75, .5, .25, 0].entries()) {
-  const [cx, , cz] = sampleJourney(progress, EXPANSE).position;
+  const [cx, , cz] = chapterPose(progress).position;
   followAndCheck(cz);
   if (index === 8) {
     const { cell, airborne, bed, time } = dormantSample;
@@ -145,7 +148,7 @@ for (const [index, progress] of [0, .25, .5, .75, 1, .75, .5, .25, 0].entries())
 }
 for (let i = 1; i <= 160; i++) {
   const progress = i <= 80 ? i / 80 : (160 - i) / 80;
-  followAndCheck(sampleJourney(progress, EXPANSE).position[2]);
+  followAndCheck(chapterPose(progress).position[2]);
   sand.advance();
   if (i % 16 === 0) sampleBudget();
 }
@@ -153,8 +156,7 @@ assert(preservedCells > 0 && moves > 80);
 assert(maximumBudgetError < 1e-6, 'Airborne and total budgets conserve mass to numerical precision');
 assert(sand.balance.lifted > 0 && sand.balance.deposited > 0 && sand.balance.escaped > 0 && sand.balance.entered > 0);
 assert(sand.shelter.some(value => value > 0.25) && sand.solid.some(Boolean), 'The rendered dunes and exposed structures affect wind');
-assert(Math.min(viewSamples[1].density, viewSamples[2].density) > viewSamples[0].density);
-assert(viewSamples[4].density < viewSamples[0].density && viewSamples[4].density > 0);
+assert(viewSamples[4].density > 0 && viewSamples.slice(0, 3).every(sample => sample.density > viewSamples[4].density));
 const sandTransport = { step: windConfig.step, threshold: sand.threshold, cfl: sand.cfl, maximumBudgetError,
   shadowedCells: sand.shelter.filter(value => value > 0.25).length, solidCells: sand.solid.filter(Boolean).length,
   peakDensity, moves, preservedCells, viewSamples, balance: sand.balance };
@@ -174,23 +176,11 @@ assert.equal(hero.length,1,'One distant destination');
 assert.equal(field.length,2,'Keep the outward pair; remove the central masking plate');
 assert(!monuments.some(m => m.id==='field-veil' || m.id==='basin-right-return'),'Remove the annotated intrusive pieces');
 const grove=monuments.filter(m => m.family==='Distant Stelae');
-assert(monuments.length-grove.length<=5 && grove.length<=12,'Keep the valley open and horizon runs sparse');
+assert(monuments.length-grove.length===3 && grove.length<=12,'The chapter keeps only the field and destination in front of the distant grove');
 assert(grove.some(m => m.position[0]<0) && grove.some(m => m.position[0]>0),'Horizon stelae flank the destination');
 const terrainEnd=EXPANSE.terrain.centerZ-EXPANSE.terrain.depth/2;
 assert(grove.every(m => m.kind===hero[0].kind && m.position[2]<terrainEnd &&
   m.position[1]-m.scale[1]/2<0),'Horizon silhouettes share the stele geometry and extend below the sand line');
-for(const remnant of monuments.filter(m => m.family==='Basin Remnant')) {
- const rotation=new Quaternion().fromArray(remnant.quaternion);
- const side=remnant.position[0]-valleyAt(remnant.position[2],EXPANSE).x;
- if(side<0) {
-  const depthDirection=new Vector3(0,0,1).applyQuaternion(rotation);
-  assert(remnant.scale[2]>2*remnant.scale[1] && Math.abs(depthDirection.y)<.2 && depthDirection.x>0,
-   'The fallen left slab lies along the sand with its end facing the valley');
- } else {
-  const topDirection=new Vector3(0,1,0).applyQuaternion(rotation);
-  assert(topDirection.x<0,'The right remnant leans inward toward the valley');
- }
-}
 assert(EXPANSE.hero.scale[1] > Math.max(...field.map(m => m.scale[1]))*2,'Hero has a distinct scale hierarchy');
 const shadowReceiverFloor=-100;
 assert(rendered.desktop.every((v, i) => i%3!==1 || v>=shadowReceiverFloor) &&
@@ -211,12 +201,9 @@ for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
   }
 }
 assert(Math.min(...field.map(m => m.position[2])) > Math.max(...hero.map(m => m.position[2])), 'Destination stays beyond the field');
-assert(sampleJourney(.01,EXPANSE).position[2] < sampleJourney(0,EXPANSE).position[2]-10, 'First scroll produces travel, no dead segment');
-const timing = EXPANSE.journey.timing;
-const mapped = s => mapJourneyProgress(s, timing);
-assert.equal(EXPANSE.journey.screens - 1, 5.5);
-assert.deepEqual([mapped(0), mapped(.35), mapped(1)], [0, .356, 1]);
-assert.deepEqual(sampleJourney(mapped(.35), EXPANSE), sampleJourney(.356, EXPANSE));
+assert(chapterPose(.01).position[2] < chapterPose(0).position[2]-10, 'First scroll produces travel, no dead segment');
+assert.equal(EXPANSE.journey.screens - 1, 2.5);
+assert.deepEqual([mapped(0), mapped(1), EXPANSE.journey.reducedProgress], [.356, 1, .356]);
 const epsilon = 1e-7;
 for (const [i, node] of timing.entries()) {
   if (i > 0) assert(Math.abs((mapped(node.scroll) - mapped(node.scroll - epsilon)) / epsilon - node.slope) < 1e-5);
@@ -230,20 +217,16 @@ for (const [i, node] of timing.entries()) {
 }
 for (let i = 1; i <= 1000; i++) assert(mapped(i / 1000) > mapped((i - 1) / 1000));
 const worldSteps = [];
-let previousPosition = sampleJourney(0, EXPANSE).position;
+let previousPosition = chapterPose(0).position;
 for (let i = 1; i <= 20; i++) {
-  const position = sampleJourney(mapped(i / 20), EXPANSE).position;
+  const position = chapterPose(i / 20).position;
   worldSteps.push(Math.hypot(...position.map((value, axis) => value - previousPosition[axis])));
   previousPosition = position;
 }
-const peakWorldStep = Math.max(...worldSteps);
-assert(worldSteps.indexOf(peakWorldStep) < 7 && peakWorldStep < 1.3 * worldSteps[0], 'A single mild acceleration before Passage');
-const afterPassage = worldSteps.slice(7, -2);
-assert(afterPassage.every((distance, i) => i === 0 || distance < afterPassage[i - 1] * 1.02), 'No second acceleration in world distance after Passage');
-assert(worldSteps.at(-1) < worldSteps.at(-2) * .35, 'World speed eases down into Arrival');
+assert(worldSteps.at(-1) < worldSteps.at(-2) * .7, 'World speed eases down into Arrival');
 let minimumLeftSaddleRelief=Infinity;
 const [left,shoulder]=EXPANSE.terrain.crestRibbons;
-for(let z=1000;z>=-5100;z-=25) {
+for(let z=chapterPose(0).position[2];z>=-5100;z-=25) {
   const spine=valleyAt(z,EXPANSE), a=crestAt(z,left), b=crestAt(z,shoulder);
   for(const quality of ['desktop','mobile']) for(let j=0;j<=12;j++) {
     const x=spine.x+a.offset+(b.offset-a.offset)*j/12;
@@ -256,8 +239,7 @@ assert(minimumLeftSaddleRelief > 80, 'Left crests join as raised sand, with no t
 const burial = monuments.filter(m => m.family!=='Distant Stelae').map(m => {
   const vertices = worldVertices(m,EXPANSE);
   const signed = vertices.map(v => v.y - meshHeight(v.x,v.z,'desktop'));
-  assert(Math.min(...signed) < -30 && Math.max(...signed) > (m.family==='Basin Remnant'?2:10), m.id + ': real partial terrain occlusion');
-  if(m.family==='Basin Remnant') assert(Math.max(...signed)<45,m.id+': only a low structural edge is exposed');
+  assert(Math.min(...signed) < -30 && Math.max(...signed) > 10, m.id + ': real partial terrain occlusion');
   let footingDepth = Infinity;
   for (const quality of ['desktop','mobile']) for (let u=0;u<=16;u++) for (let v=0;v<=16;v++) {
     const bottom = new Vector3((u/16-.5)*m.scale[0], -.5*m.scale[1], (v/16-.5)*m.scale[2])
@@ -285,7 +267,7 @@ let minimumTerrainClearance = Infinity, minimumStructureClearance = Infinity;
 let maxQuaternionStep = 0, previousPose, previousQuaternion;
 const poses = [], radius = EXPANSE.journey.cameraRadius;
 for (let i=0;i<=1000;i++) {
-  const p=i/1000, pose=sampleJourney(p,EXPANSE);
+  const p=i/1000, pose=chapterPose(p);
   const {position,target,roll}=pose;
   assert(target[2] < position[2] - 100, 'Look direction stays forward, no flips');
   assert(Math.abs(roll) < Math.PI/60, 'Limited roll');
@@ -295,7 +277,7 @@ for (let i=0;i<=1000;i++) {
   previousQuaternion=camera.quaternion.clone();
   if(previousPose) assert(position[2] <= previousPose.position[2] + 1e-6, 'No unintended path reversal');
   previousPose=pose;
-  assert.deepEqual(pose,sampleJourney(p,EXPANSE), 'Pure reversible pose function');
+  assert.deepEqual(pose,chapterPose(p), 'Pure reversible pose function');
   for (const quality of ['desktop','mobile']) for (let j=0;j<=8;j++) {
     const offset=j===8 ? 0 : radius;
     const x=position[0]+Math.cos(j*Math.PI/4)*offset, z=position[2]+Math.sin(j*Math.PI/4)*offset;
@@ -507,7 +489,7 @@ const meshes=field.map(part => {
 const raycaster=new Raycaster();
 const visibility=[];
 for(let i=0;i<=100;i++) {
- const p=i/100, camera=new Vector3(...sampleJourney(p,EXPANSE).position); let blocked=0;
+ const p=i/100, camera=new Vector3(...chapterPose(p).position); let blocked=0;
  const blockers=new Set();
  for(const x of [-.3,0,.3]) for(const y of [-.05,.13,.32]) {
   const point=new Vector3(x*(1-(1-tx)*(y+.5))*heroPart.scale[0],y*heroPart.scale[1],

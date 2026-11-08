@@ -208,7 +208,7 @@ export function buildMonuments(world: WorldParameters): Monument[] {
     orientation: [part.disturbed.orientation[0], part.ideal.yaw + part.disturbed.orientation[1], part.disturbed.orientation[2]],
     burial: part.ideal.burial + part.disturbed.settlement,
   }));
-  return [...world.remnants, ...field, ...world.distantStelae, world.hero].map(part => {
+  return [...field, ...world.distantStelae, world.hero].map(part => {
     const radians = part.orientation.map(v => v * Math.PI / 180);
     const quaternion = new Quaternion().setFromEuler(new Euler(radians[0], radians[1], radians[2], 'YXZ'));
     const z=part.center[1], x=valleyAt(z,world).x+part.center[0];
@@ -219,15 +219,6 @@ export function buildMonuments(world: WorldParameters): Monument[] {
       const point = new Vector3((u / 8 - .5) * part.scale[0], -.5 * part.scale[1],
         (v / 8 - .5) * part.scale[2]).applyQuaternion(quaternion);
       originY = Math.min(originY, heightAt(x + point.x, z + point.z, world) - point.y);
-    }
-    if ('exposure' in part) {
-      // Sample the real top plane against the same terrain function. The entire
-      // solid stays present below the sand; there is no visibility toggle.
-      originY = Infinity;
-      for (let u=0;u<=16;u++) for (let v=0;v<=16;v++) {
-        const point=new Vector3((u/16-.5)*part.scale[0], .5*part.scale[1], (v/16-.5)*part.scale[2]).applyQuaternion(quaternion);
-        originY=Math.min(originY,heightAt(x+point.x,z+point.z,world)-point.y+part.exposure);
-      }
     }
     return { id: part.id, family: part.family, kind: part.kind,
       position: [x, originY - part.burial, z], scale: [...part.scale],

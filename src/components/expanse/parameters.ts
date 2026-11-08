@@ -10,6 +10,9 @@ export const SKY_VIEWS = {
 export type SkyView = keyof typeof SKY_VIEWS;
 
 const passage = { scroll: 0.35, path: 0.356, slope: 0.646729 } as const;
+const chapterSpan = 1 - passage.scroll;
+// Crop the old opening's grid rows while retaining the far edge and cell spacing.
+const terrainDepth = 16200 * 16 / 21;
 const monumentHeight = 1910;
 const footDatum = .08, panelDatum = .25;
 const footTop = 192, panelBase = 230;
@@ -31,10 +34,8 @@ const monumentGrooveY = (y: number) => monumentFaceHeight(y + .5) - .5;
 export const EXPANSE = {
   seed: 7137,
   terrain: {
-    // Extend the existing heightfield beyond the destination, keeping the
-    // near edge and longitudinal grid spacing unchanged.
-    width: 7200, depth: 16200, centerZ: -4700, baseHeight: -4,
-    resolution: { desktop: [280, 630], mobile: [144, 336] },
+    width: 7200, depth: terrainDepth, centerZ: -12800 + terrainDepth / 2, baseHeight: -4,
+    resolution: { desktop: [280, 480], mobile: [144, 256] },
     valleySpine: [
       { z: 3400, x: 210, floor: 4, width: 130 },
       { z: 2250, x: 120, floor: -6, width: 125 },
@@ -129,8 +130,8 @@ export const EXPANSE = {
   },
   windMotion: {
     fps: { desktop: 60, mobile: 30 },
-    bounds: [-625, 625, -5600, 1370], // minX, maxX, minZ, maxZ in world units
-    resolution: [112, 656],
+    bounds: [-625, 625, -5600, -500], // Keep 10.625 world units per row, with room behind Passage.
+    resolution: [112, 480],
     window: { rows: 172, stride: 4, lead: 1510, backgroundTravel: 3.2, backgroundAge: 1.1 },
     metersPerUnit: 0.08,
     step: 1 / 32,
@@ -159,13 +160,6 @@ export const EXPANSE = {
       layers: [[0.095, 0.25], [0.22, 0.27], [0.38, 0.23], [0.57, 0.16], [0.82, 0.09]],
     },
   },
-  // Exposure limits the upper surface above the sampled sand.
-  remnants: [
-    { id: 'basin-left-edge', family: 'Basin Remnant', kind: 'box', center: [-455, 285],
-      scale: [180, 145, 415], orientation: [6, 31, -10], burial: 0, exposure: 35 },
-    { id: 'basin-right-cut', family: 'Basin Remnant', kind: 'box', center: [410, -100],
-      scale: [200, 500, 125], orientation: [-5, 20, 30], burial: 0, exposure: 14 },
-  ],
   // A shared 12-degree datum and 750-unit bays describe the original order.
   // These explicit disturbances never come from a random scatter.
   alignment: [
@@ -266,16 +260,13 @@ export const EXPANSE = {
     exposure: 1.03,
   },
   journey: {
-    screens: 6.5, scrubSeconds: 0.18, cameraRadius: 12, reducedProgress: 0,
+    screens: 3.5,
+    scrubSeconds: 0.18, cameraRadius: 12,
+    reducedProgress: passage.path,
     framingAspect: 2,
     pointer: { yawDegrees: 1.8, pitchDegrees: 1.05, responseMs: 250, settleDistance: 0.0025 },
-    passage,
-    // Fit to distance along the authored camera path. Slopes are du/ds, not world speed.
+    // Reparameterize the retained Hermite segments onto the full chapter scroll range.
     timing: [
-      { scroll: 0, path: 0, slope: 1.801769 },
-      { scroll: 0.08, path: 0.117203, slope: 1.271323 },
-      { scroll: 0.148854, path: 0.199999, slope: 1.131017 },
-      { scroll: 0.24, path: 0.279979, slope: 0.747732 },
       passage,
       { scroll: 0.387131, path: 0.38, slope: 0.649709 },
       { scroll: 0.48, path: 0.434632, slope: 0.559748 },
@@ -289,7 +280,7 @@ export const EXPANSE = {
       { scroll: 0.96, path: 0.957221, slope: 1.542328 },
       { scroll: 0.98, path: 0.984193, slope: 1.12953 },
       { scroll: 1, path: 1, slope: 0.031574 },
-    ],
+    ].map(({ scroll, path, slope }) => ({ scroll: (scroll - passage.scroll) / chapterSpan, path, slope: slope * chapterSpan })),
     // Position X is lateral to spine, Y is eye height; target Y is above valley floor.
     keys: [
       { at: 0, position: [20, 70, 1000], target: [0, 170, -2500], roll: 0, fov: 52 },
