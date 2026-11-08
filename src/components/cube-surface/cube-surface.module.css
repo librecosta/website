@@ -1,0 +1,71 @@
+.lab {
+  max-width: none;
+  min-height: 100svh;
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto minmax(18rem, 1fr) auto;
+  background: #050d20;
+  color: #e0e9f8;
+}
+
+.header, .controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1.4rem;
+  padding: 1rem clamp(1rem, 3vw, 2.5rem);
+  z-index: 1;
+  background: #080f1e;
+}
+
+.header a {
+  color: inherit;
+}
+
+.header h1 {
+  margin: 0;
+  color: #aebad1;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.viewport {
+  position: relative;
+  min-width: 0;
+}
+
+.viewport canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fallback {
+  position: absolute;
+  z-index: 1;
+  inset: 1rem;
+}
+
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+}
+
+.controls input {
+  accent-color: #7ccdf4;
+}
+
+.controls select {
+  padding: 0.25rem;
+  border: 1px solid #4b5a74;
+  color: inherit;
+  background: #101b31;
+}
+
+.controls .check {
+  min-height: 1.875rem;
+}
