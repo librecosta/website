@@ -8,8 +8,10 @@ export const core = buildMonumentCoreData(hero);
 export const net = unwrapMonument(core, hero.scale);
 export const stone = '#c5b8a4';
 
+// Server and browser trig can disagree on the sign of a projected zero.
+const svgCoordinate = (value: number) => (Math.abs(value) < .00005 ? 0 : value).toFixed(4);
 const svgPath = (points: Point[], closed = false) => points.map(([x, y], i) =>
-  `${i ? 'L' : 'M'}${x.toFixed(4)} ${y.toFixed(4)}`).join(' ') + (closed ? ' Z' : '');
+  `${i ? 'L' : 'M'}${svgCoordinate(x)} ${svgCoordinate(y)}`).join(' ') + (closed ? ' Z' : '');
 
 export function artwork(view: View, { proof = false, guides = false, master, textureSize = 0 }:
   { proof?: boolean; guides?: boolean; master?: Master; textureSize?: number } = {}) {
