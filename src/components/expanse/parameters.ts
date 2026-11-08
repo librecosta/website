@@ -221,6 +221,15 @@ export const EXPANSE = {
     // Normalized cross section: one deep, narrow opening on the +Z face.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 },
     finish: {
+      inscription: {
+        color: '#a69e91', roughness: 0.75,
+        // Section depth in scene units, plus seam contrast in linear reflectance.
+        looks: {
+          inscriptionA: { tier: 0, relief: 1.55, contrast: 0.12, label: 'A · 克制型' },
+          inscriptionB: { tier: 1, relief: 1.85, contrast: 0.15, label: 'B · 均衡型' },
+          inscriptionC: { tier: 2, relief: 2.10, contrast: 0.17, label: 'C · 纹刻网络' },
+        },
+      },
       // Cell sizes, relief amplitude and distance fades are in scene units.
       depositSize: [136, 290, 160], depositFade: [4300, 6650],
       grainSize: 26, grainFade: [2650, 4350],
@@ -364,10 +373,12 @@ export const EXPANSE = {
 
 export type WorldParameters = typeof EXPANSE;
 export type MonumentView = 'original' | 'beveled';
-export type MonumentFinish = 'gray' | 'refined' | keyof WorldParameters['hero']['finish']['studies'];
+export type InscriptionFinish = keyof WorldParameters['hero']['finish']['inscription']['looks'];
+export type MonumentFinish = 'gray' | 'refined' | InscriptionFinish | keyof WorldParameters['hero']['finish']['studies'];
 export const MONUMENT_LAYERS = {
   full: '完整材质',
   color: '基础色',
+  mask: '纹刻遮罩',
   roughness: '粗糙度',
   normal: '法线 · 放大细节',
   cavity: '微凹面遮蔽',

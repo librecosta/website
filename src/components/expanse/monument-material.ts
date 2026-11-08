@@ -1,13 +1,15 @@
-import { Vector2, Vector3, Vector4, type DataTexture, type MeshStandardMaterial } from 'three';
+import { Vector2, Vector3, Vector4, type DataArrayTexture, type DataTexture, type MeshStandardMaterial } from 'three';
 import { createMineralGrain, MINERAL_GRAIN_CELLS } from './monument-grain';
-import { EXPANSE, MONUMENT_LAYERS, type MonumentFinish, type MonumentLayer } from './parameters';
+import { createInscriptionTexture } from './monument-inscription';
+import { EXPANSE, MONUMENT_LAYERS, type InscriptionFinish, type MonumentFinish, type MonumentLayer } from './parameters';
 
 const layers = Object.keys(MONUMENT_LAYERS);
 const layerIndex = (layer: MonumentLayer) => layers.indexOf(layer);
 
 export function createMonumentStudy(gray: MeshStandardMaterial) {
   const { scale, finish, topScale, groove } = EXPANSE.hero;
-  const { refined } = finish;
+  const { inscription, refined } = finish;
+  let bakedTier = -1;
   const material = gray.clone();
   const uniforms = {
     steleSize: { value: new Vector3(...scale) },
@@ -17,6 +19,9 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
     steleGrainFade: { value: new Vector2(...finish.grainFade) },
     steleFinish: { value: new Vector4() },
     steleLayer: { value: 0 },
+    steleHasInscription: { value: false },
+    steleInscriptionMap: { value: null as DataArrayTexture | null },
+    steleInscriptionResponse: { value: new Vector2() },
     steleRefined: { value: false },
     steleTaper: { value: new Vector2(...topScale) },
     steleSlot: { value: new Vector4(groove.center, groove.width * 0.5, groove.bottom, groove.top) },
@@ -45,12 +50,41 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
         uniform float steleGrainSize;
         uniform vec4 steleFinish;
         uniform int steleLayer;
+        uniform bool steleHasInscription;
+        uniform highp sampler2DArray steleInscriptionMap;
+        uniform vec2 steleInscriptionResponse;
         uniform bool steleRefined;
         uniform vec2 steleTaper, stelePassFinish;
         uniform vec4 steleSlot, steleDressing, steleMineral;
         uniform float steleSlotDepth;
         uniform vec4 stelePasses[${refined.passes.length}];
         uniform sampler2D steleGrainMap;
+
+        vec3 steleReadInscription(vec3 p) {
+          vec3 face = normalize(vSteleFace);
+          vec3 axis = abs(face);
+          float height = p.y / steleSize.y + 0.5;
+          vec2 halfSpan = 0.5 * steleSize.xz * mix(vec2(1.0), steleTaper, height);
+          vec2 across = p.xz / (2.0 * halfSpan);
+          vec2 uv = vec2(across.x + 0.5, 1.0 - height);
+          float chart = 0.0, plane = halfSpan.y - p.z;
+          if (axis.y > max(axis.x, axis.z)) {
+            uv.y = 0.5 - across.y;
+            chart = 3.0;
+            plane = steleSize.y * 0.5 - p.y;
+          } else if (axis.x > axis.z) {
+            uv.x = 0.5 + sign(face.x) * across.y;
+            chart = face.x < 0.0 ? 1.0 : 2.0;
+            plane = halfSpan.x - abs(p.x);
+          }
+          // Only outer planes receive the pattern. The actual slot remains a
+          // clean cut and is not treated as a projected copy of the facade.
+          float exterior = 1.0 - smoothstep(4.0, 17.0, plane);
+          vec2 dx = dFdx(uv), dy = dFdy(uv);
+          vec3 neutral = vec3(128.0 / 255.0, 0.0, 0.0);
+          if (exterior <= 0.0) return neutral;
+          return mix(neutral, textureGrad(steleInscriptionMap, vec3(uv, chart), dx, dy).rgb, exterior);
+        }
 
         float steleHash(vec3 cell) {
           cell = fract(cell * vec3(0.1031, 0.11369, 0.13787));
@@ -92,8 +126,16 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
           return result;
         }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        float relief = 0.0, cavity = 0.0;
-        if (steleRefined) {
+        float relief = 0.0, cavity = 0.0, inscriptionMask = 0.0;
+        if (steleHasInscription) {
+          vec3 drawing = steleReadInscription(vStelePosition);
+          float panel = drawing.r - 128.0 / 255.0;
+          inscriptionMask = drawing.b;
+          diffuseColor.rgb *= 1.0 + 0.28 * panel - steleInscriptionResponse.y * inscriptionMask;
+          roughnessFactor += 0.24 * inscriptionMask - 0.31 * panel;
+          relief = -steleInscriptionResponse.x * drawing.g;
+          cavity = 0.13 * inscriptionMask;
+        } else if (steleRefined) {
           vec3 p = vStelePosition;
           vec3 face = abs(normalize(vSteleFace));
           float height = p.y / steleSize.y + 0.5;
@@ -173,6 +215,7 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
       .replace('#include <colorspace_fragment>', `
         #include <colorspace_fragment>
         if (steleLayer == ${layerIndex('color')}) gl_FragColor.rgb = linearToOutputTexel(vec4(diffuseColor.rgb, 1.0)).rgb;
+        if (steleLayer == ${layerIndex('mask')}) gl_FragColor.rgb = vec3(inscriptionMask);
         if (steleLayer == ${layerIndex('roughness')}) gl_FragColor.rgb = vec3(material.roughness);
         if (steleLayer == ${layerIndex('normal')}) {
           gl_FragColor.rgb = 0.5 + 0.5 * normalize(steleBaseNormal + 6.0 * (normal - steleBaseNormal));
@@ -181,13 +224,28 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
   };
 
   function select(finishName: Exclude<MonumentFinish, 'gray'>, layer: MonumentLayer) {
-    const study = finishName === 'refined' ? refined : finish.studies[finishName];
-    material.color.set(study.color);
-    material.roughness = study.roughness;
+    const designed = Object.hasOwn(inscription.looks, finishName);
+    uniforms.steleHasInscription.value = designed;
     uniforms.steleRefined.value = finishName === 'refined';
-    if (finishName === 'refined') uniforms.steleGrainMap.value ??= createMineralGrain();
-    if ('deposit' in study) {
-      uniforms.steleFinish.value.set(study.deposit, study.grain, study.roughnessVariation, study.relief);
+    if (designed) {
+      const look = inscription.looks[finishName as InscriptionFinish];
+      if (bakedTier !== look.tier) {
+        const texture = createInscriptionTexture(look.tier);
+        uniforms.steleInscriptionMap.value?.dispose();
+        uniforms.steleInscriptionMap.value = texture;
+        bakedTier = look.tier;
+      }
+      material.color.set(inscription.color);
+      material.roughness = inscription.roughness;
+      uniforms.steleInscriptionResponse.value.set(look.relief, look.contrast);
+    } else {
+      const study = finishName === 'refined' ? refined : finish.studies[finishName as keyof typeof finish.studies];
+      material.color.set(study.color);
+      material.roughness = study.roughness;
+      if (finishName === 'refined') uniforms.steleGrainMap.value ??= createMineralGrain();
+      if ('deposit' in study) {
+        uniforms.steleFinish.value.set(study.deposit, study.grain, study.roughnessVariation, study.relief);
+      }
     }
     uniforms.steleLayer.value = layerIndex(layer);
     const fog = layer === 'full';
@@ -198,6 +256,9 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
   }
 
   function dispose() {
+    uniforms.steleInscriptionMap.value?.dispose();
+    uniforms.steleInscriptionMap.value = null;
+    bakedTier = -1;
     uniforms.steleGrainMap.value?.dispose();
     uniforms.steleGrainMap.value = null;
     material.dispose();

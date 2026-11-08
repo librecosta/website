@@ -45,7 +45,7 @@ export default function ExpanseLab() {
   const [lightingLook, setLightingLook] = useState<LightingLook>(EXPANSE.atmosphere.defaultLook);
   const [skyView, setSkyView] = useState<SkyView>('color');
   const [monumentView, setMonumentView] = useState<MonumentView>('beveled');
-  const [monumentFinish, setMonumentFinish] = useState<MonumentFinish>('refined');
+  const [monumentFinish, setMonumentFinish] = useState<MonumentFinish>('inscriptionB');
   const [monumentLayer, setMonumentLayer] = useState<MonumentLayer>('full');
   const [windView, setWindView] = useState<WindView>('transport');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
@@ -145,7 +145,9 @@ export default function ExpanseLab() {
         <label>主碑材质 <select disabled={monumentView === 'original'} value={monumentView === 'original' ? 'gray' : monumentFinish}
           onChange={event => setMonumentFinish(event.target.value as MonumentFinish)}>
           <option value="gray">灰模参照</option>
-          <option value="refined">新版 · Dressed Mineral</option>
+          {Object.entries(EXPANSE.hero.finish.inscription.looks).map(([finish, look]) =>
+            <option key={finish} value={finish}>{look.label}</option>)}
+          <option value="refined">旧研究 · Dressed Mineral</option>
           <option value="mineral">旧版 A · Wind-Worn Mineral</option>
           <option value="composite">旧版 B · Precision Composite Stone</option>
           <option value="hybrid">旧版 C · Hybrid</option>
