@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
 import { EXPANSE } from '../src/components/expanse/parameters.ts';
-import { buildAeolianTerrain, duneRelief, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, valueNoise, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
+import { buildAeolianTerrain, duneRelief, buildBeveledMonolithData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, valueNoise, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { analyzeSurface, buildDrifts, buildSurfaceTerrain } from '../src/components/expanse/surface.ts';
 import { createSandTransport, renderedGround } from '../src/components/expanse/sand-transport.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
@@ -440,6 +440,42 @@ const frontHit=(x,y) => {
 };
 assert(Math.abs(frontHit(groove.center,0)-(.5-groove.depth)*(1-(1-tz)*.5))<1e-6,'Groove ray reaches an actual recessed back wall');
 assert(Math.abs(frontHit(groove.center,.45)-.5*(1-(1-tz)*.95))<1e-6,'The tapered crown remains continuous above the groove');
+const beveled = buildBeveledMonolithData(EXPANSE.hero), beveledVolume = solidVolume(beveled);
+assert(Math.abs(beveledVolume - heroVolume) < 0.001, 'The bevel only trims the edge of the original mass');
+const heroPart = hero[0], q = new Quaternion().fromArray(heroPart.quaternion);
+const heroScale = new Vector3(...heroPart.scale), heroPosition = new Vector3(...heroPart.position);
+for (let i = 0; i < beveled.positions.length; i += 3) {
+  const point = new Vector3().fromArray(beveled.positions, i);
+  assert(Math.max(Math.abs(point.x), Math.abs(point.y), Math.abs(point.z)) <= .5, 'Bevel stays inside the original outer bounds');
+  if (point.y < -.49) {
+    point.multiply(heroScale).applyQuaternion(q).add(heroPosition);
+    for (const quality of ['desktop', 'mobile']) {
+      assert(meshHeight(point.x, point.z, quality) - point.y > 30, 'The new footing chamfer stays buried in both terrain grids');
+    }
+  }
+}
+for (let i = 0; i < beveled.indices.length; i += 3) {
+  const ids = beveled.indices.subarray(i, i + 3);
+  const [a, b, c] = Array.from(ids, id => new Vector3().fromArray(beveled.positions, id * 3).multiply(heroScale));
+  const face = b.sub(a).cross(c.sub(a));
+  assert(face.lengthSq() > 0.01, 'Beveled faces must not collapse');
+  for (const id of ids) {
+    const normal = new Vector3().fromArray(beveled.normals, id * 3).divide(heroScale).normalize();
+    assert(face.dot(normal) > 0, 'Authored normals face outward after the instance scale');
+  }
+}
+const originalDepth = frontHit(groove.center, 0), originalCrown = frontHit(groove.center, .45);
+probeGeometry.setAttribute('position', new BufferAttribute(beveled.positions, 3));
+probeGeometry.setIndex(new BufferAttribute(beveled.indices, 1));
+probeGeometry.computeBoundingSphere();
+assert(Math.abs(frontHit(groove.center, 0) - originalDepth) < 1e-6, 'Beveled groove preserves the rear plane');
+assert(Math.abs(frontHit(groove.center, .45) - originalCrown) < 1e-6, 'Beveled crown stays solid and planar');
+const throatScale = (1 + tx) * .5, throatZ = (.5 - groove.depth / 2) * (1 + tz) * .5;
+for (const side of [-1, 1]) {
+  probeRay.set(new Vector3(groove.center * throatScale, 0, throatZ), new Vector3(side, 0, 0));
+  const wall = probeRay.intersectObject(probe, false)[0]?.point.x;
+  assert(Math.abs(wall - (groove.center + side * groove.width / 2) * throatScale) < 1e-6, 'Beveled groove retains its throat width');
+}
 probeGeometry.dispose(); probeMaterial.dispose();
 // Actual transformed triangle intersections, independent of drawing or fog.
 // Sample a 3x3 patch of the hero's front; report finite ray visibility, not a
@@ -450,7 +486,7 @@ const meshes=field.map(part => {
  mesh.position.set(...part.position); mesh.quaternion.fromArray(part.quaternion); mesh.scale.set(...part.scale);
  mesh.updateMatrixWorld(true); mesh.name=part.id; return mesh;
 });
-const heroPart=hero[0], q=new Quaternion().fromArray(heroPart.quaternion), raycaster=new Raycaster();
+const raycaster=new Raycaster();
 const visibility=[];
 for(let i=0;i<=100;i++) {
  const p=i/100, camera=new Vector3(...sampleJourney(p,EXPANSE).position); let blocked=0;
@@ -469,4 +505,5 @@ assert(visibility.slice(50).every(v=>v.blocked===0),'The removed central plate n
 meshes.forEach(m => m.geometry.dispose()); material.dispose();
 console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, aeolian, hardpanResearch: results,
   instances: monuments.length, minimumLeftSaddleRelief, comparedLandmarks, burial, pathValidation,
-  wedgeVolume,heroVolume,arrivalFraming,occlusion:{peak,samples:visibility.filter((v,i)=>i%5===0)} }, null, 2));
+  wedgeVolume,heroVolume,beveledVolume,heroTriangles:{original:slotted.indices.length/3,beveled:beveled.indices.length/3},
+  arrivalFraming,occlusion:{peak,samples:visibility.filter((v,i)=>i%5===0)} }, null, 2));

@@ -7,8 +7,8 @@ import {
   MeshBasicMaterial, MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, Quaternion, SRGBColorSpace, WebGLRenderer,
   type Material,
 } from 'three';
-import { EXPANSE, type JourneySignal, type LightingLook, type SkyView, type SurfaceView, type WindView } from './parameters';
-import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
+import { EXPANSE, type JourneySignal, type LightingLook, type MonumentView, type SkyView, type SurfaceView, type WindView } from './parameters';
+import { buildAeolianTerrain, buildBeveledMonolithData, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
 import { mapJourneyProgress } from './journey-timing';
 import { createAeolianMaterial } from './aeolian-material';
 import { AtmosphericSky } from './AtmosphericSky';
@@ -17,14 +17,15 @@ import { SandDust } from './SandDust';
 import styles from './expanse.module.css';
 
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
-  surfaceView: SurfaceView; lightingLook: LightingLook; skyView: SkyView;
+  surfaceView: SurfaceView; lightingLook: LightingLook; skyView: SkyView; monumentView: MonumentView;
   windView: WindView; onReady: () => void; onContextLost: () => void };
 
-function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array }) {
+function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array; normals?: Float32Array }) {
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(data.positions, 3));
   g.setIndex(new BufferAttribute(data.indices, 1));
-  g.computeVertexNormals();
+  if (data.normals) g.setAttribute('normal', new BufferAttribute(data.normals, 3));
+  else g.computeVertexNormals();
   return g;
 }
 
@@ -50,13 +51,13 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant && items[0]?.kind === 'slotted'} dispose={null} />;
 }
 
-function World({ mobile, surfaceView, lightingLook, windView, visible, debug, atmosphere }:
-  Pick<Props, 'mobile' | 'surfaceView' | 'lightingLook' | 'windView' | 'debug'> & { visible: boolean; atmosphere: Atmosphere }) {
+function World({ mobile, surfaceView, lightingLook, monumentView, windView, visible, debug, atmosphere }:
+  Pick<Props, 'mobile' | 'surfaceView' | 'lightingLook' | 'monumentView' | 'windView' | 'debug'> & { visible: boolean; atmosphere: Atmosphere }) {
   const { invalidate, gl } = useThree();
   const monuments = useMemo(() => buildMonuments(EXPANSE), []);
   const batches = useMemo(() => {
     return { box: monuments.filter(x => x.kind === 'box'), wedge: monuments.filter(x => x.kind === 'wedge'),
-      slotted: monuments.filter(x => x.kind === 'slotted' && x.family !== 'Distant Stelae'),
+      hero: monuments.filter(x => x.id === EXPANSE.hero.id),
       distant: monuments.filter(x => x.family === 'Distant Stelae') };
   }, [monuments]);
   const original = surfaceView === 'original';
@@ -69,15 +70,19 @@ function World({ mobile, surfaceView, lightingLook, windView, visible, debug, at
   const geometries = useMemo(() => ({
     box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? indexedGeometry(buildWedgeData()) : null,
     slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale)),
+    beveled: indexedGeometry(buildBeveledMonolithData(EXPANSE.hero)),
   }), [batches]);
   const resources = useMemo(() => {
     const ground = createAeolianMaterial();
     const stone = new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true });
+    const heroStone = stone.clone();
+    heroStone.flatShading = false;
     const distant = new MeshBasicMaterial({ color: EXPANSE.atmosphere.distantSilhouette, toneMapped: false });
     applyAerialPerspective(ground.material, atmosphere);
     applyAerialPerspective(stone, atmosphere);
+    applyAerialPerspective(heroStone, atmosphere);
     applyAerialPerspective(distant, atmosphere, true);
-    return { ground, stone, distant };
+    return { ground, stone, heroStone, distant };
   }, [atmosphere]);
   useLayoutEffect(() => {
     resources.ground.uniforms.duneRipples.value = surfaceView === 'ripples' || surfaceView === 'finalMaterial';
@@ -97,22 +102,24 @@ function World({ mobile, surfaceView, lightingLook, windView, visible, debug, at
   useLayoutEffect(() => {
     gl.domElement.dataset.terrain = terrain.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
-    gl.domElement.dataset.instances = String(batches.box.length + batches.wedge.length + batches.slotted.length + batches.distant.length);
+    gl.domElement.dataset.instances = String(batches.box.length + batches.wedge.length + batches.hero.length + batches.distant.length);
     gl.domElement.dataset.lightingLook = lightingLook;
+    if (debug) gl.domElement.dataset.monumentView = monumentView;
     gl.shadowMap.needsUpdate = true; invalidate();
-  }, [terrain, gl, invalidate, mobile, batches, lightingLook]);
+  }, [terrain, gl, invalidate, mobile, batches, lightingLook, debug, monumentView]);
   useEffect(() => () => terrain.geometry.dispose(), [terrain]);
   useEffect(() => () => {
-    geometries.box.dispose(); geometries.wedge?.dispose(); geometries.slotted.dispose();
+    geometries.box.dispose(); geometries.wedge?.dispose(); geometries.slotted.dispose(); geometries.beveled.dispose();
   }, [geometries]);
   useEffect(() => () => {
-    resources.ground.material.dispose(); resources.stone.dispose(); resources.distant.dispose();
+    resources.ground.material.dispose(); resources.stone.dispose(); resources.heroStone.dispose(); resources.distant.dispose();
   }, [resources]);
   return <group dispose={null}>
     <mesh geometry={terrain.geometry} material={resources.ground.material} receiveShadow />
     <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />
     {geometries.wedge && <Instances items={batches.wedge} geometry={geometries.wedge} material={resources.stone} />}
-    <Instances items={batches.slotted} geometry={geometries.slotted} material={resources.stone} />
+    <Instances items={batches.hero} geometry={monumentView === 'beveled' ? geometries.beveled : geometries.slotted}
+      material={monumentView === 'beveled' ? resources.heroStone : resources.stone} />
     <Instances items={batches.distant} geometry={geometries.slotted} material={resources.distant} distant />
     {windView !== 'static' && <SandDust terrain={terrain.geometry} monuments={monuments} mobile={mobile}
       mode={windView} lightingLook={lightingLook} visible={visible} debug={debug} />}
@@ -326,7 +333,7 @@ export default function ExpanseCanvas(props: Props) {
       shadow-radius={a.shadowRadius[quality]} shadow-bias={a.shadowBias} shadow-normalBias={a.shadowNormalBias}>
       <orthographicCamera attach="shadow-camera" args={[...look.shadowBounds]} />
     </directionalLight>
-    <World mobile={props.mobile} surfaceView={props.surfaceView} lightingLook={props.lightingLook}
+    <World mobile={props.mobile} surfaceView={props.surfaceView} lightingLook={props.lightingLook} monumentView={props.monumentView}
       windView={windView} visible={visible} debug={props.debug} atmosphere={atmosphere} />
     <Observation {...props} windView={windView} visible={visible} />
   </Canvas>;
