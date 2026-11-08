@@ -6,7 +6,7 @@ import { Component, useCallback, useEffect, useRef, useState, type CSSProperties
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { EXPANSE, LIGHTING_LOOKS, SKY_VIEWS, SURFACE_VIEWS, WIND_VIEWS,
-  type JourneySignal, type LightingLook, type MonumentView, type SkyView, type SurfaceView, type WindView } from './parameters';
+  type JourneySignal, type LightingLook, type MonumentFinish, type MonumentView, type SkyView, type SurfaceView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
 import styles from './expanse.module.css';
 
@@ -45,6 +45,7 @@ export default function ExpanseLab() {
   const [lightingLook, setLightingLook] = useState<LightingLook>(EXPANSE.atmosphere.defaultLook);
   const [skyView, setSkyView] = useState<SkyView>('color');
   const [monumentView, setMonumentView] = useState<MonumentView>('beveled');
+  const [monumentFinish, setMonumentFinish] = useState<MonumentFinish>('gray');
   const [windView, setWindView] = useState<WindView>('transport');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
   const reduced = mediaReduced || forceReduced;
@@ -104,7 +105,7 @@ export default function ExpanseLab() {
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
           debug={debug} surfaceView={surfaceView} lightingLook={lightingLook} skyView={skyView} monumentView={monumentView}
-          windView={windView} onReady={onReady} onContextLost={onContextLost} />}
+          monumentFinish={monumentFinish} windView={windView} onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
       <Link href="/" className={styles.brand} aria-label="LibreCosta 首页">LibreCosta</Link>
@@ -138,6 +139,13 @@ export default function ExpanseLab() {
         <label>主碑几何 <select value={monumentView} onChange={event => setMonumentView(event.target.value as MonumentView)}>
           <option value="beveled">精修倒角</option>
           <option value="original">原版</option>
+        </select></label>
+        <label>主碑材质 <select disabled={monumentView === 'original'} value={monumentView === 'original' ? 'gray' : monumentFinish}
+          onChange={event => setMonumentFinish(event.target.value as MonumentFinish)}>
+          <option value="gray">灰模参照</option>
+          <option value="mineral">A · Wind-Worn Mineral</option>
+          <option value="composite">B · Precision Composite Stone</option>
+          <option value="hybrid">C · Hybrid</option>
         </select></label>
       </aside>}
     </figure>

@@ -219,7 +219,17 @@ export const EXPANSE = {
     topScale: [0.76, 0.84],
     bevelWidthRatio: 0.005,
     // Normalized cross section: one deep, narrow opening on the +Z face.
-    groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } },
+    groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 },
+    finish: {
+      // Cell sizes, relief amplitude and distance fades are in scene units.
+      depositSize: [136, 290, 160], depositFade: [4300, 6650],
+      grainSize: 26, grainFade: [2650, 4350],
+      studies: {
+        mineral: { color: '#a69e91', roughness: 0.86, deposit: 0.037, grain: 0.020, roughnessVariation: 0.036, relief: 0.18 },
+        composite: { color: '#a0a5a4', roughness: 0.68, deposit: 0.013, grain: 0.010, roughnessVariation: 0.02, relief: 0.11 },
+        hybrid: { color: '#a3a59e', roughness: 0.74, deposit: 0.020, grain: 0.012, roughnessVariation: 0.025, relief: 0.14 },
+      },
+    } },
   atmosphere: {
     skyFinish: {
       fieldValue: 0.045,
@@ -345,6 +355,7 @@ export const EXPANSE = {
 
 export type WorldParameters = typeof EXPANSE;
 export type MonumentView = 'original' | 'beveled';
+export type MonumentFinish = 'gray' | keyof WorldParameters['hero']['finish']['studies'];
 export type LightingLook = keyof WorldParameters['atmosphere']['looks'];
 export const LIGHTING_LOOKS: Record<LightingLook, string> = {
   sideLight: '原版 · P1-J3',
