@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
-import { EXPANSE } from '../src/components/expanse/parameters.ts';
+import { EXPANSE, monumentFaceHeight, monumentSplice } from '../src/components/expanse/parameters.ts';
 import { buildAeolianTerrain, duneRelief, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { createSandTransport, renderedGround } from '../src/components/expanse/sand-transport.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
 import { unwrapMonument } from '../src/components/monument-surface/unwrap.ts';
-import { splice } from '../src/components/monument-surface/layout.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const rendered = {};
@@ -358,10 +357,12 @@ function solidVolume(data) {
  return volume;
 }
 const wedgeVolume=solidVolume(buildWedgeData());
-const slotted=buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale), distantSteleVolume=solidVolume(slotted);
+const distantGroove=EXPANSE.distantSteleGroove;
+const slotted=buildSlottedMonolithData(distantGroove,EXPANSE.hero.topScale), distantSteleVolume=solidVolume(slotted);
 const [tx,tz]=EXPANSE.hero.topScale, groove=EXPANSE.hero.groove;
 const sectionIntegral=t => t-((1-tx)+(1-tz))*t*t/2+(1-tx)*(1-tz)*t*t*t/3;
-const expectedVolume=sectionIntegral(1)-groove.width*groove.depth*(sectionIntegral(groove.top+.5)-sectionIntegral(groove.bottom+.5));
+const slotVolume=({width,depth,top,bottom})=>width*depth*(sectionIntegral(top+.5)-sectionIntegral(bottom+.5));
+const expectedVolume=sectionIntegral(1)-slotVolume(distantGroove);
 assert(Math.abs(distantSteleVolume-expectedVolume)<1e-6,'Taper and recess remove real volume');
 const probeGeometry=new BufferGeometry();
 probeGeometry.setAttribute('position',new BufferAttribute(slotted.positions,3)); probeGeometry.setIndex(new BufferAttribute(slotted.indices,1));
@@ -371,8 +372,8 @@ const frontHit=(x,y) => {
  probeRay.set(new Vector3(x,y,2),new Vector3(0,0,-1));
  return probeRay.intersectObject(probe,false)[0]?.point.z;
 };
-assert(Math.abs(frontHit(groove.center,0)-(.5-groove.depth)*(1-(1-tz)*.5))<1e-6,'Groove ray reaches an actual recessed back wall');
-assert(Math.abs(frontHit(groove.center,.45)-.5*(1-(1-tz)*.95))<1e-6,'The tapered crown remains continuous above the groove');
+assert(Math.abs(frontHit(distantGroove.center,0)-(.5-distantGroove.depth)*(1-(1-tz)*.5))<1e-6,'Groove ray reaches an actual recessed back wall');
+assert(Math.abs(frontHit(distantGroove.center,.45)-.5*(1-(1-tz)*.95))<1e-6,'The tapered crown remains continuous above the groove');
 const core = buildMonumentCoreData(EXPANSE.hero), coreVolume = solidVolume(core);
 const net = unwrapMonument(core, EXPANSE.hero.scale);
 assert.deepEqual(net.faces.map(face => face.id), ['front', 'right', 'back', 'left']);
@@ -388,7 +389,7 @@ for (const [i, face] of net.faces.entries()) {
     almost(distance(original[a], original[b]), distance(face.corners[a], face.corners[b]));
   }
   const next = net.faces[i + 1];
-  if (next) for (const v of [0, splice.lower, splice.datum, splice.upper, 1]) {
+  if (next) for (const v of [0, monumentSplice.lower, monumentSplice.datum, monumentSplice.upper, 1].map(monumentFaceHeight)) {
     almost(distance(face.point([1, v]), next.point([0, v])), 0);
   }
   const [outline, ...holes] = face.outlines;
@@ -430,7 +431,7 @@ const heroScale = new Vector3(...heroPart.scale), heroPosition = new Vector3(...
     }
   }
 }
-const fourSlotsVolume = sectionIntegral(1) - 4 * (sectionIntegral(1) - expectedVolume);
+const fourSlotsVolume = sectionIntegral(1) - 4 * slotVolume(groove);
 const secondary = EXPANSE.hero.secondaryGroove;
 const secondaryWidth = secondary.width * heroScale.x, secondaryDepth = secondary.depth * heroScale.z;
 const returnShoulder = secondary.top - secondaryWidth / heroScale.y;

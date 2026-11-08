@@ -51,7 +51,6 @@
 .legend button[aria-pressed='true'] { text-decoration: underline; text-underline-offset: .23rem; }
 .legend span { display: grid; place-items: center; width: 1.12rem; height: 1.12rem; background: #b5afa2; font-size: .68rem; }
 .legend [data-layer='primary'] span { background: #d0c4aa; }
-.legend [data-layer='secondary'] span { background: #a8aa9b; }
 .legend [data-layer='fine'] span { background: #eee2c5; }
 .legend small { padding-left: 1.57rem; }
 .notes small, .seam { display: block; font-size: .74rem; line-height: 1.45; color: var(--soft); }

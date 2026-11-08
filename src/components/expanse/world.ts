@@ -195,7 +195,7 @@ export function sandBedSupply(world: WorldParameters, ground: (x: number, z: num
 
 export function localVertices(kind: Monument['kind'], world: WorldParameters): Vector3[] {
   if (kind !== 'box') {
-    const data = kind === 'wedge' ? buildWedgeData().positions : buildSlottedMonolithData(world.hero.groove,world.hero.topScale).positions;
+    const data = kind === 'wedge' ? buildWedgeData().positions : buildSlottedMonolithData(world.distantSteleGroove,world.hero.topScale).positions;
     return Array.from({ length: data.length / 3 }, (_, i) => new Vector3().fromArray(data, i * 3));
   }
   return [-.5,.5].flatMap(x => [-.5,.5].flatMap(y => [-.5,.5].map(z => new Vector3(x,y,z))));
@@ -344,6 +344,7 @@ export function buildMonumentCoreData(hero: Hero) {
   const scale = new Vector3(...hero.scale);
   const vertices = taperStele(steleCorners(), hero, scale);
   const faces = [[bottomCap], [topCap]];
+  const mainSideWalls = new Set<number[]>();
   const { width, depth, bottom, top } = hero.groove;
   const secondary = hero.secondaryGroove;
   const returnWidth = secondary.width * scale.x;
@@ -365,17 +366,19 @@ export function buildMonumentCoreData(hero: Hero) {
     const ring = (section: number[][], setback: (y: number) => number) => section.map(([offset, y]) =>
       vertices.push(base.clone().lerp(crown, y + .5)
         .addScaledVector(across, offset).addScaledVector(outward, -setback(y))) - 1);
-    const recess = (section: number[][], setback: (y: number) => number) => {
+    const recess = (section: number[][], setback: (y: number) => number, main = false) => {
       const mouth = ring(section, () => 0), back = ring(section, setback);
       faces.push([[...back].reverse()]);
       mouth.forEach((id, i) => {
         const j = (i + 1) % mouth.length;
-        faces.push([[mouth[j], id, back[i], back[j]]]);
+        const wall = [mouth[j], id, back[i], back[j]];
+        faces.push([wall]);
+        if (main && i % 2 === 0) mainSideWalls.add(wall);
       });
       return mouth;
     };
     const main = recess(mainSection.map(([side, y]) => [side * width * scale.x * taperAt(hero.topScale[0], y) / 2, y]),
-      y => depth * scale.z * taperAt(hero.topScale[1], y));
+      y => depth * scale.z * taperAt(hero.topScale[1], y), true);
     const baseSpan = a.distanceTo(b), crownSpan = d.distanceTo(c);
     const secondaryMouth = recess(returnSection.map(([side, inner, y]) => {
       const span = lerp(baseSpan, crownSpan, y + .5);
@@ -384,15 +387,16 @@ export function buildMonumentCoreData(hero: Hero) {
     faces.push([face, main, secondaryMouth]);
   }
 
-  return bevelStele(vertices, faces, scale, scale.x * hero.bevelWidthRatio);
+  return bevelStele(vertices, faces, scale, scale.x * hero.bevelWidthRatio, mainSideWalls);
 }
 
-function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, width: number) {
+function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, width: number, mainSideWalls: Set<number[]>) {
   // Inset in world units so the object's non-uniform scale does not stretch the bevel.
   const vertices: Vector3[] = [], normals: Vector3[] = [], indices: number[] = [];
   const edges = new Map<string, [number, number]>();
   const caps = original.map(() => new Map<number, number>());
   const facades = [];
+  const grooveWalls = [];
 
   for (const loops of faces) {
     const normal = faceNormal(original, loops[0]);
@@ -437,6 +441,7 @@ function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, wi
     const side = coreSides.find(side => side.outline === loops[0]);
     if (side) facades.push({ id: side.id, corners: side.outline.map(i => original[i].toArray()),
       outline, holes, indexStart, indexCount: indices.length - indexStart });
+    if (mainSideWalls.has(loops[0])) grooveWalls.push({ outline, indexStart, indexCount: indices.length - indexStart });
   }
 
   // This stele has exactly three incident faces at each original corner.
@@ -449,6 +454,7 @@ function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, wi
     normals: new Float32Array(normals.flatMap(v => v.toArray())),
     indices: new Uint16Array(indices),
     facades,
+    grooveWalls,
   };
 }
 

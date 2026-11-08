@@ -8,12 +8,13 @@ import {
   type Material,
 } from 'three';
 import { EXPANSE, type JourneySignal, type SkyView, type WindView } from './parameters';
-import { buildAeolianTerrain, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
+import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
 import { mapJourneyProgress } from './journey-timing';
 import { createAeolianMaterial } from './aeolian-material';
 import { AtmosphericSky } from './AtmosphericSky';
 import { applyAerialPerspective, createAtmosphere, type Atmosphere } from './atmosphere';
 import { SandDust } from './SandDust';
+import { createMonumentGeometry, createMonumentMaterial, useMonumentAtlas } from '../monument-surface/atlas';
 import styles from './expanse.module.css';
 
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
@@ -68,20 +69,24 @@ function World({ mobile, windView, visible, debug, atmosphere }:
   }, [mobile]);
   const geometries = useMemo(() => ({
     box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? indexedGeometry(buildWedgeData()) : null,
-    slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale)),
-    core: indexedGeometry(buildMonumentCoreData(EXPANSE.hero)),
+    slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.distantSteleGroove,EXPANSE.hero.topScale)),
+    core: createMonumentGeometry(),
   }), [batches]);
+  const atlas = useMonumentAtlas(gl, invalidate);
+  const heroStone = useMemo(() => {
+    const material = createMonumentMaterial(atlas, batches.hero[0].position);
+    applyAerialPerspective(material, atmosphere);
+    return material;
+  }, [atlas, atmosphere, batches.hero]);
+  useEffect(() => () => heroStone.dispose(), [heroStone]);
   const resources = useMemo(() => {
     const ground = createAeolianMaterial();
     const stone = new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true });
-    const heroStone = stone.clone();
-    heroStone.flatShading = false;
     const distant = new MeshBasicMaterial({ color: EXPANSE.atmosphere.distantSilhouette, toneMapped: false });
     applyAerialPerspective(ground, atmosphere);
     applyAerialPerspective(stone, atmosphere);
-    applyAerialPerspective(heroStone, atmosphere);
     applyAerialPerspective(distant, atmosphere, true);
-    return { ground, stone, heroStone, distant };
+    return { ground, stone, distant };
   }, [atmosphere]);
   useLayoutEffect(() => {
     gl.domElement.dataset.windView = windView;
@@ -104,14 +109,14 @@ function World({ mobile, windView, visible, debug, atmosphere }:
     geometries.core.dispose();
   }, [geometries]);
   useEffect(() => () => {
-    resources.ground.dispose(); resources.stone.dispose(); resources.heroStone.dispose();
+    resources.ground.dispose(); resources.stone.dispose();
     resources.distant.dispose();
   }, [resources]);
   return <group dispose={null}>
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
     <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />
     {geometries.wedge && <Instances items={batches.wedge} geometry={geometries.wedge} material={resources.stone} />}
-    <Instances items={batches.hero} geometry={geometries.core} material={resources.heroStone} />
+    <Instances items={batches.hero} geometry={geometries.core} material={heroStone} />
     <Instances items={batches.distant} geometry={geometries.slotted} material={resources.distant} distant />
     {windView !== 'static' && <SandDust terrain={terrain.geometry} monuments={monuments} mobile={mobile}
       mode={windView} visible={visible} debug={debug} />}

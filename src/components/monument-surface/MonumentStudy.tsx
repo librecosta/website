@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { artwork, hero, net, svgUrl } from './artwork';
-import { layers, layouts, type Layer } from './layout';
+import { faceLabels, layers, masterForFace, type Layer } from './layout';
 import styles from './study.module.css';
 
 const MonumentPreview = dynamic(() => import('./MonumentPreview'), { ssr: false,
@@ -25,11 +25,11 @@ export default function MonumentStudy() {
   return <main className={styles.study}>
     <header className={styles.masthead}>
       <a href="/lab/expanse?debug=1">LibreCosta <span> / The Expanse</span></a>
-      <span className={styles.reference}>P1-C1A4-B</span>
+      <span className={styles.reference}>P1-C1A4-B2</span>
     </header>
     <div className={styles.title}>
       <div><p>The Still Monolith</p><h1>静默巨碑展开图</h1></div>
-      <p>四个立面按真实边长展开。接合带绕碑体同高对位，主槽两侧的封装和纹刻各有分工。</p>
+      <p>正背面共用 F，左右面共用 S。金线沿面板边界布置，板内纵线在节点处分流再汇合。</p>
     </div>
     <div className={styles.switcher} role="group" aria-label="图板视图">
       {modes.map(item => <button key={item.id} type="button" aria-pressed={mode === item.id}
@@ -73,15 +73,15 @@ export default function MonumentStudy() {
           <h2>面序与折合</h2>
           <p className={styles.dimensions}>{hero.scale.join(' × ')}<span>基宽 × 高 × 基深</span></p>
           <ol className={styles.faces}>{net.faces.map(face => <li key={face.id}>
-            <strong>{layouts[face.id].name}</strong><small>{layouts[face.id].note}</small>
+            <strong>{faceLabels[face.id]}</strong><small>{masterForFace[face.id] === 'front' ? '宽幅封装纵板' : '窄幅封装纵板'}</small>
           </li>)}</ol>
           <p className={styles.seam}>左面外缘折回正面。顶底、槽内和倒角保留基材。</p>
         </div>
         <div className={styles.download}>
           <a download={`still-monolith-${view}${guides && mode !== 'model' ? '-guides' : ''}.svg`}
             href={svgUrl(artwork(view, { guides: guides && mode !== 'model' }))}>导出{mode === 'layers' ? '当前层' : '四面合成'} SVG</a>
-          {mode === 'layers' && layer === 'fine' && <a download="still-monolith-emissive-mask.svg"
-            href={svgUrl(artwork('fine', { mask: true }))}>导出黑白发光遮罩</a>}
+          <a download={`still-monolith-F-${view}.svg`} href={svgUrl(artwork(view, { master: 'front' }))}>正面 F SVG</a>
+          <a download={`still-monolith-S-${view}.svg`} href={svgUrl(artwork(view, { master: 'side' }))}>侧面 S SVG</a>
         </div>
       </aside>
     </div>

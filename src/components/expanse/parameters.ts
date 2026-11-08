@@ -10,6 +10,22 @@ export const SKY_VIEWS = {
 export type SkyView = keyof typeof SKY_VIEWS;
 
 const passage = { scroll: 0.35, path: 0.356, slope: 0.646729 } as const;
+const monumentHeight = 1910;
+const footDatum = .08, panelDatum = .25;
+const footTop = 192, panelBase = 230;
+export const monumentSplice = { lower: .422, upper: .435, datum: .4285 };
+export const monumentPanelUnits = (monumentHeight - panelBase) / (1 - panelDatum);
+
+// Keep the plinth at its authored size, take most of the reduction from the
+// unmarked spacer above it, and shorten the upper panel run slightly.
+export function monumentFaceHeight(v: number) {
+  if (v <= footDatum) return (v / footDatum) * footTop / monumentHeight;
+  if (v < panelDatum) return (footTop + (panelBase - footTop) * (v - footDatum) / (panelDatum - footDatum)) / monumentHeight;
+  return (panelBase + (v - panelDatum) * monumentPanelUnits) / monumentHeight;
+}
+
+const distantSteleGroove = { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } as const;
+const monumentGrooveY = (y: number) => monumentFaceHeight(y + .5) - .5;
 
 // Continuous dune banks; authored offsets are measured from the valley spine.
 export const EXPANSE = {
@@ -188,15 +204,16 @@ export const EXPANSE = {
     { id: 'stele-east-4', family: 'Distant Stelae', kind: 'slotted', center: [17000, -35500],
       scale: [615, 2840, 330], orientation: [0, 18, 0], burial: 460 },
   ],
+  distantSteleGroove,
   hero: { id: 'still-monolith', family: 'Hero Structure', kind: 'slotted', center: [70, -6000],
-    scale: [920, 2400, 560], orientation: [0, 24, 0], burial: 520,
+    scale: [920, monumentHeight, 560], orientation: [0, 24, 0], burial: 230,
     topScale: [0.76, 0.84],
     bevelWidthRatio: 0.005,
     // The core uses this section on four centered faces. Only the distant stelae use the offset.
-    groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 },
+    groove: { ...distantSteleGroove, bottom: monumentGrooveY(distantSteleGroove.bottom), top: monumentGrooveY(distantSteleGroove.top) },
     // A single recessed return follows both shoulders and the crown of each face.
     // Margin is a fraction of face span. Width and depth reference the base X and Z spans.
-    secondaryGroove: { margin: 0.07, width: 0.022, depth: 0.035, bottom: -0.438, top: 0.466 },
+    secondaryGroove: { margin: 0.07, width: 0.022, depth: 0.035, bottom: monumentGrooveY(-0.438), top: monumentGrooveY(0.466) },
   },
   atmosphere: {
     skyFinish: {
