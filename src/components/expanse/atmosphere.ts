@@ -105,7 +105,7 @@ export type Atmosphere = ReturnType<typeof createAtmosphere>;
 export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, view: SkyView) {
   const start = performance.now();
   const { fieldValue, fieldWarmth, fieldMist, maxOpticalDepth, cloudLightLow, cloudLightHigh,
-    hazeTint, hazeHeight, hazeOpacity } = EXPANSE.atmosphere.skyFinish;
+    hazeTint, hazeHeight, hazeOpacity, horizonGlow } = EXPANSE.atmosphere.skyFinish;
   const { data, base, uniforms } = atmosphere;
   const main = view === 'color' || view === 'main';
   const secondary = view === 'color' || view === 'secondary';
@@ -114,6 +114,10 @@ export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, view:
     const elevation = (row / (SKY_HEIGHT - 1)) ** 2;
     const cloudHue = MathUtils.smoothstep(elevation, 0.12, 0.54);
     const cloudLight = cloudLightLow.map((low, channel) => MathUtils.lerp(low, cloudLightHigh[channel], cloudHue));
+    const halo = 1 - MathUtils.smoothstep(elevation, ...horizonGlow.haloRange);
+    const core = 1 - MathUtils.smoothstep(elevation, 0, horizonGlow.coreHeight);
+    const glow = horizonGlow.haloLift.map((lift, channel) => lift * halo + horizonGlow.coreLift[channel] * core);
+    const hazeColor = hazeTint.map((tint, channel) => MathUtils.lerp(tint, horizonGlow.lowHazeTint[channel], halo));
     const horizonHaze = hazeOpacity * (1 - MathUtils.smoothstep(elevation, 0, hazeHeight));
     const offset = row * SKY_WIDTH * 4;
     for (let i = offset; i < offset + SKY_WIDTH * 4; i += 4) {
@@ -123,10 +127,13 @@ export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, view:
       const density = Math.min(255, (main ? field[i + 1] : 0) + (secondary ? field[i + 2] : 0));
       const opacity = opacityByDensity[density];
       for (let channel = 0; channel < 3; channel++) {
-        const sky = base[i + channel] + brightness + thermal * fieldWarmth[channel];
+        const clear = base[i + channel] + brightness + thermal * fieldWarmth[channel];
+        const lift = glow[channel];
+        // Roll the added light off near white to preserve color around bright scattering.
+        const sky = clear + (lift > 0 ? lift * (1 - MathUtils.smoothstep(clear, 0.865, 1)) : lift);
         const clouded = MathUtils.lerp(sky, cloudLight[channel], opacity);
-        data[i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(clouded, hazeTint[channel], haze));
-        data[base.length + i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(sky, hazeTint[channel], haze));
+        data[i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(clouded, hazeColor[channel], haze));
+        data[base.length + i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(sky, hazeColor[channel], haze));
       }
     }
   }

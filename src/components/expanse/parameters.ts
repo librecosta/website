@@ -225,8 +225,15 @@ export const EXPANSE = {
       fieldWarmth: [0.022, 0.003, -0.019],
       fieldMist: 0.09,
       maxOpticalDepth: 0.56,
-      cloudLightLow: [0.98, 0.957, 0.92], cloudLightHigh: [0.95, 0.966, 0.99],
+      cloudLightLow: [0.995, 0.956, 0.867], cloudLightHigh: [0.95, 0.966, 0.99],
       hazeTint: [0.93, 0.90, 0.835], hazeHeight: 0.14, hazeOpacity: 0.27,
+      horizonGlow: {
+        // Heights are the sine of the viewing elevation. The broad ivory lift
+        // reaches above the softer apricot color concentrated at the horizon.
+        haloRange: [0.04, 0.54], haloLift: [0.078, 0.034, -0.043],
+        coreHeight: 0.22, coreLift: [0.036, 0.005, -0.030],
+        lowHazeTint: [0.973, 0.928, 0.78],
+      },
       distantHaze: 0.16,
       // Angles in degrees. Azimuth starts at -Z; positive tilt rises toward +X.
       flow: {
