@@ -288,14 +288,24 @@ function steleVertices(groove: Hero['groove']) {
 
 const taperAt = (top: number, y: number) => 1 + (top - 1) * (y + .5);
 
-function triangulateFace(vertices: Vector3[], outer: number[], hole: number[]) {
-  const [a, b, c] = outer.map(i => vertices[i]);
+function faceNormal(vertices: Vector3[], outline: number[]) {
+  const origin = vertices[outline[0]], normal = new Vector3();
+  for (let i = 1; i < outline.length - 1; i++) {
+    const a = vertices[outline[i]].clone().sub(origin);
+    const b = vertices[outline[i + 1]].clone().sub(origin);
+    normal.add(a.cross(b));
+  }
+  return normal.normalize();
+}
+
+function triangulateFace(vertices: Vector3[], outer: number[], holes: number[][]) {
+  const [a, b] = outer.map(i => vertices[i]);
   const across = b.clone().sub(a).normalize();
-  const normal = across.clone().cross(c.clone().sub(a)).normalize();
-  const up = normal.cross(across);
+  const up = faceNormal(vertices, outer).cross(across);
   const project = (i: number) => new Vector2(vertices[i].dot(across), vertices[i].dot(up));
-  const corners = [...outer, ...hole];
-  return ShapeUtils.triangulateShape(outer.map(project), [hole.map(project)]).flatMap(face => face.map(i => corners[i]));
+  const corners = [...outer, ...holes.flat()];
+  return ShapeUtils.triangulateShape(outer.map(project), holes.map(hole => hole.map(project)))
+    .flatMap(face => face.map(i => corners[i]));
 }
 
 function quad(indices: number[], [a, b, c, d]: number[]) {
@@ -306,7 +316,7 @@ export function buildSlottedMonolithData(groove: Hero['groove'], topScale: Hero[
   const vertices = steleVertices(groove);
   const indices: number[] = [];
   walls.forEach(face => quad(indices, face));
-  indices.push(...triangulateFace(vertices, front, opening));
+  indices.push(...triangulateFace(vertices, front, [opening]));
   const positions = new Float32Array(vertices.flatMap(v => v.toArray()));
   for (let i = 0; i < positions.length; i += 3) {
     positions[i] *= taperAt(topScale[0], positions[i + 1]);
@@ -334,7 +344,15 @@ export function buildMonumentCoreData(hero: Hero) {
   const vertices = taperStele(steleCorners(), hero, scale);
   const faces = [[bottomCap], [topCap]];
   const { width, depth, bottom, top } = hero.groove;
-  const section = [[-1, bottom], [-1, top], [1, top], [1, bottom]];
+  const secondary = hero.secondaryGroove;
+  const returnWidth = secondary.width * scale.x;
+  const returnShoulder = secondary.top - returnWidth / scale.y;
+  const mainSection = [[-1, bottom], [-1, top], [1, top], [1, bottom]];
+  // Both legs and the crown return belong to one opening, open toward the footing.
+  const returnSection = [
+    [-1, 0, secondary.bottom], [-1, 0, secondary.top], [1, 0, secondary.top], [1, 0, secondary.bottom],
+    [1, 1, secondary.bottom], [1, 1, returnShoulder], [-1, 1, returnShoulder], [-1, 1, secondary.bottom],
+  ];
 
   // Four outward-facing charts with matching physical sections. Referencing the
   // original front section keeps the slit legible on the narrower side faces.
@@ -343,19 +361,26 @@ export function buildMonumentCoreData(hero: Hero) {
     const base = a.clone().lerp(b, .5), crown = d.clone().lerp(c, .5);
     const across = b.clone().sub(a).normalize();
     const outward = across.clone().cross(new Vector3(0, 1, 0));
-    const ring = (recess: number) => section.map(([side, y]) => {
-      const halfWidth = width * scale.x * taperAt(hero.topScale[0], y) / 2;
-      const setback = recess * scale.z * taperAt(hero.topScale[1], y);
-      const point = base.clone().lerp(crown, y + .5)
-        .addScaledVector(across, side * halfWidth).addScaledVector(outward, -setback);
-      return vertices.push(point) - 1;
-    });
-    const mouth = ring(0), back = ring(depth);
-    faces.push([face, mouth], [[back[0], back[3], back[2], back[1]]]);
-    mouth.forEach((id, i) => {
-      const j = (i + 1) % mouth.length;
-      faces.push([[mouth[j], id, back[i], back[j]]]);
-    });
+    const ring = (section: number[][], setback: (y: number) => number) => section.map(([offset, y]) =>
+      vertices.push(base.clone().lerp(crown, y + .5)
+        .addScaledVector(across, offset).addScaledVector(outward, -setback(y))) - 1);
+    const recess = (section: number[][], setback: (y: number) => number) => {
+      const mouth = ring(section, () => 0), back = ring(section, setback);
+      faces.push([[...back].reverse()]);
+      mouth.forEach((id, i) => {
+        const j = (i + 1) % mouth.length;
+        faces.push([[mouth[j], id, back[i], back[j]]]);
+      });
+      return mouth;
+    };
+    const main = recess(mainSection.map(([side, y]) => [side * width * scale.x * taperAt(hero.topScale[0], y) / 2, y]),
+      y => depth * scale.z * taperAt(hero.topScale[1], y));
+    const baseSpan = a.distanceTo(b), crownSpan = d.distanceTo(c);
+    const secondaryMouth = recess(returnSection.map(([side, inner, y]) => {
+      const span = lerp(baseSpan, crownSpan, y + .5);
+      return [side * (span * (.5 - secondary.margin) - inner * returnWidth), y];
+    }), () => secondary.depth * scale.z);
+    faces.push([face, main, secondaryMouth]);
   }
 
   return bevelStele(vertices, faces, scale, scale.x * hero.bevelWidthRatio);
@@ -368,8 +393,7 @@ function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, wi
   const caps = original.map(() => new Map<number, number>());
 
   for (const loops of faces) {
-    const [a, b, c] = loops[0].map(i => original[i]);
-    const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
+    const normal = faceNormal(original, loops[0]);
     // Three applies the instance normal matrix later. Encode the inverse of
     // that correction here, leaving the world-space plane normal intact.
     const localNormal = normal.clone().multiply(scale).normalize();
@@ -404,8 +428,9 @@ function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, wi
       return corners;
     });
 
-    if (inset.length === 1) quad(indices, inset[0]);
-    else indices.push(...triangulateFace(vertices, inset[0], inset[1]));
+    const [outline, ...holes] = inset;
+    if (!holes.length && outline.length === 4) quad(indices, outline);
+    else indices.push(...triangulateFace(vertices, outline, holes));
   }
 
   // This stele has exactly three incident faces at each original corner.

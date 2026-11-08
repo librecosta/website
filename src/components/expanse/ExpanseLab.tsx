@@ -139,7 +139,7 @@ export default function ExpanseLab() {
           {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
         <label>主碑几何 <select value={monumentView} onChange={event => setMonumentView(event.target.value as MonumentView)}>
-          <option value="core">四向中轴凹槽</option>
+          <option value="core">四面主槽与辅槽</option>
           <option value="beveled">旧单槽 · 倒角</option>
           <option value="original">旧单槽 · 原版</option>
         </select></label>

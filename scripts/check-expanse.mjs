@@ -480,7 +480,15 @@ for (const side of [-1, 1]) {
   assert(Math.abs(wall - (groove.center + side * groove.width / 2) * throatScale) < 1e-6, 'Beveled groove retains its throat width');
 }
 const fourSlotsVolume = sectionIntegral(1) - 4 * (sectionIntegral(1) - expectedVolume);
-assert(Math.abs(coreVolume - fourSlotsVolume) < .001, 'Four slots preserve the tapered outer mass');
+const secondary = EXPANSE.hero.secondaryGroove;
+const secondaryWidth = secondary.width * heroScale.x, secondaryDepth = secondary.depth * heroScale.z;
+const returnShoulder = secondary.top - secondaryWidth / heroScale.y;
+const faceSpan = (span, taper, y) => span * (1 + (taper - 1) * (y + .5));
+const railArea = 2 * secondaryWidth * (returnShoulder - secondary.bottom) * heroScale.y;
+const barY = (returnShoulder + secondary.top) / 2;
+const barSpan = (faceSpan(heroScale.x, tx, barY) + faceSpan(heroScale.z, tz, barY)) * (1 - 2 * secondary.margin);
+const secondaryVolume = secondaryDepth * (4 * railArea + 2 * secondaryWidth * barSpan) / (heroScale.x * heroScale.y * heroScale.z);
+assert(Math.abs(coreVolume - (fourSlotsVolume - secondaryVolume)) < .001, 'Only the primary and secondary grooves remove mass from the tapered core');
 probeGeometry.setAttribute('position', new BufferAttribute(core.positions, 3));
 probeGeometry.setIndex(new BufferAttribute(core.indices, 1));
 probeGeometry.computeBoundingSphere();
@@ -509,6 +517,30 @@ for (const [name, dx, dz] of [['front', 0, 1], ['right', 1, 0], ['back', 0, -1],
     }
   }
   assert(Math.abs(hit(groove.top + .02) - plane(groove.top + .02)) < .001, `${name}: the crown closes above the slot`);
+  const secondaryEdge = y => (dx ? faceSpan(heroScale.z, tz, y) : faceSpan(heroScale.x, tx, y)) * (.5 - secondary.margin);
+  for (const y of [-.37, 0, .43]) {
+    for (const side of [-1, 1]) {
+      const middle = side * (secondaryEdge(y) - secondaryWidth / 2);
+      assert(Math.abs(hit(y, middle) - (plane(y) - secondaryDepth)) < .001, `${name}: each return leg has a solid recessed back`);
+      for (const sign of [-1, 1]) {
+        const origin = outward.clone().multiplyScalar(plane(y) - secondaryDepth / 2)
+          .addScaledVector(across, middle).setY(y * heroScale.y);
+        probeRay.set(origin, across.clone().multiplyScalar(sign));
+        const wall = probeRay.intersectObject(probe, false)[0]?.point.dot(across);
+        assert(Math.abs(wall - (middle + sign * secondaryWidth / 2)) < .001, `${name}: the return stays narrow on both sides`);
+      }
+      const rim = side * (secondaryEdge(y) + 9);
+      assert(Math.abs(hit(y, rim) - plane(y)) < .001, `${name}: the outer rim stays solid between the return and the corner`);
+    }
+  }
+  for (const offset of [-1, 0, 1].map(side => side * secondaryEdge(barY) * .85)) {
+    assert(Math.abs(hit(barY, offset) - (plane(barY) - secondaryDepth)) < .001, `${name}: the crown return connects both legs`);
+    const capY = secondary.top + .015;
+    assert(Math.abs(hit(capY, offset) - plane(capY)) < .001, `${name}: the solid crown continues above the return`);
+  }
+  const footingY = secondary.bottom - .015;
+  assert(Math.abs(hit(footingY, secondaryEdge(footingY) - secondaryWidth / 2) - plane(footingY)) < .001,
+    `${name}: the secondary groove closes at its footing`);
 }
 probeGeometry.dispose(); probeMaterial.dispose();
 // Actual transformed triangle intersections, independent of drawing or fog.

@@ -220,6 +220,9 @@ export const EXPANSE = {
     bevelWidthRatio: 0.005,
     // The core uses this section on four centered faces. The offset belongs to the legacy stele.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 },
+    // A single recessed return follows both shoulders and the crown of each face.
+    // Margin is a fraction of face span. Width and depth reference the base X and Z spans.
+    secondaryGroove: { margin: 0.07, width: 0.022, depth: 0.035, bottom: -0.438, top: 0.466 },
     finish: {
       surface: {
         color: '#a69e91', roughness: 0.78,
