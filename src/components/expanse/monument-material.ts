@@ -1,11 +1,12 @@
-import { Vector2, Vector3, Vector4, type MeshStandardMaterial } from 'three';
+import { Vector2, Vector3, Vector4, type DataTexture, type MeshStandardMaterial } from 'three';
+import { createMineralGrain, MINERAL_GRAIN_CELLS } from './monument-grain';
 import { EXPANSE, MONUMENT_LAYERS, type MonumentFinish, type MonumentLayer } from './parameters';
 
 const layers = Object.keys(MONUMENT_LAYERS);
 const layerIndex = (layer: MonumentLayer) => layers.indexOf(layer);
 
 export function createMonumentStudy(gray: MeshStandardMaterial) {
-  const { scale, finish } = EXPANSE.hero;
+  const { scale, finish, topScale, groove } = EXPANSE.hero;
   const { refined } = finish;
   const material = gray.clone();
   const uniforms = {
@@ -17,12 +18,14 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
     steleFinish: { value: new Vector4() },
     steleLayer: { value: 0 },
     steleRefined: { value: false },
-    steleAbrasionPitch: { value: new Vector3(...refined.abrasionPitch) },
-    steleAbrasionSlope: { value: new Vector2(...refined.abrasionSlope) },
-    steleAbrasionBend: { value: refined.abrasionBend },
-    steleGrainPitch: { value: refined.grainPitch },
-    steleRelief: { value: new Vector2(refined.abrasionRelief, refined.grainRelief) },
-    steleSurface: { value: new Vector3(refined.depositTint, refined.abrasionRoughness, refined.grainRoughness) },
+    steleTaper: { value: new Vector2(...topScale) },
+    steleSlot: { value: new Vector4(groove.center, groove.width * 0.5, groove.bottom, groove.top) },
+    steleSlotDepth: { value: groove.depth },
+    steleDressing: { value: new Vector4(refined.marginWidth, refined.marginPolish, refined.grooveRoughness, refined.grooveOcclusion) },
+    stelePasses: { value: refined.passes.map(pass => new Vector4(...pass)) },
+    stelePassFinish: { value: new Vector2(refined.passRelief, refined.passPolish) },
+    steleGrainMap: { value: null as DataTexture | null },
+    steleMineral: { value: new Vector4(refined.grainPeriod, refined.grainRelief, refined.grainRoughness, refined.grainOcclusion) },
   };
 
   material.onBeforeCompile = shader => {
@@ -30,21 +33,24 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         uniform vec3 steleSize;
-        varying vec3 vStelePosition;`)
+        varying vec3 vStelePosition, vSteleFace;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
-        vStelePosition = transformed * steleSize;`);
+        vStelePosition = transformed * steleSize;
+        vSteleFace = objectNormal / steleSize;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vStelePosition;
-        uniform vec3 steleDepositSize;
+        varying vec3 vStelePosition, vSteleFace;
+        uniform vec3 steleSize, steleDepositSize;
         uniform vec2 steleDepositFade, steleGrainFade;
         uniform float steleGrainSize;
         uniform vec4 steleFinish;
         uniform int steleLayer;
         uniform bool steleRefined;
-        uniform vec3 steleAbrasionPitch, steleSurface;
-        uniform vec2 steleAbrasionSlope, steleRelief;
-        uniform float steleAbrasionBend, steleGrainPitch;
+        uniform vec2 steleTaper, stelePassFinish;
+        uniform vec4 steleSlot, steleDressing, steleMineral;
+        uniform float steleSlotDepth;
+        uniform vec4 stelePasses[${refined.passes.length}];
+        uniform sampler2D steleGrainMap;
 
         float steleHash(vec3 cell) {
           cell = fract(cell * vec3(0.1031, 0.11369, 0.13787));
@@ -66,57 +72,77 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
           return 1.0 - smoothstep(0.22, 0.62, max(length(pixelX), length(pixelY)));
         }
 
-        vec3 steleCellVariation(vec3 cell) {
-          vec3 hash = fract(cell * vec3(0.1031, 0.1030, 0.0973));
-          hash += dot(hash, hash.yxz + 33.33);
-          return fract((hash.xxy + hash.yxx) * hash.zyx);
-        }
-
-        float steleAbrasion(vec3 position, float pixel) {
-          vec3 seed = steleCellVariation(floor(position));
-          vec3 p = fract(position) - mix(vec3(0.38, 0.25, 0.38), vec3(0.62, 0.75, 0.62), seed);
-          // Interrupted, shallow tooling traces. The warped lens tapers at both ends.
-          p.y += (seed.z - 0.5) * (0.32 * p.x * p.x - 0.19 * p.z);
-          float radius = length(p * vec3(mix(3.0, 5.4, seed.y), mix(4.8, 6.6, seed.x), 3.2));
-          float profile = 1.0 - smoothstep(0.66 - 0.7 * pixel, 1.0, radius);
-          return profile * smoothstep(0.06, 0.96, seed.z);
-        }
-
-        float steleMineralGrain(vec3 position, float pixel) {
-          vec3 seed = steleCellVariation(floor(position));
-          vec3 center = mix(vec3(0.135), vec3(0.865), seed);
-          // Let inclusion centers wander, and taper their size before the next cell.
-          vec3 extent = min(min(center, 1.0 - center) - 0.015, mix(vec3(0.18), vec3(0.38), seed.yzx));
-          vec3 axis = abs(fract(position) - center) / extent;
-          float face = max(max(axis.x, axis.y), axis.z);
-          float radius = face + 0.33 * (axis.x + axis.y + axis.z - face);
-          float profile = 1.0 - smoothstep(0.60 - 0.85 * pixel, 1.0, radius);
-          return profile * mix(-0.40, 1.0, seed.z);
+        // The cutting head follows the long axis. Adjacent passes stop at different
+        // heights, with feathered shoulders from later abrasive wear.
+        vec2 steleToolPasses(vec3 p) {
+          float feed = p.x + 0.78 * p.z - 0.052 * p.y + 8.0 * sin(p.y * 0.0034);
+          float pixel = fwidth(feed);
+          vec2 result = vec2(0.0);
+          for (int i = 0; i < ${refined.passes.length}; ++i) {
+            vec4 pass = stelePasses[i];
+            float across = feed - pass.x;
+            float entry = smoothstep(-pass.y - pixel, -0.58 * pass.y, across);
+            float exit = 1.0 - smoothstep(0.52 * pass.y, pass.y + pixel, across);
+            float lengthMask = smoothstep(pass.z, pass.z + 170.0, p.y)
+              * (1.0 - smoothstep(pass.w - 160.0, pass.w, p.y));
+            float track = entry * exit * lengthMask;
+            result.x += track * (0.30 + 0.70 * entry);
+            result.y = max(result.y, track);
+          }
+          return result;
         }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        float deposit = 0.0, grain = 0.0, relief = 0.0;
-        // Both studies use local 3D coordinates, continuous over edges and inside the groove.
+        float relief = 0.0, cavity = 0.0;
         if (steleRefined) {
-          vec3 abrasionPosition = vStelePosition;
-          vec2 span = vec2(vStelePosition.x + 0.72 * vStelePosition.z, vStelePosition.y);
-          float bend = sin(dot(span, vec2(0.009, 0.006))) + 0.42 * sin(dot(span, vec2(0.023, -0.013)));
-          abrasionPosition.y += dot(vStelePosition.xz, steleAbrasionSlope) + steleAbrasionBend * bend;
-          abrasionPosition.xz += vec2(0.36, -0.29) * vStelePosition.y;
-          abrasionPosition = abrasionPosition / steleAbrasionPitch + vec3(8.3, 2.7, 7.1);
-          // Cut through the inclusion field obliquely so broad stone faces cannot line up with a grid slice.
-          const mat3 grainBasis = mat3(vec3(0.80, -0.36, 0.48), vec3(0.60, 0.48, -0.64), vec3(0.0, 0.80, 0.60));
-          vec3 grainPosition = grainBasis * vStelePosition / steleGrainPitch + vec3(3.6, 6.8, 9.2);
-          grainPosition += bend * vec3(0.37, -0.21, 0.62);
-          // Soften edges before minification and skip unresolvable fields.
-          float abrasionPixel = max(length(dFdx(abrasionPosition)), length(dFdy(abrasionPosition)));
-          float grainPixel = max(length(dFdx(grainPosition)), length(dFdy(grainPosition)));
-          float abrasionWeight = 1.0 - smoothstep(0.22, 0.65, abrasionPixel);
-          float grainWeight = 1.0 - smoothstep(0.21, 0.49, grainPixel);
-          if (abrasionWeight > 0.0) deposit = abrasionWeight * steleAbrasion(abrasionPosition, abrasionPixel);
-          if (grainWeight > 0.0) grain = grainWeight * steleMineralGrain(grainPosition, grainPixel);
-          diffuseColor.rgb *= 1.0 + steleSurface.x * deposit * vec3(1.0, 0.87, 0.70);
-          roughnessFactor += steleSurface.z * grain - steleSurface.y * deposit;
-          relief = steleRelief.y * grain - steleRelief.x * deposit;
+          vec3 p = vStelePosition;
+          vec3 face = abs(normalize(vSteleFace));
+          float height = p.y / steleSize.y + 0.5;
+          vec2 taper = mix(vec2(1.0), steleTaper, height);
+          vec2 halfSpan = 0.5 * steleSize.xz * taper;
+          vec2 rim = halfSpan - abs(p.xz);
+          // Ignore the distance to the face's own plane. Blend on the modeled bevel.
+          float sideRim = mix(rim.y, rim.x, face.z / max(face.x + face.z, 0.001));
+          float capRim = 0.5 * steleSize.y - abs(p.y);
+          float outerRim = mix(min(sideRim, capRim), min(rim.x, rim.y), smoothstep(0.25, 0.85, face.y));
+
+          float slotX = p.x - steleSlot.x * steleSize.x * taper.x;
+          float slotHalfWidth = steleSlot.y * steleSize.x * taper.x;
+          float depth = halfSpan.y - p.z;
+          float maxDepth = steleSlotDepth * steleSize.z * taper.y;
+          vec2 bounds = vec2(abs(slotX) - slotHalfWidth,
+            max(steleSlot.z * steleSize.y - p.y, p.y - steleSlot.w * steleSize.y));
+          float aperture = length(max(bounds, vec2(0.0))) + min(max(bounds.x, bounds.y), 0.0);
+          float recess = smoothstep(4.0, 33.0, depth)
+            * (1.0 - smoothstep(0.0, 5.0, aperture))
+            * (1.0 - smoothstep(maxDepth + 4.0, maxDepth + 10.0, depth));
+          float shoulder = (1.0 - smoothstep(4.0, 24.0, depth))
+            * (1.0 - smoothstep(4.0, steleDressing.x, abs(aperture)));
+          float rimPolish = 0.84 * (1.0 - smoothstep(5.0, steleDressing.x, outerRim));
+          float dressed = max(rimPolish * (1.0 - recess), shoulder);
+          float innerDepth = smoothstep(12.0, maxDepth, depth);
+          float junction = smoothstep(-19.0, 0.0, max(bounds.x, bounds.y));
+          cavity = steleDressing.w * recess * (0.35 + innerDepth * (0.46 + 0.19 * junction));
+
+          vec2 passes = steleToolPasses(p);
+          // Low, sand-exposed faces have lost more of the original tool relief.
+          float survivingTool = mix(0.58, 1.0, smoothstep(-660.0, 400.0, p.y));
+          float toolExposure = survivingTool * (1.0 - recess) * (1.0 - 0.75 * dressed) * (1.0 - face.y);
+          roughnessFactor += steleDressing.z * recess - steleDressing.y * dressed
+            - stelePassFinish.y * passes.y * toolExposure;
+          relief = stelePassFinish.x * passes.x * toolExposure;
+
+          // One oblique section stays continuous across front, side and groove.
+          // Mips filter the packed grain height/roughness/contact before they affect lighting.
+          vec2 grainUv = vec2(p.x + 0.81 * p.z, p.y + 0.36 * p.z - 0.17 * p.x) / steleMineral.x;
+          vec2 grainX = dFdx(grainUv), grainY = dFdy(grainUv);
+          float grainPixel = float(${MINERAL_GRAIN_CELLS}) * max(length(grainX), length(grainY));
+          float grainWeight = (1.0 - smoothstep(0.22, 0.57, grainPixel)) * (1.0 - 0.73 * dressed);
+          if (grainWeight > 0.0) {
+            vec3 grain = textureGrad(steleGrainMap, grainUv, grainX, grainY).rgb;
+            relief += steleMineral.y * grainWeight * (grain.r - 0.35);
+            roughnessFactor += steleMineral.z * grainWeight * (grain.g - 0.5);
+            cavity += steleMineral.w * grainWeight * grain.b;
+          }
         } else {
           float steleDistance = length(vViewPosition);
           vec3 depositPosition = vStelePosition + vec3(0.19 * vStelePosition.y, 0.0, 0.0);
@@ -126,6 +152,7 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
             * steleFilter(dFdx(depositPosition), dFdy(depositPosition));
           float grainWeight = (1.0 - smoothstep(steleGrainFade.x, steleGrainFade.y, steleDistance))
             * steleFilter(dFdx(grainPosition), dFdy(grainPosition));
+          float deposit = 0.0, grain = 0.0;
           if (depositWeight > 0.0) deposit = depositWeight * steleNoise(depositPosition);
           if (grainWeight > 0.0) grain = grainWeight * steleNoise(grainPosition);
           diffuseColor.rgb *= 1.0 + steleFinish.x * deposit * vec3(0.82, 1.0, 1.18) + steleFinish.y * grain;
@@ -141,12 +168,16 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
         float determinant = dot(surfaceX, acrossX);
         vec3 gradient = heightGradient.x * acrossX + heightGradient.y * acrossY;
         normal = normalize(normal - sign(determinant) * gradient / max(abs(determinant), 1e-5));`)
-      .replace('#include <opaque_fragment>', `
-        #include <opaque_fragment>
-        if (steleLayer == ${layerIndex('color')}) gl_FragColor.rgb = diffuse;
-        if (steleLayer == ${layerIndex('deposit')}) gl_FragColor.rgb = vec3(0.32 + 0.26 * deposit);
-        if (steleLayer == ${layerIndex('grain')}) gl_FragColor.rgb = vec3(0.32 + 0.26 * grain);
-        if (steleLayer == ${layerIndex('normal')}) gl_FragColor.rgb = clamp(0.32 + 9.0 * (normal - steleBaseNormal), 0.0, 1.0);`);
+      .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+        reflectedLight.indirectDiffuse *= 1.0 - cavity;`)
+      .replace('#include <colorspace_fragment>', `
+        #include <colorspace_fragment>
+        if (steleLayer == ${layerIndex('color')}) gl_FragColor.rgb = linearToOutputTexel(vec4(diffuseColor.rgb, 1.0)).rgb;
+        if (steleLayer == ${layerIndex('roughness')}) gl_FragColor.rgb = vec3(material.roughness);
+        if (steleLayer == ${layerIndex('normal')}) {
+          gl_FragColor.rgb = 0.5 + 0.5 * normalize(steleBaseNormal + 6.0 * (normal - steleBaseNormal));
+        }
+        if (steleLayer == ${layerIndex('cavity')}) gl_FragColor.rgb = vec3(1.0 - cavity);`);
   };
 
   function select(finishName: Exclude<MonumentFinish, 'gray'>, layer: MonumentLayer) {
@@ -154,6 +185,7 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
     material.color.set(study.color);
     material.roughness = study.roughness;
     uniforms.steleRefined.value = finishName === 'refined';
+    if (finishName === 'refined') uniforms.steleGrainMap.value ??= createMineralGrain();
     if ('deposit' in study) {
       uniforms.steleFinish.value.set(study.deposit, study.grain, study.roughnessVariation, study.relief);
     }
@@ -165,5 +197,11 @@ export function createMonumentStudy(gray: MeshStandardMaterial) {
     }
   }
 
-  return { material, select };
+  function dispose() {
+    uniforms.steleGrainMap.value?.dispose();
+    uniforms.steleGrainMap.value = null;
+    material.dispose();
+  }
+
+  return { material, select, dispose };
 }

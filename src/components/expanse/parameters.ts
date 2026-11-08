@@ -230,11 +230,13 @@ export const EXPANSE = {
         hybrid: { color: '#a3a59e', roughness: 0.74, deposit: 0.020, grain: 0.012, roughnessVariation: 0.025, relief: 0.14 },
       },
       refined: {
-        color: '#a69e91', roughness: 0.82,
-        // Pitches and relief depths are in scene units. The tooling direction is slightly oblique.
-        abrasionPitch: [104, 20, 62], abrasionSlope: [0.08, -0.05], abrasionBend: 7,
-        depositTint: 0.014, abrasionRoughness: 0.026, abrasionRelief: 0.16,
-        grainPitch: 10.5, grainRoughness: 0.052, grainRelief: 0.14,
+        color: '#a69e91', roughness: 0.79,
+        // Dressed margins, groove shielding and hand-placed finishing passes in scene units.
+        marginWidth: 35, marginPolish: 0.20, grooveRoughness: 0.075, grooveOcclusion: 0.23,
+        // Across the tool path, half width, start and end along the face.
+        passes: [[-227, 68, -780, 780], [-97, 48, -400, 1120], [102, 76, -920, 970], [257, 47, -235, 710]],
+        passRelief: 0.56, passPolish: 0.095,
+        grainPeriod: 104, grainRelief: 0.095, grainRoughness: 0.07, grainOcclusion: 0.027,
       },
     } },
   atmosphere: {
@@ -366,9 +368,9 @@ export type MonumentFinish = 'gray' | 'refined' | keyof WorldParameters['hero'][
 export const MONUMENT_LAYERS = {
   full: '完整材质',
   color: '基础色',
-  deposit: '沉积与加工',
-  grain: '颗粒遮罩',
-  normal: '法线扰动',
+  roughness: '粗糙度',
+  normal: '法线 · 放大细节',
+  cavity: '微凹面遮蔽',
   clear: '完整材质 · 不混合空气色',
 } as const;
 export type MonumentLayer = keyof typeof MONUMENT_LAYERS;

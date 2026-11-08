@@ -88,7 +88,7 @@ function World({ mobile, surfaceView, lightingLook, monumentView, monumentFinish
     applyAerialPerspective(distant, atmosphere, true);
     return { ground, stone, heroStone, study, distant };
   }, [atmosphere]);
-  const finish = debug && monumentView === 'beveled' ? monumentFinish : 'gray';
+  const finish = monumentView === 'beveled' ? monumentFinish : 'gray';
   useLayoutEffect(() => {
     if (finish !== 'gray') resources.study.select(finish, monumentLayer);
     if (debug) {
@@ -126,7 +126,7 @@ function World({ mobile, surfaceView, lightingLook, monumentView, monumentFinish
   }, [geometries]);
   useEffect(() => () => {
     resources.ground.material.dispose(); resources.stone.dispose(); resources.heroStone.dispose();
-    resources.study.material.dispose(); resources.distant.dispose();
+    resources.study.dispose(); resources.distant.dispose();
   }, [resources]);
   return <group dispose={null}>
     <mesh geometry={terrain.geometry} material={resources.ground.material} receiveShadow />
