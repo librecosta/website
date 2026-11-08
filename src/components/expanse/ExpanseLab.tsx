@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { EXPANSE, LIGHTING_LOOKS, SKY_VIEWS, SURFACE_VIEWS, WIND_VIEWS,
-  type JourneySignal, type LightingLook, type MonumentFinish, type MonumentView, type SkyView, type SurfaceView, type WindView } from './parameters';
+import { EXPANSE, LIGHTING_LOOKS, MONUMENT_LAYERS, SKY_VIEWS, SURFACE_VIEWS, WIND_VIEWS,
+  type JourneySignal, type LightingLook, type MonumentFinish, type MonumentLayer, type MonumentView, type SkyView, type SurfaceView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
 import styles from './expanse.module.css';
 
@@ -46,6 +46,7 @@ export default function ExpanseLab() {
   const [skyView, setSkyView] = useState<SkyView>('color');
   const [monumentView, setMonumentView] = useState<MonumentView>('beveled');
   const [monumentFinish, setMonumentFinish] = useState<MonumentFinish>('gray');
+  const [monumentLayer, setMonumentLayer] = useState<MonumentLayer>('full');
   const [windView, setWindView] = useState<WindView>('transport');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
   const reduced = mediaReduced || forceReduced;
@@ -105,7 +106,8 @@ export default function ExpanseLab() {
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
           debug={debug} surfaceView={surfaceView} lightingLook={lightingLook} skyView={skyView} monumentView={monumentView}
-          monumentFinish={monumentFinish} windView={windView} onReady={onReady} onContextLost={onContextLost} />}
+          monumentFinish={monumentFinish} monumentLayer={monumentLayer} windView={windView}
+          onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
       <Link href="/" className={styles.brand} aria-label="LibreCosta 首页">LibreCosta</Link>
@@ -143,9 +145,14 @@ export default function ExpanseLab() {
         <label>主碑材质 <select disabled={monumentView === 'original'} value={monumentView === 'original' ? 'gray' : monumentFinish}
           onChange={event => setMonumentFinish(event.target.value as MonumentFinish)}>
           <option value="gray">灰模参照</option>
-          <option value="mineral">A · Wind-Worn Mineral</option>
-          <option value="composite">B · Precision Composite Stone</option>
-          <option value="hybrid">C · Hybrid</option>
+          <option value="refined">新版 · Mineral Surface Definition</option>
+          <option value="mineral">旧版 A · Wind-Worn Mineral</option>
+          <option value="composite">旧版 B · Precision Composite Stone</option>
+          <option value="hybrid">旧版 C · Hybrid</option>
+        </select></label>
+        <label>材质分层 <select disabled={monumentView === 'original' || monumentFinish === 'gray'} value={monumentLayer}
+          onChange={event => setMonumentLayer(event.target.value as MonumentLayer)}>
+          {Object.entries(MONUMENT_LAYERS).map(([layer, label]) => <option key={layer} value={layer}>{label}</option>)}
         </select></label>
       </aside>}
     </figure>

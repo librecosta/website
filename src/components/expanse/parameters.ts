@@ -229,6 +229,13 @@ export const EXPANSE = {
         composite: { color: '#a0a5a4', roughness: 0.68, deposit: 0.013, grain: 0.010, roughnessVariation: 0.02, relief: 0.11 },
         hybrid: { color: '#a3a59e', roughness: 0.74, deposit: 0.020, grain: 0.012, roughnessVariation: 0.025, relief: 0.14 },
       },
+      refined: {
+        color: '#a69e91', roughness: 0.82,
+        // Pitches and relief depths are in scene units. The tooling direction is slightly oblique.
+        abrasionPitch: [104, 20, 62], abrasionSlope: [0.08, -0.05], abrasionBend: 7,
+        depositTint: 0.014, abrasionRoughness: 0.026, abrasionRelief: 0.16,
+        grainPitch: 10.5, grainRoughness: 0.052, grainRelief: 0.14,
+      },
     } },
   atmosphere: {
     skyFinish: {
@@ -355,7 +362,16 @@ export const EXPANSE = {
 
 export type WorldParameters = typeof EXPANSE;
 export type MonumentView = 'original' | 'beveled';
-export type MonumentFinish = 'gray' | keyof WorldParameters['hero']['finish']['studies'];
+export type MonumentFinish = 'gray' | 'refined' | keyof WorldParameters['hero']['finish']['studies'];
+export const MONUMENT_LAYERS = {
+  full: '完整材质',
+  color: '基础色',
+  deposit: '沉积与加工',
+  grain: '颗粒遮罩',
+  normal: '法线扰动',
+  clear: '完整材质 · 不混合空气色',
+} as const;
+export type MonumentLayer = keyof typeof MONUMENT_LAYERS;
 export type LightingLook = keyof WorldParameters['atmosphere']['looks'];
 export const LIGHTING_LOOKS: Record<LightingLook, string> = {
   sideLight: '原版 · P1-J3',
