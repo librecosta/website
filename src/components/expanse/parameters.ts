@@ -212,6 +212,32 @@ export const EXPANSE = {
       scale: [615, 2840, 330], orientation: [0, 18, 0], burial: 460 },
   ],
   distantSteleGroove,
+  dressing: {
+    deposits: [
+      { id: 'field-axis', height: 27, tail: 390 },
+      { id: 'field-lean', height: 31, tail: 410 },
+      { id: 'still-monolith', height: 19, tail: 510 },
+    ],
+    // World X/Z at the edge of the travelled valley, not a uniform scatter.
+    rockGroups: [
+      { center: [-100, -1195], spread: [41, 72], count: 8, sizes: [3, 20] },
+      { center: [199, -1360], spread: [43, 77], count: 5, sizes: [2.5, 12] },
+      { center: [-135, -2970], spread: [52, 94], count: 8, sizes: [3, 24] },
+      { center: [477, -3385], spread: [69, 98], count: 7, sizes: [5, 38] },
+      { center: [-332, -4480], spread: [43, 84], count: 7, sizes: [3, 20] },
+      { center: [138, -4665], spread: [57, 95], count: 5, sizes: [3, 13] },
+    ],
+    deadwood: [
+      { center: [-100, -1200], length: 82, yaw: -0.40 },
+      { center: [208, -3020], length: 71, yaw: 1.0 },
+      { center: [148, -4675], length: 44, yaw: -0.55 },
+    ],
+    bones: [
+      { center: [186, -1350], length: 51, yaw: -0.78, ribs: 4 },
+      { center: [-137, -3020], length: 57, yaw: 0.27, ribs: 3 },
+      { center: [-325, -4480], length: 55, yaw: 0.67, ribs: 3 },
+    ],
+  },
   hero: { id: 'still-monolith', family: 'Hero Structure', kind: 'slotted', center: [70, -6000],
     scale: [920, monumentHeight, 560], orientation: [0, 24, 0], burial: 230,
     topScale: [0.76, 0.84],
@@ -268,7 +294,7 @@ export const EXPANSE = {
       horizonTint: [1.035, 1.008, 0.917], horizonTintHeight: 0.25,
     },
     fogNear: 1750, fogFar: 12900, cameraFar: 46000,
-    distantSilhouette: '#bac0bd', distantFadeDepth: [15700, 40800], distantFog: [0.3, 0.94],
+    distantSilhouette: '#b9b4a8', distantFadeDepth: [15700, 40800], distantFog: [0.3, 0.94],
     monumentColor: '#999b95',
     sunTarget: [0, 0, -2800],
     // The fixed map covers the casters and their downhill ground projections.

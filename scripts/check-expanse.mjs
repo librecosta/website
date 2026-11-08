@@ -3,6 +3,7 @@ import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBas
 import { EXPANSE, monumentFaceHeight, monumentSplice } from '../src/components/expanse/parameters.ts';
 import { buildAeolianTerrain, duneRelief, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { createSandTransport, renderedGround } from '../src/components/expanse/sand-transport.ts';
+import { addRuinDeposits } from '../src/components/expanse/dressing-terrain.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
 import { unwrapMonument } from '../src/components/monument-surface/unwrap.ts';
 
@@ -34,7 +35,6 @@ for (const quality of ['desktop', 'mobile']) {
   const dunes = buildAeolianTerrain(EXPANSE, segments);
   assert.deepEqual(dunes, buildAeolianTerrain(EXPANSE, segments), 'Dunes are deterministic');
   assert.deepEqual(dunes.indices, base.indices, 'Dune relief does not change terrain topology');
-  rendered[quality] = dunes.positions;
   let peakLift = 0, peakSlope = 0;
   const [nx, nz] = segments, { width, depth } = EXPANSE.terrain;
   for (let iz = 0; iz <= nz; iz++) for (let ix = 0; ix <= nx; ix++) {
@@ -48,6 +48,9 @@ for (const quality of ['desktop', 'mobile']) {
   }
   assert(peakLift > 50 && peakLift < 160 && peakSlope < 1.15, 'Dunes add resolvable crests without spikes');
   aeolian[quality] = { baseFingerprint: fingerprint(base.positions), fingerprint: fingerprint(dunes.positions), peakLift, peakSlope };
+  const ground = renderedGround(dunes.positions.slice(), segments, EXPANSE.terrain);
+  addRuinDeposits(dunes.positions, monuments, ground, EXPANSE);
+  rendered[quality] = dunes.positions;
 }
 assert.deepEqual(monuments, buildMonuments(EXPANSE));
 const windConfig = EXPANSE.windMotion;
