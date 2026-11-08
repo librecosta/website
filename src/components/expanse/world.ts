@@ -264,30 +264,38 @@ export function buildWedgeData() {
 
 type Hero = WorldParameters['hero'];
 
+const topCap = [3, 7, 6, 2], bottomCap = [0, 1, 5, 4];
 const walls = [
-  [0, 3, 2, 1], [0, 4, 7, 3], [1, 2, 6, 5], [3, 7, 6, 2], [0, 1, 5, 4],
+  [0, 3, 2, 1], [0, 4, 7, 3], [1, 2, 6, 5], topCap, bottomCap,
   [12, 15, 14, 13], [8, 12, 13, 9], [11, 10, 14, 15], [9, 13, 14, 10], [8, 11, 15, 12],
 ];
 const front = [4, 5, 6, 7], opening = [8, 9, 10, 11];
 
+function steleCorners() {
+  const outline = [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]];
+  return [-.5, .5].flatMap(z => outline.map(([x, y]) => new Vector3(x, y, z)));
+}
+
 function steleVertices(groove: Hero['groove']) {
   const l = groove.center - groove.width / 2, r = groove.center + groove.width / 2;
   const b = groove.bottom, t = groove.top;
-  const outline = [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]];
   const slot = [[l, b], [l, t], [r, t], [r, b]];
   return [
-    ...[-.5, .5].flatMap(z => outline.map(([x, y]) => new Vector3(x, y, z))),
+    ...steleCorners(),
     ...[.5, .5 - groove.depth].flatMap(z => slot.map(([x, y]) => new Vector3(x, y, z))),
   ];
 }
 
 const taperAt = (top: number, y: number) => 1 + (top - 1) * (y + .5);
 
-function triangulateFront(vertices: Vector3[], outer: number[], hole: number[]) {
-  // The front plane can be projected to XY without collapsing its outline or hole.
-  const xy = (i: number) => new Vector2(vertices[i].x, vertices[i].y);
+function triangulateFace(vertices: Vector3[], outer: number[], hole: number[]) {
+  const [a, b, c] = outer.map(i => vertices[i]);
+  const across = b.clone().sub(a).normalize();
+  const normal = across.clone().cross(c.clone().sub(a)).normalize();
+  const up = normal.cross(across);
+  const project = (i: number) => new Vector2(vertices[i].dot(across), vertices[i].dot(up));
   const corners = [...outer, ...hole];
-  return ShapeUtils.triangulateShape(outer.map(xy), [hole.map(xy)]).flatMap(face => face.map(i => corners[i]));
+  return ShapeUtils.triangulateShape(outer.map(project), [hole.map(project)]).flatMap(face => face.map(i => corners[i]));
 }
 
 function quad(indices: number[], [a, b, c, d]: number[]) {
@@ -298,7 +306,7 @@ export function buildSlottedMonolithData(groove: Hero['groove'], topScale: Hero[
   const vertices = steleVertices(groove);
   const indices: number[] = [];
   walls.forEach(face => quad(indices, face));
-  indices.push(...triangulateFront(vertices, front, opening));
+  indices.push(...triangulateFace(vertices, front, opening));
   const positions = new Float32Array(vertices.flatMap(v => v.toArray()));
   for (let i = 0; i < positions.length; i += 3) {
     positions[i] *= taperAt(topScale[0], positions[i + 1]);
@@ -307,21 +315,59 @@ export function buildSlottedMonolithData(groove: Hero['groove'], topScale: Hero[
   return { positions, indices: new Uint16Array(indices) };
 }
 
-export function buildBeveledMonolithData(hero: Hero) {
-  // Inset on the actual tapered planes in world units so the object's non-uniform
-  // scale does not stretch the bevel. Keep the shared model's local coordinates.
-  const scale = new Vector3(...hero.scale);
-  const width = hero.scale[0] * hero.bevelWidthRatio;
-  const original = steleVertices(hero.groove).map(v => {
+function taperStele(vertices: Vector3[], hero: Hero, scale: Vector3) {
+  return vertices.map(v => {
     v.x *= taperAt(hero.topScale[0], v.y);
     v.z *= taperAt(hero.topScale[1], v.y);
     return v.multiply(scale);
   });
+}
+
+export function buildBeveledMonolithData(hero: Hero) {
+  const scale = new Vector3(...hero.scale);
+  const vertices = taperStele(steleVertices(hero.groove), hero, scale);
+  return bevelStele(vertices, [...walls.map(face => [face]), [front, opening]], scale, scale.x * hero.bevelWidthRatio);
+}
+
+export function buildMonumentCoreData(hero: Hero) {
+  const scale = new Vector3(...hero.scale);
+  const vertices = taperStele(steleCorners(), hero, scale);
+  const faces = [[bottomCap], [topCap]];
+  const { width, depth, bottom, top } = hero.groove;
+  const section = [[-1, bottom], [-1, top], [1, top], [1, bottom]];
+
+  // Four outward-facing charts with matching physical sections. Referencing the
+  // original front section keeps the slit legible on the narrower side faces.
+  for (const face of [front, [5, 1, 2, 6], [1, 0, 3, 2], [0, 4, 7, 3]]) {
+    const [a, b, c, d] = face.map(i => vertices[i]);
+    const base = a.clone().lerp(b, .5), crown = d.clone().lerp(c, .5);
+    const across = b.clone().sub(a).normalize();
+    const outward = across.clone().cross(new Vector3(0, 1, 0));
+    const ring = (recess: number) => section.map(([side, y]) => {
+      const halfWidth = width * scale.x * taperAt(hero.topScale[0], y) / 2;
+      const setback = recess * scale.z * taperAt(hero.topScale[1], y);
+      const point = base.clone().lerp(crown, y + .5)
+        .addScaledVector(across, side * halfWidth).addScaledVector(outward, -setback);
+      return vertices.push(point) - 1;
+    });
+    const mouth = ring(0), back = ring(depth);
+    faces.push([face, mouth], [[back[0], back[3], back[2], back[1]]]);
+    mouth.forEach((id, i) => {
+      const j = (i + 1) % mouth.length;
+      faces.push([[mouth[j], id, back[i], back[j]]]);
+    });
+  }
+
+  return bevelStele(vertices, faces, scale, scale.x * hero.bevelWidthRatio);
+}
+
+function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, width: number) {
+  // Inset in world units so the object's non-uniform scale does not stretch the bevel.
   const vertices: Vector3[] = [], normals: Vector3[] = [], indices: number[] = [];
   const edges = new Map<string, [number, number]>();
   const caps = original.map(() => new Map<number, number>());
 
-  for (const loops of [...walls.map(face => [face]), [front, opening]]) {
+  for (const loops of faces) {
     const [a, b, c] = loops[0].map(i => original[i]);
     const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
     // Three applies the instance normal matrix later. Encode the inverse of
@@ -359,7 +405,7 @@ export function buildBeveledMonolithData(hero: Hero) {
     });
 
     if (inset.length === 1) quad(indices, inset[0]);
-    else indices.push(...triangulateFront(vertices, inset[0], inset[1]));
+    else indices.push(...triangulateFace(vertices, inset[0], inset[1]));
   }
 
   // This stele has exactly three incident faces at each original corner.

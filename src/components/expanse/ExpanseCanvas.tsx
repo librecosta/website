@@ -8,7 +8,7 @@ import {
   type Material,
 } from 'three';
 import { EXPANSE, type JourneySignal, type LightingLook, type MonumentFinish, type MonumentLayer, type MonumentView, type SkyView, type SurfaceView, type WindView } from './parameters';
-import { buildAeolianTerrain, buildBeveledMonolithData, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
+import { buildAeolianTerrain, buildBeveledMonolithData, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
 import { mapJourneyProgress } from './journey-timing';
 import { createAeolianMaterial } from './aeolian-material';
 import { createMonumentStudy } from './monument-material';
@@ -73,6 +73,7 @@ function World({ mobile, surfaceView, lightingLook, monumentView, monumentFinish
     box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? indexedGeometry(buildWedgeData()) : null,
     slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale)),
     beveled: indexedGeometry(buildBeveledMonolithData(EXPANSE.hero)),
+    core: indexedGeometry(buildMonumentCoreData(EXPANSE.hero)),
   }), [batches]);
   const resources = useMemo(() => {
     const ground = createAeolianMaterial();
@@ -89,6 +90,7 @@ function World({ mobile, surfaceView, lightingLook, monumentView, monumentFinish
     return { ground, stone, heroStone, study, distant };
   }, [atmosphere]);
   const finish = monumentView === 'beveled' ? monumentFinish : 'gray';
+  const heroGeometry = geometries[monumentView === 'original' ? 'slotted' : monumentView];
   useLayoutEffect(() => {
     if (finish !== 'gray') resources.study.select(finish, monumentLayer);
     if (debug) {
@@ -122,7 +124,8 @@ function World({ mobile, surfaceView, lightingLook, monumentView, monumentFinish
   }, [terrain, gl, invalidate, mobile, batches, lightingLook, debug, monumentView]);
   useEffect(() => () => terrain.geometry.dispose(), [terrain]);
   useEffect(() => () => {
-    geometries.box.dispose(); geometries.wedge?.dispose(); geometries.slotted.dispose(); geometries.beveled.dispose();
+    geometries.box.dispose(); geometries.wedge?.dispose(); geometries.slotted.dispose();
+    geometries.beveled.dispose(); geometries.core.dispose();
   }, [geometries]);
   useEffect(() => () => {
     resources.ground.material.dispose(); resources.stone.dispose(); resources.heroStone.dispose();
@@ -132,7 +135,7 @@ function World({ mobile, surfaceView, lightingLook, monumentView, monumentFinish
     <mesh geometry={terrain.geometry} material={resources.ground.material} receiveShadow />
     <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />
     {geometries.wedge && <Instances items={batches.wedge} geometry={geometries.wedge} material={resources.stone} />}
-    <Instances items={batches.hero} geometry={monumentView === 'beveled' ? geometries.beveled : geometries.slotted}
+    <Instances items={batches.hero} geometry={heroGeometry}
       material={monumentView === 'original' ? resources.stone : finish === 'gray' ? resources.heroStone : resources.study.material} />
     <Instances items={batches.distant} geometry={geometries.slotted} material={resources.distant} distant />
     {windView !== 'static' && <SandDust terrain={terrain.geometry} monuments={monuments} mobile={mobile}

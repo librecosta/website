@@ -218,7 +218,7 @@ export const EXPANSE = {
     scale: [920, 2400, 560], orientation: [0, 24, 0], burial: 520,
     topScale: [0.76, 0.84],
     bevelWidthRatio: 0.005,
-    // Normalized cross section: one deep, narrow opening on the +Z face.
+    // The core uses this section on four centered faces. The offset belongs to the legacy stele.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 },
     finish: {
       surface: {
@@ -380,7 +380,7 @@ export const EXPANSE = {
 } as const;
 
 export type WorldParameters = typeof EXPANSE;
-export type MonumentView = 'original' | 'beveled';
+export type MonumentView = 'original' | 'beveled' | 'core';
 export type InscriptionFinish = keyof WorldParameters['hero']['finish']['inscription']['looks'];
 export type MonumentFinish = 'authored' | 'gray' | 'refined' | InscriptionFinish | keyof WorldParameters['hero']['finish']['studies'];
 export const AUTHORED_MONUMENT_LAYERS = {

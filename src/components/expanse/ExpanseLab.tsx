@@ -44,7 +44,7 @@ export default function ExpanseLab() {
   const [surfaceView, setSurfaceView] = useState<SurfaceView>('finalMaterial');
   const [lightingLook, setLightingLook] = useState<LightingLook>(EXPANSE.atmosphere.defaultLook);
   const [skyView, setSkyView] = useState<SkyView>('color');
-  const [monumentView, setMonumentView] = useState<MonumentView>('beveled');
+  const [monumentView, setMonumentView] = useState<MonumentView>('core');
   const [monumentFinish, setMonumentFinish] = useState<MonumentFinish>('authored');
   const [monumentLayer, setMonumentLayer] = useState<MonumentLayer>('full');
   const [windView, setWindView] = useState<WindView>('transport');
@@ -139,10 +139,11 @@ export default function ExpanseLab() {
           {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
         <label>主碑几何 <select value={monumentView} onChange={event => setMonumentView(event.target.value as MonumentView)}>
-          <option value="beveled">精修倒角</option>
-          <option value="original">原版</option>
+          <option value="core">四向中轴凹槽</option>
+          <option value="beveled">旧单槽 · 倒角</option>
+          <option value="original">旧单槽 · 原版</option>
         </select></label>
-        <label>主碑材质 <select disabled={monumentView === 'original'} value={monumentView === 'original' ? 'gray' : monumentFinish}
+        <label>主碑材质 <select disabled={monumentView !== 'beveled'} value={monumentView === 'beveled' ? monumentFinish : 'gray'}
           onChange={event => {
             setMonumentFinish(event.target.value as MonumentFinish);
             setMonumentLayer('full');
@@ -156,7 +157,7 @@ export default function ExpanseLab() {
           <option value="composite">旧版 B · Precision Composite Stone</option>
           <option value="hybrid">旧版 C · Hybrid</option>
         </select></label>
-        <label>材质分层 <select disabled={monumentView === 'original' || monumentFinish === 'gray'} value={monumentLayer}
+        <label>材质分层 <select disabled={monumentView !== 'beveled' || monumentFinish === 'gray'} value={monumentView === 'beveled' ? monumentLayer : 'full'}
           onChange={event => setMonumentLayer(event.target.value as MonumentLayer)}>
           {Object.entries(monumentFinish === 'authored' ? AUTHORED_MONUMENT_LAYERS : MONUMENT_LAYERS)
             .map(([layer, label]) => <option key={layer} value={layer}>{label}</option>)}
