@@ -5,8 +5,10 @@ import {
   ShaderMaterial, Vector2, Vector3,
 } from 'three';
 import { EXPANSE, type WindView } from './parameters';
-import { createSandTransport, renderedGround } from './sand-transport';
-import { sandBedSupply, windSurfaceAbove, type Monument } from './world';
+import { createSandTransport } from './sand-transport';
+import { sanctuaryTransport, type Sandstorm } from './sandstorm';
+import type { SanctuaryField } from './sanctuary-field';
+import { sandBedSupply } from './world';
 
 const config = EXPANSE.windMotion;
 const densityRange = 96;
@@ -111,20 +113,22 @@ function buildLayers(terrain: BufferGeometry, mobile: boolean) {
   return { geometry, drawNear };
 }
 
-export function SandDust({ terrain, monuments, mobile, mode, visible, debug }: {
-  terrain: BufferGeometry; monuments: Monument[]; mobile: boolean;
+type Ground = (x: number, z: number) => number;
+
+export function SandDust({ terrain, ground, windSurface, field: refuge, storm, mobile, mode, visible, debug }: {
+  terrain: BufferGeometry; ground: Ground; windSurface: Ground; field: SanctuaryField | null; storm: Sandstorm; mobile: boolean;
   mode: Exclude<WindView, 'static'>; visible: boolean; debug: boolean;
 }) {
   const { gl, invalidate } = useThree();
-  const clock = useRef({ remainder: 0, running: false });
+  const clock = useRef({ remainder: 0, running: false, nextRead: 0 });
   const resources = useMemo(() => {
     const [nx] = config.resolution;
     const [x0, x1] = config.bounds;
     const nz = config.window.rows;
-    const ground = renderedGround(terrain.getAttribute('position').array,
-      EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop'], EXPANSE.terrain);
-    const simulation = createSandTransport(config, EXPANSE.aeolian.wind, ground, windSurfaceAbove(ground, monuments),
-      { sediment: sandBedSupply(EXPANSE, ground), window: config.window });
+    const simulation = createSandTransport(config, EXPANSE.aeolian.wind, ground, windSurface, {
+      sediment: sandBedSupply(EXPANSE, ground), window: config.window, background: EXPANSE.sandstorm.background,
+      sanctuary: refuge ? sanctuaryTransport(refuge, ground) : undefined,
+    });
     const { geometry, drawNear } = buildLayers(terrain, mobile);
     const pixels = new Uint8Array(nx * nz);
     const field = new DataTexture(pixels, nx, nz, RedFormat);
@@ -153,7 +157,7 @@ export function SandDust({ terrain, monuments, mobile, mode, visible, debug }: {
       field.needsUpdate = true;
     }
     return { simulation, geometry, drawNear, field, material, upload };
-  }, [mobile, monuments, terrain]);
+  }, [mobile, terrain, ground, windSurface, refuge]);
   useLayoutEffect(() => {
     const { material } = resources;
     const { daylight } = EXPANSE.atmosphere;
@@ -163,7 +167,7 @@ export function SandDust({ terrain, monuments, mobile, mode, visible, debug }: {
     material.uniforms.showDensity.value = mode === 'concentration';
     invalidate();
   }, [invalidate, mode, resources]);
-  useLayoutEffect(() => { clock.current = { remainder: 0, running: false }; }, [resources]);
+  useLayoutEffect(() => { clock.current = { remainder: 0, running: false, nextRead: 0 }; }, [resources, storm]);
   useLayoutEffect(() => { clock.current.running = false; }, [visible]);
   useEffect(() => () => {
     resources.geometry.dispose();
@@ -171,12 +175,13 @@ export function SandDust({ terrain, monuments, mobile, mode, visible, debug }: {
     resources.material.dispose();
   }, [resources]);
   useFrame(({ camera }, delta) => {
-    if (!visible) {
+    if (!visible || document.hidden) {
       clock.current.running = false;
       return;
     }
     const { simulation } = resources;
     let changed = simulation.follow(camera.position.z);
+    let advanced = false;
     resources.drawNear(camera.position.z, mode !== 'transport');
     // Skip the inactive wall time and bound catch-up after a stall.
     if (clock.current.running) clock.current.remainder += Math.min(delta, 0.09);
@@ -184,16 +189,21 @@ export function SandDust({ terrain, monuments, mobile, mode, visible, debug }: {
     while (clock.current.remainder >= config.step) {
       clock.current.remainder -= config.step;
       simulation.advance();
+      storm.simulation.advance();
       changed = true;
+      advanced = true;
     }
     if (!changed) return;
     resources.upload();
-    if (debug) {
+    if (advanced) storm.upload();
+    if (debug && simulation.time >= clock.current.nextRead) {
+      clock.current.nextRead = simulation.time + 0.25;
       gl.domElement.dataset.windTime = simulation.time.toFixed(3);
       const first = simulation.firstRow * config.resolution[0];
       gl.domElement.dataset.sandWindow = simulation.windowStart.toFixed(2);
       gl.domElement.dataset.sandPeak = Math.max(...simulation.concentration.subarray(first,
         first + config.resolution[0] * config.window.rows)).toFixed(3);
+      gl.domElement.dataset.sandBudget = JSON.stringify({ ground: simulation.measureBudget(), suspended: storm.simulation.measureBudget() });
     }
   });
   return <mesh geometry={resources.geometry} material={resources.material} dispose={null} />;

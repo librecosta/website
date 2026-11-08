@@ -8,7 +8,7 @@ import {
   type Material,
 } from 'three';
 import { EXPANSE, type JourneySignal, type SkyView, type WindView } from './parameters';
-import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, type Monument } from './world';
+import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, buildWedgeData, fingerprint, fitVerticalFov, sampleJourney, windSurfaceAbove, type Monument } from './world';
 import { mapJourneyProgress } from './journey-timing';
 import { createAeolianMaterial } from './aeolian-material';
 import { AtmosphericSky } from './AtmosphericSky';
@@ -17,6 +17,7 @@ import { SandDust } from './SandDust';
 import { SanctuaryMotes } from './Sanctuary';
 import { createSanctuaryField, sanctuaryUniforms, type SanctuaryPointer } from './sanctuary-field';
 import { renderedGround } from './sand-transport';
+import { createSandstorm } from './sandstorm';
 import { createMonumentGeometry, createMonumentMaterial, useMonumentAtlas } from '../monument-surface/atlas';
 import styles from './expanse.module.css';
 
@@ -76,6 +77,11 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
   const hero = batches.hero[0];
   const field = useMemo(() => sanctuary ? createSanctuaryField(hero, groundHeight) : null, [hero, groundHeight, sanctuary]);
   const scatter = useMemo(() => field ? sanctuaryUniforms(field) : undefined, [field]);
+  const windSurface = useMemo(() => windSurfaceAbove(groundHeight, monuments), [groundHeight, monuments]);
+  const windActive = windView !== 'static';
+  const storm = useMemo(() => windActive ? createSandstorm(groundHeight, windSurface, field, mobile) : null,
+    [windActive, groundHeight, windSurface, field, mobile]);
+  useEffect(() => () => storm?.uniforms.stormField.value.dispose(), [storm]);
   const geometries = useMemo(() => ({
     box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? indexedGeometry(buildWedgeData()) : null,
     slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.distantSteleGroove,EXPANSE.hero.topScale)),
@@ -84,28 +90,30 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
   const atlas = useMonumentAtlas(gl, invalidate);
   const heroStone = useMemo(() => {
     const material = createMonumentMaterial(atlas, hero.position);
-    applyAerialPerspective(material, atmosphere, false, scatter);
+    applyAerialPerspective(material, atmosphere, false, scatter, storm?.uniforms, mobile);
     return material;
-  }, [atlas, atmosphere, hero, scatter]);
+  }, [atlas, atmosphere, hero, scatter, storm, mobile]);
   useEffect(() => () => heroStone.dispose(), [heroStone]);
   const resources = useMemo(() => {
     const ground = createAeolianMaterial();
     const stone = new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true });
     const distant = new MeshBasicMaterial({ color: EXPANSE.atmosphere.distantSilhouette, toneMapped: false });
-    applyAerialPerspective(ground, atmosphere, false, scatter);
-    applyAerialPerspective(stone, atmosphere, false, scatter);
-    applyAerialPerspective(distant, atmosphere, true, scatter);
+    applyAerialPerspective(ground, atmosphere, false, scatter, storm?.uniforms, mobile);
+    applyAerialPerspective(stone, atmosphere, false, scatter, storm?.uniforms, mobile);
+    applyAerialPerspective(distant, atmosphere, true, scatter, storm?.uniforms, mobile);
     return { ground, stone, distant };
-  }, [atmosphere, scatter]);
+  }, [atmosphere, scatter, storm, mobile]);
   useLayoutEffect(() => {
     gl.domElement.dataset.windView = windView;
+    if (storm) storm.uniforms.stormDebug.value = windView === 'concentration';
     if (windView === 'static') {
       delete gl.domElement.dataset.windTime;
       delete gl.domElement.dataset.sandPeak;
       delete gl.domElement.dataset.sandWindow;
+      delete gl.domElement.dataset.sandBudget;
     }
     invalidate();
-  }, [gl, invalidate, windView]);
+  }, [gl, invalidate, windView, storm]);
   useLayoutEffect(() => {
     gl.domElement.dataset.terrain = terrain.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
@@ -122,15 +130,16 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
     resources.distant.dispose();
   }, [resources]);
   return <group dispose={null}>
-    <AtmosphericSky atmosphere={atmosphere} view={skyView} sanctuary={scatter} />
+    <AtmosphericSky atmosphere={atmosphere} view={skyView} sanctuary={scatter}
+      storm={storm?.uniforms} stormDebug={windView === 'concentration'} mobile={mobile} />
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
     <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />
     {geometries.wedge && <Instances items={batches.wedge} geometry={geometries.wedge} material={resources.stone} />}
     <Instances items={batches.hero} geometry={geometries.core} material={heroStone} />
     <Instances items={batches.distant} geometry={geometries.slotted} material={resources.distant} distant />
-    {windView !== 'static' && <SandDust terrain={terrain.geometry} monuments={monuments} mobile={mobile}
-      mode={windView} visible={visible} debug={debug} />}
-    {field && <SanctuaryMotes hero={hero} field={field} ground={groundHeight} mobile={mobile}
+    {storm && windView !== 'static' && <SandDust terrain={terrain.geometry} ground={groundHeight} windSurface={windSurface}
+      field={field} storm={storm} mobile={mobile} mode={windView} visible={visible} debug={debug} />}
+    {field && <SanctuaryMotes hero={hero} field={field} ground={groundHeight} mobile={mobile} storm={storm?.uniforms}
       visible={visible} reduced={reduced} pointer={sanctuaryPointer} debug={debug} />}
   </group>;
 }

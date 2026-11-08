@@ -1,8 +1,23 @@
 import type { WorldParameters } from './parameters';
 
-type Transport = WorldParameters['windMotion'];
+type WindMotion = WorldParameters['windMotion'];
+type Transport = Pick<WindMotion, 'metersPerUnit' | 'step' | 'threshold' | 'shelterDistances' | 'shelterAngles' | 'maxShear' | 'looseBed'> & {
+  resolution: readonly [number, number];
+  bounds: readonly [number, number, number, number];
+  baseShear: number;
+  diffusion: number;
+  settling: number;
+  liftRate: number;
+  transportPerShear: number;
+  gusts: readonly (readonly [number, number, number])[];
+};
 type Ground = (x: number, z: number) => number;
-type TransportOptions = { sediment: Ground; window?: Transport['window'] };
+type TransportOptions = {
+  sediment: Ground;
+  window?: WindMotion['window'];
+  background?: { feed: number; inlet: number };
+  sanctuary?: { influence: Ground; crosswind: Ground; turn: number; settling: number };
+};
 
 export function saltationThreshold({ grainDiameter, grainDensity, airDensity, gravity, bagnoldFactor }: Transport['threshold']) {
   return bagnoldFactor * Math.sqrt((grainDensity - airDensity) / airDensity * gravity * grainDiameter);
@@ -49,10 +64,16 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
   const next = new Float64Array(count);
   const bed = new Float64Array(count);
   const sourceRate = new Float64Array(count);
+  const groundLift = new Float64Array(count);
+  const backgroundFeed = new Float64Array(count);
+  const inletDensity = new Float64Array(count);
   const velocityX = new Float64Array(count);
   const velocityZ = new Float64Array(count);
   const shelter = new Float64Array(count);
   const settledFraction = new Float64Array(count);
+  const settlingRate = new Float64Array(count);
+  const windRetention = new Float64Array(count);
+  const liftRetention = new Float64Array(count);
   const exposure = new Float64Array(count);
   const erodibility = new Float64Array(count);
   const bearingX = new Float64Array(count);
@@ -67,8 +88,9 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
   const axisLength = Math.hypot(...axis);
   const windX = axis[0] / axisLength;
   const windZ = axis[1] / axisLength;
+  const windAngle = Math.atan2(windZ, windX);
   const [lowShadow, fullShadow] = config.shelterAngles.map(degrees => Math.tan(degrees * Math.PI / 180));
-  const balance = { lifted: 0, deposited: 0, escaped: 0, entered: 0 };
+  const balance = { lifted: 0, deposited: 0, escaped: 0, entered: 0, fed: 0 };
   let steps = 0;
   let first = window ? -1 : 0;
   let last = window ? -1 : nz;
@@ -94,11 +116,17 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
     }
     const shadow = clamp01((horizon - lowShadow) / (fullShadow - lowShadow));
     shelter[i] = shadow * shadow * (3 - 2 * shadow);
-    // Exact local settling over one time step, faster in sheltered cells.
-    settledFraction[i] = -Math.expm1(-config.settling * (1 + shelter[i]) * step);
+    const sanctuary = options?.sanctuary;
+    const refuge = sanctuary?.influence(x, z) ?? 0;
+    const remaining = 1 - refuge;
+    liftRetention[i] = remaining ** 3;
+    windRetention[i] = 1 - 0.62 * refuge;
+    settlingRate[i] = config.settling * (1 + shelter[i] + (sanctuary?.settling ?? 0) * refuge);
+    settledFraction[i] = -Math.expm1(-settlingRate[i] * step);
     exposure[i] = (1 - 0.74 * shelter[i]) * (0.89 + 0.26 * clamp01(0.5 + slopeX * windX + slopeZ * windZ));
     const crossSlope = -slopeX * windZ + slopeZ * windX;
-    const bearing = Math.atan2(windZ, windX) - Math.max(-0.23, Math.min(0.23, crossSlope * 0.43));
+    const turn = sanctuary ? sanctuary.turn * 4 * refuge * remaining * sanctuary.crosswind(x, z) : 0;
+    const bearing = windAngle - Math.max(-0.23, Math.min(0.23, crossSlope * 0.43)) + turn;
     bearingX[i] = Math.cos(bearing);
     bearingZ[i] = Math.sin(bearing);
 
@@ -111,6 +139,11 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
     });
     erodibility[i] = solid[i] ? 0 : clamp01(options?.sediment(x, z) ?? 0);
     bed[i] = config.looseBed * erodibility[i];
+    if (options?.background && !solid[i]) {
+      const available = 0.12 + 0.88 * Math.sqrt(erodibility[i]);
+      backgroundFeed[i] = options.background.feed * available * exposure[i] * liftRetention[i];
+      inletDensity[i] = options.background.inlet * available * remaining ** 2;
+    }
   }
 
   function gustPhase(time: number, target: Float64Array) {
@@ -132,18 +165,37 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
 
   function liftAt(i: number, shear: number) {
     const relative = shear / threshold;
-    const lift = config.liftRate * erodibility[i] * relative * Math.max(0, relative * relative - 1);
+    const lift = config.liftRate * erodibility[i] * liftRetention[i] * relative * Math.max(0, relative * relative - 1);
     return Math.min(lift, bed[i] / step);
   }
 
-  // A dilute boundary estimate from an upstream source at the travel-delayed phase.
+  // Imported fine dust provides a floor. The travel-delayed upstream estimate
+  // carries the changing gust contribution across the moving window edges.
   function backgroundAt(row: number, col: number) {
-    if (!window || row < 0 || row >= nz || solid[row * nx + col]) return 0;
+    const local = Math.min(nz - 1, Math.max(0, row)) * nx + col;
+    if (solid[local]) return 0;
+    if (!window || row < 0 || row >= nz) return inletDensity[local];
     const r = Math.min(nz - 1, Math.max(0, row + upstreamRow));
     const c = Math.min(nx - 1, Math.max(0, col + upstreamCol));
     const i = r * nx + c;
     const residence = -Math.expm1(-config.settling * window.backgroundAge) / config.settling;
-    return liftAt(i, shearAt(i, backgroundPhases)) * residence;
+    return inletDensity[local] + liftAt(i, shearAt(i, backgroundPhases)) * residence * liftRetention[local];
+  }
+
+  function seed(i: number, estimate: number) {
+    const initial = Math.min(bed[i], estimate);
+    current[i] = initial;
+    bed[i] -= initial;
+    balance.lifted += initial * cellArea;
+  }
+
+  const mass = (values: Float64Array) => values.reduce((sum, density) => sum + density, 0) * cellArea;
+  const initialBed = mass(bed);
+  if (!window && options?.background) {
+    for (let i = 0; i < count; i++) {
+      const typicalShear = Math.min(config.maxShear, config.baseShear * exposure[i]);
+      seed(i, inletDensity[i] + (liftAt(i, typicalShear) + backgroundFeed[i]) / settlingRate[i]);
+    }
   }
 
   function follow(cameraZ: number) {
@@ -161,12 +213,9 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
         const i = row * nx + col;
         if (solid[i]) continue;
         if (since < 0) {
-          const initial = Math.min(bed[i], backgroundAt(row, col));
-          current[i] = initial;
-          bed[i] -= initial;
-          balance.lifted += initial * cellArea;
+          seed(i, backgroundAt(row, col));
         } else {
-          const settled = current[i] * -Math.expm1(-config.settling * (1 + shelter[i]) * (steps - since) * step);
+          const settled = current[i] * -Math.expm1(-settlingRate[i] * (steps - since) * step);
           current[i] -= settled;
           bed[i] += settled;
           balance.deposited += settled * cellArea;
@@ -194,16 +243,18 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
     for (let i = begin; i < end; i++) {
       if (solid[i]) continue;
       const shear = shearAt(i, phases);
-      const velocity = shear * config.transportPerShear;
+      const velocity = shear * config.transportPerShear * windRetention[i];
       velocityX[i] = velocity * bearingX[i];
       velocityZ[i] = velocity * bearingZ[i];
-      sourceRate[i] = liftAt(i, shear);
+      groundLift[i] = liftAt(i, shear);
+      sourceRate[i] = groundLift[i] + backgroundFeed[i];
     }
     next.set(current.subarray(begin, end), begin);
     let lifted = 0;
     let deposited = 0;
     let escaped = 0;
     let entered = 0;
+    let fed = 0;
     for (let row = first; row < last; row++) for (let col = 0; col < nx; col++) {
       const i = row * nx + col;
       if (solid[i]) continue;
@@ -213,6 +264,8 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
       const w = velocityZ[i];
       let outwardZ = 0;
       let incoming = 0;
+      if (col === 0) incoming += Math.max(0, velocityX[i]) * inletDensity[i] * step / dx;
+      if (col === nx - 1) incoming += Math.max(0, -velocityX[i]) * inletDensity[i] * step / dx;
       if (row === first && (row === 0 || !solid[i - nx])) {
         outwardZ += Math.max(0, -w);
         if (w > 0) incoming += w * backgroundAt(row - 1, col) * step / dz;
@@ -227,17 +280,20 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
       entered += incoming;
     }
     for (let i = begin; i < end; i++) {
-      const lift = sourceRate[i] * step;
+      const lift = groundLift[i] * step;
+      const feed = backgroundFeed[i] * step;
       const settle = next[i] * settledFraction[i];
       bed[i] += settle - lift;
-      next[i] += lift - settle;
+      next[i] += lift + feed - settle;
       lifted += lift;
       deposited += settle;
+      fed += feed;
     }
     balance.lifted += lifted * cellArea;
     balance.deposited += deposited * cellArea;
     balance.escaped += escaped * cellArea;
     balance.entered += entered * cellArea;
+    balance.fed += fed * cellArea;
     current.set(next.subarray(begin, end), begin);
     steps++;
   }
@@ -246,5 +302,12 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
     advance, follow, concentration: current, get time() { return steps * step; }, get firstRow() { return first; },
     get windowStart() { return z0 + first * spacingZ; }, windowDepth: (window?.rows ?? nz) * spacingZ,
     bed, balance, sourceRate, velocityX, velocityZ, shelter, solid, threshold, cellArea, cfl,
+    measureBudget() {
+      const airborne = mass(current), onGround = mass(bed);
+      const { lifted, deposited, escaped, entered, fed } = balance;
+      return { airborne, lifted, deposited, escaped, entered, fed,
+        residual: airborne - lifted + deposited + escaped - entered - fed,
+        totalResidual: airborne + onGround + escaped - entered - fed - initialBed };
+    },
   };
 }

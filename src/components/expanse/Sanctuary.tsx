@@ -5,11 +5,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'rea
 import { BufferAttribute, BufferGeometry, ShaderMaterial, Vector3, type PerspectiveCamera } from 'three';
 import { EXPANSE } from './parameters';
 import { sanctuaryShader, sanctuaryUniforms, seedMotes, type SanctuaryField, type SanctuaryPointer } from './sanctuary-field';
+import { sandstormAir, type SandstormUniforms } from './sandstorm';
 import type { Monument } from './world';
 
 const config = EXPANSE.sanctuary;
-const moteVertex = /* glsl */ `
+const moteVertex = (storm: boolean, mobile: boolean) => /* glsl */ `
   ${sanctuaryShader}
+  ${storm ? sandstormAir(mobile) : ''}
   uniform float elapsed, pixelScale, pointerGain;
   uniform vec3 rayOrigin, rayDirection, pointerShape;
   attribute vec4 motion;
@@ -37,6 +39,13 @@ const moteVertex = /* glsl */ `
     gl_PointSize = clamp(size * mix(2.8, 3.4, layer), 1.0, 16.0);
     float lifeFade = smoothstep(0.025, 0.19, life) * (1.0 - smoothstep(0.65, 1.0, life));
     vOpacity = lifeFade * sanctuaryInfluence(point) * sanctuaryNearness() * smoothstep(0.26, 0.90, size) * mix(0.75, 1.0, traits.x);
+    ${storm ? `
+      if (vOpacity > 0.004) {
+        vec3 ray = point - cameraPosition;
+        float depth = max(length(ray), 0.001);
+        vOpacity *= exp(-sandstormOpticalDepth(ray / depth, depth));
+      }
+    ` : ''}
     vLayer = layer;
   }
 `;
@@ -55,9 +64,9 @@ const moteFragment = /* glsl */ `
   }
 `;
 
-export function SanctuaryMotes({ hero, field, ground, mobile, visible, reduced, pointer, debug }: {
+export function SanctuaryMotes({ hero, field, ground, mobile, visible, reduced, pointer, debug, storm }: {
   hero: Monument; field: SanctuaryField; ground: (x: number, z: number) => number; mobile: boolean; visible: boolean; reduced: boolean;
-  pointer: RefObject<SanctuaryPointer>; debug: boolean;
+  pointer: RefObject<SanctuaryPointer>; debug: boolean; storm?: SandstormUniforms;
 }) {
   const { gl, invalidate } = useThree();
   const running = useRef(false);
@@ -68,13 +77,13 @@ export function SanctuaryMotes({ hero, field, ground, mobile, visible, reduced, 
     particles.setAttribute('position', new BufferAttribute(positions, 3));
     particles.setAttribute('motion', new BufferAttribute(motion, 4));
     particles.setAttribute('traits', new BufferAttribute(traits, 2));
-    const uniforms = { ...sanctuaryUniforms(field), elapsed: { value: config.stillTime }, pixelScale: { value: 1 },
+    const uniforms = { ...sanctuaryUniforms(field), ...storm, elapsed: { value: config.stillTime }, pixelScale: { value: 1 },
       pointerGain: { value: 0 }, rayOrigin: { value: new Vector3() }, rayDirection: { value: new Vector3(0, 0, -1) },
       pointerShape: { value: new Vector3(config.pointer.radius, config.pointer.depth, field.radius.z * config.pointer.offsetFraction) } };
-    const motes = new ShaderMaterial({ uniforms, vertexShader: moteVertex, fragmentShader: moteFragment,
+    const motes = new ShaderMaterial({ uniforms, vertexShader: moteVertex(!!storm, mobile), fragmentShader: moteFragment,
       transparent: true, depthWrite: false });
     return { motes, particles, uniforms, targetRay: new Vector3() };
-  }, [hero, field, ground, mobile]);
+  }, [hero, field, ground, mobile, storm]);
   useLayoutEffect(() => {
     running.current = false;
     if (reduced) {

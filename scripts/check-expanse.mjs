@@ -71,6 +71,30 @@ for (let i = 0; i < 900; i++) impulse.advance();
 assert(impulse.balance.escaped > 0, 'The open downwind edge exports the plume');
 assert(Math.abs((sum(impulse.concentration) + sum(impulse.bed)) * impulse.cellArea + impulse.balance.escaped - 100 * impulse.cellArea) < 1e-9);
 
+// Check the imported background independently of local saltation. The same
+// field profile on a flat bed isolates wind deflection and accelerated settling.
+const feedConfig = { ...transportImpulseConfig, bounds: [-600, 600, -400, 400], resolution: [48, 32], baseShear: 0.12 };
+const feedOptions = { sediment: () => 1, background: EXPANSE.sandstorm.background };
+const openWind = createSandTransport(feedConfig, [1, 0], flat, flat, feedOptions);
+const lee = createSandTransport(feedConfig, [1, 0], flat, flat, {
+  ...feedOptions,
+  sanctuary: { ...EXPANSE.sandstorm.refuge, influence: (x, z) => Math.max(0, 1 - (x * x + z * z) / 270 ** 2) ** 2,
+    crosswind: (_x, z) => Math.tanh(z / 60) },
+});
+const centerCell = 16 * 48 + 24, flankCell = 21 * 48 + 24;
+let minimumOpenDensity = Infinity;
+for (let i = 0; i < 640; i++) {
+  openWind.advance(); lee.advance();
+  minimumOpenDensity = Math.min(minimumOpenDensity, openWind.concentration[centerCell]);
+}
+assert(minimumOpenDensity > 0 && openWind.balance.fed > 0 && openWind.balance.entered > 0);
+assert(lee.concentration[centerCell] < 0.05 * openWind.concentration[centerCell]);
+assert(lee.velocityZ[flankCell] > 0 && openWind.velocityZ[flankCell] === 0);
+for (const layer of [openWind, lee]) {
+  const budget = layer.measureBudget();
+  assert(Math.abs(budget.residual) < 1e-6 && Math.abs(budget.totalResidual) < 1e-6);
+}
+
 const sandGround = renderedGround(rendered.desktop, EXPANSE.terrain.resolution.desktop, EXPANSE.terrain);
 const windSurface = windSurfaceAbove(sandGround, monuments);
 const sand = createSandTransport(windConfig, EXPANSE.aeolian.wind, sandGround, windSurface,

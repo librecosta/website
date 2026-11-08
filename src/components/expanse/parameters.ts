@@ -1,7 +1,7 @@
 export type Vec3 = readonly [number, number, number];
 export type JourneySignal = { value: number; raw: number; invalidate: () => void };
 export const WIND_VIEWS = {
-  transport: '近地沙尘', concentration: '浓度场', static: '关闭风沙',
+  transport: '沙暴与刮沙', concentration: '浓度场', static: '关闭风沙',
 } as const;
 export type WindView = keyof typeof WIND_VIEWS;
 export const SKY_VIEWS = {
@@ -153,11 +153,24 @@ export const EXPANSE = {
       bedding: [205, 105], corridor: [0.55, 1.62], slope: [0.17, 0.58], bowlRadius: 55,
     },
     dust: {
-      tint: '#f0e5d2',
-      extinction: 0.009, // m²/mg, tuned for this scene
+      tint: '#edcfaa',
+      extinction: 0.015, // m²/mg, tuned for this scene
       viewFade: [760, 1240], edgeFade: 85,
       // Height in metres and fraction of column mass at each level.
-      layers: [[0.095, 0.25], [0.22, 0.27], [0.38, 0.23], [0.57, 0.16], [0.82, 0.09]],
+      layers: [[0.095, 0.23], [0.27, 0.26], [0.53, 0.24], [0.96, 0.17], [1.58, 0.10]],
+    },
+  },
+  sandstorm: {
+    background: { feed: 8.5, inlet: 11 }, // mg/m²/s and mg/m² from unresolved upwind dust
+    refuge: { turn: 0.94, settling: 10 },
+    suspended: {
+      bounds: [-4400, 4400, -13000, 800],
+      resolution: { desktop: [96, 128], mobile: [64, 88] },
+      transportPerShear: 48, baseShear: 0.31, liftRate: 3.7, diffusion: 6.8, settling: 0.105,
+      gusts: [[0.092, 136, 12.7], [0.064, 211, 18.2]],
+      background: { feed: 2.35, inlet: 22 },
+      airHeight: 525, topHeight: 1320, edgeFade: 1100, referenceDensity: 68,
+      extinction: 0.00075, tint: '#c4aa8d', samples: { desktop: 9, mobile: 7 },
     },
   },
   // A shared 12-degree datum and 750-unit bays describe the original order.
