@@ -1,81 +1,13 @@
 import assert from 'node:assert/strict';
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
 import { EXPANSE } from '../src/components/expanse/parameters.ts';
-import { buildAeolianTerrain, duneRelief, buildBeveledMonolithData, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, valueNoise, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
-import { analyzeSurface, buildDrifts, buildSurfaceTerrain } from '../src/components/expanse/surface.ts';
+import { buildAeolianTerrain, duneRelief, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { createSandTransport, renderedGround } from '../src/components/expanse/sand-transport.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
-const results = {};
 const rendered = {};
-const analysis = analyzeSurface(EXPANSE, { heightAt, valleyAt });
 const monuments = buildMonuments(EXPANSE);
-const projection = { worldVertices, valleyAt };
-const drifts = buildDrifts(EXPANSE, analysis.relief, monuments, projection);
-assert.deepEqual(drifts.map(drift => drift.id).sort(), [...EXPANSE.surface.drift.targets].sort());
-const fixture = { ...EXPANSE, terrain: { ...EXPANSE.terrain, width: 600, depth: 600, centerZ: 0 } };
-const sampleFixture = height => analyzeSurface(fixture, { heightAt: height, valleyAt: () => ({x: 0, width: 200}) }).sample(0, 0);
-const planar = sampleFixture(x => x * Math.tan(Math.PI / 12));
-assert(Math.abs(planar.slopeDegrees - 15) < 1e-5 && planar.concavity === 0 && planar.exposure === 0,
-  'A tilted plane has the correct centered slope and no signed curvature');
-const bowl = sampleFixture((x,z) => 0.001 * (x*x+z*z));
-const dome = sampleFixture((x,z) => -0.001 * (x*x+z*z));
-assert(bowl.concavity > .8 && bowl.exposure === 0 && dome.exposure > .8 && dome.concavity === 0,
-  'An even bowl and dome produce opposite curvature masks');
-const box = { ...monuments[0], position: [0, 0, 0], scale: [200, 100, 120], quaternion: [0, 0, 0, 1] };
-const windFixture = { ...fixture, surface: { ...fixture.surface, drift: { ...fixture.surface.drift, wind: [1, 0], targets: [box.id] } } };
-const [lee] = buildDrifts(windFixture, analysis.relief, [box], projection);
-assert(lee.sample(130, 0) > lee.sample(220, 0) && lee.sample(220, 0) > 0, 'Deposition grows past the rear edge and decays downstream');
-assert(lee.sample(130, 0) > lee.sample(130, 45) && lee.sample(130, 75) === 0, 'The wake feathers across the wind');
-assert(lee.sample(100, 0) === 0 && lee.sample(0, 0) === 0 && lee.sample(-130, 0) === 0, 'No accumulation inside or upwind of the footprint');
-const rotatedBox = { ...box, quaternion: [0, Math.SQRT1_2, 0, Math.SQRT1_2] };
-const [rotatedLee] = buildDrifts(windFixture, analysis.relief, [rotatedBox], projection);
-assert(rotatedLee.sample(90, 0) > 0 && lee.sample(90, 0) === 0 && rotatedLee.peak > lee.peak,
-  'A real world rotation moves the rear edge and changes the projected width');
-for (const quality of ['desktop', 'mobile']) {
-  const segments = EXPANSE.terrain.resolution[quality];
-  const base = buildTerrainData(EXPANSE, segments);
-  const thin = buildSurfaceTerrain(EXPANSE, base, analysis, valueNoise);
-  const a = buildSurfaceTerrain(EXPANSE, base, analysis, valueNoise, drifts);
-  const duplicate = analyzeSurface(EXPANSE, { heightAt, valleyAt });
-  const b = buildSurfaceTerrain(EXPANSE, buildTerrainData(EXPANSE, segments), duplicate, valueNoise,
-    buildDrifts(EXPANSE, duplicate.relief, monuments, projection));
-  assert.deepEqual(a, b, 'Same seed and parameters must produce identical mesh buffers');
-
-  assert.equal(a.positions.length, (segments[0] + 1) * (segments[1] + 1) * 3);
-  assert.equal(a.indices.length, segments[0] * segments[1] * 6);
-  let peakSlope = 0, min = Infinity, max = -Infinity, maxAdded = 0, maxThin = 0, maxDrift = 0;
-  for (let iz = 0; iz <= segments[1]; iz++) for (let ix = 0; ix <= segments[0]; ix++) {
-    const i = (iz * (segments[0] + 1) + ix) * 3, y = a.positions[i + 1];
-    assert(Number.isFinite(y)); min = Math.min(min, y); max = Math.max(max, y);
-    const added = y - base.positions[i + 1];
-    const thinLift = thin.positions[i + 1] - base.positions[i + 1], driftLift = y - thin.positions[i + 1];
-    assert(thinLift >= 0 && thinLift <= a.sandDepth + 1e-4, 'The thin layer only adds bounded height');
-    assert(driftLift >= 0 && Math.abs(driftLift - a.masks.drift[i / 3] * a.driftDepth) < 1e-4, 'The drift mask measures added height');
-    assert(Math.abs(a.masks.sandCoverage[i / 3] - Math.min(1, added / a.sandDepth)) < 1e-4,
-      'The rendered coverage measures the same thickness that lifts the surface');
-    if (a.masks.drift[i / 3] > 0) {
-      assert(base.positions[i] < valleyAt(base.positions[i + 2], EXPANSE).x, 'The two left-bank plumes do not restart on the right bank');
-    }
-    maxAdded = Math.max(maxAdded, added);
-    maxThin = Math.max(maxThin, thinLift);
-    maxDrift = Math.max(maxDrift, driftLift);
-    if (ix < segments[0]) peakSlope = Math.max(peakSlope, Math.abs(a.positions[i + 4] - y) / (EXPANSE.terrain.width / segments[0]));
-    if (iz < segments[1]) peakSlope = Math.max(peakSlope, Math.abs(a.positions[i + (segments[0] + 1) * 3 + 1] - y) / (EXPANSE.terrain.depth / segments[1]));
-  }
-  assert(peakSlope < 1, 'No spike-like slopes in this broad terrain blockout');
-  for (const mask of Object.values(a.masks)) for (const value of mask) assert(value >= 0 && value <= 1);
-  assert(maxDrift > 0 && maxDrift <= a.driftDepth + 1e-4, 'The two footprints create real, capped deposits');
-  assert(min > -30 && max < 350, 'Massing stays within the intended scale');
-  results[quality] = { vertices: a.positions.length / 3, triangles: a.indices.length / 3,
-    fingerprint: fingerprint(a.positions), heightRange: [min, max], maximumGridSlope: peakSlope,
-    maximumSandLift: maxAdded, maximumThinLift: maxThin, maximumDriftLift: maxDrift };
-}
-const changedSeed = structuredClone(EXPANSE); changedSeed.seed++;
-const sameBase = buildTerrainData(EXPANSE, EXPANSE.terrain.resolution.mobile);
-assert.notEqual(fingerprint(buildSurfaceTerrain(changedSeed, sameBase, analysis, valueNoise).masks.sandCoverage),
-  fingerprint(buildSurfaceTerrain(EXPANSE, sameBase, analysis, valueNoise).masks.sandCoverage), 'The seed affects coverage even on a fixed heightfield');
 const aeolian = {};
 const relief = duneRelief(EXPANSE);
 for (let z = 1100; z >= -3900; z -= 25) {
@@ -94,7 +26,7 @@ assert.equal(isolatedRelief(crest + 210, 0), 0);
 assert(isolatedRelief(crest + 90, 375) > isolatedRelief(crest, 375), 'The flank follows the authored downwind curve');
 for (const quality of ['desktop', 'mobile']) {
   const segments = EXPANSE.terrain.resolution[quality];
-  const base = buildAeolianTerrain(EXPANSE, segments, true);
+  const base = buildTerrainData(EXPANSE, segments);
   const dunes = buildAeolianTerrain(EXPANSE, segments);
   assert.deepEqual(dunes, buildAeolianTerrain(EXPANSE, segments), 'Dunes are deterministic');
   assert.deepEqual(dunes.indices, base.indices, 'Dune relief does not change terrain topology');
@@ -222,7 +154,7 @@ assert(sand.balance.lifted > 0 && sand.balance.deposited > 0 && sand.balance.esc
 assert(sand.shelter.some(value => value > 0.25) && sand.solid.some(Boolean), 'The rendered dunes and exposed structures affect wind');
 assert(Math.min(viewSamples[1].density, viewSamples[2].density) > viewSamples[0].density);
 assert(viewSamples[4].density < viewSamples[0].density && viewSamples[4].density > 0);
-results.sandTransport = { step: windConfig.step, threshold: sand.threshold, cfl: sand.cfl, maximumBudgetError,
+const sandTransport = { step: windConfig.step, threshold: sand.threshold, cfl: sand.cfl, maximumBudgetError,
   shadowedCells: sand.shelter.filter(value => value > 0.25).length, solidCells: sand.solid.filter(Boolean).length,
   peakDensity, moves, preservedCells, viewSamples, balance: sand.balance };
 for (const monument of monuments) {
@@ -262,19 +194,18 @@ assert(EXPANSE.hero.scale[1] > Math.max(...field.map(m => m.scale[1]))*2,'Hero h
 const shadowReceiverFloor=-100;
 assert(rendered.desktop.every((v, i) => i%3!==1 || v>=shadowReceiverFloor) &&
        rendered.mobile.every((v, i) => i%3!==1 || v>=shadowReceiverFloor), 'Shadow receiver floor is below the terrain');
-for(const [look, {sunPosition, shadowBounds}] of Object.entries(EXPANSE.atmosphere.looks)) {
-  const shadowCamera=new OrthographicCamera(...shadowBounds);
-  const target=new Vector3(...EXPANSE.atmosphere.sunTarget);
-  shadowCamera.position.set(...sunPosition); shadowCamera.lookAt(target); shadowCamera.updateMatrixWorld();
-  const shade=target.sub(shadowCamera.position).normalize();
-  for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
-    for(const v of worldVertices(monument,EXPANSE)) {
-      // The box is convex: checking the two ends also contains the shadow ray between them.
-      const floor=v.clone().addScaledVector(shade, Math.max(0,(shadowReceiverFloor-v.y)/shade.y));
-      for(const point of [v, floor]) {
-        const p=point.project(shadowCamera);
-        assert(Math.abs(p.x)<1 && Math.abs(p.y)<1 && Math.abs(p.z)<1,`${look}: ${monument.id} and its ground shadow fit the static frustum`);
-      }
+const {sunPosition, shadowBounds} = EXPANSE.atmosphere.daylight;
+const shadowCamera=new OrthographicCamera(...shadowBounds);
+const target=new Vector3(...EXPANSE.atmosphere.sunTarget);
+shadowCamera.position.set(...sunPosition); shadowCamera.lookAt(target); shadowCamera.updateMatrixWorld();
+const shade=target.sub(shadowCamera.position).normalize();
+for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
+  for(const v of worldVertices(monument,EXPANSE)) {
+    // The box is convex: checking the two ends also contains the shadow ray between them.
+    const floor=v.clone().addScaledVector(shade, Math.max(0,(shadowReceiverFloor-v.y)/shade.y));
+    for(const point of [v, floor]) {
+      const p=point.project(shadowCamera);
+      assert(Math.abs(p.x)<1 && Math.abs(p.y)<1 && Math.abs(p.z)<1,`${monument.id} and its ground shadow fit the static frustum`);
     }
   }
 }
@@ -425,11 +356,11 @@ function solidVolume(data) {
  return volume;
 }
 const wedgeVolume=solidVolume(buildWedgeData());
-const slotted=buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale), heroVolume=solidVolume(slotted);
+const slotted=buildSlottedMonolithData(EXPANSE.hero.groove,EXPANSE.hero.topScale), distantSteleVolume=solidVolume(slotted);
 const [tx,tz]=EXPANSE.hero.topScale, groove=EXPANSE.hero.groove;
 const sectionIntegral=t => t-((1-tx)+(1-tz))*t*t/2+(1-tx)*(1-tz)*t*t*t/3;
 const expectedVolume=sectionIntegral(1)-groove.width*groove.depth*(sectionIntegral(groove.top+.5)-sectionIntegral(groove.bottom+.5));
-assert(Math.abs(heroVolume-expectedVolume)<1e-6,'Taper and recess remove real volume');
+assert(Math.abs(distantSteleVolume-expectedVolume)<1e-6,'Taper and recess remove real volume');
 const probeGeometry=new BufferGeometry();
 probeGeometry.setAttribute('position',new BufferAttribute(slotted.positions,3)); probeGeometry.setIndex(new BufferAttribute(slotted.indices,1));
 const probeMaterial=new MeshBasicMaterial({side:DoubleSide}), probe=new Mesh(probeGeometry,probeMaterial), probeRay=new Raycaster();
@@ -440,12 +371,11 @@ const frontHit=(x,y) => {
 };
 assert(Math.abs(frontHit(groove.center,0)-(.5-groove.depth)*(1-(1-tz)*.5))<1e-6,'Groove ray reaches an actual recessed back wall');
 assert(Math.abs(frontHit(groove.center,.45)-.5*(1-(1-tz)*.95))<1e-6,'The tapered crown remains continuous above the groove');
-const beveled = buildBeveledMonolithData(EXPANSE.hero), beveledVolume = solidVolume(beveled);
 const core = buildMonumentCoreData(EXPANSE.hero), coreVolume = solidVolume(core);
-assert(Math.abs(beveledVolume - heroVolume) < 0.001, 'The bevel only trims the edge of the original mass');
 const heroPart = hero[0], q = new Quaternion().fromArray(heroPart.quaternion);
 const heroScale = new Vector3(...heroPart.scale), heroPosition = new Vector3(...heroPart.position);
-for (const { positions, indices, normals } of [beveled, core]) {
+{
+  const { positions, indices, normals } = core;
   for (let i = 0; i < positions.length; i += 3) {
     const point = new Vector3().fromArray(positions, i);
     assert(Math.max(Math.abs(point.x), Math.abs(point.y), Math.abs(point.z)) <= .5, 'Bevel stays inside the original outer bounds');
@@ -466,18 +396,6 @@ for (const { positions, indices, normals } of [beveled, core]) {
       assert(face.dot(normal) > 0, 'Authored normals face outward after the instance scale');
     }
   }
-}
-const originalDepth = frontHit(groove.center, 0), originalCrown = frontHit(groove.center, .45);
-probeGeometry.setAttribute('position', new BufferAttribute(beveled.positions, 3));
-probeGeometry.setIndex(new BufferAttribute(beveled.indices, 1));
-probeGeometry.computeBoundingSphere();
-assert(Math.abs(frontHit(groove.center, 0) - originalDepth) < 1e-6, 'Beveled groove preserves the rear plane');
-assert(Math.abs(frontHit(groove.center, .45) - originalCrown) < 1e-6, 'Beveled crown stays solid and planar');
-const throatScale = (1 + tx) * .5, throatZ = (.5 - groove.depth / 2) * (1 + tz) * .5;
-for (const side of [-1, 1]) {
-  probeRay.set(new Vector3(groove.center * throatScale, 0, throatZ), new Vector3(side, 0, 0));
-  const wall = probeRay.intersectObject(probe, false)[0]?.point.x;
-  assert(Math.abs(wall - (groove.center + side * groove.width / 2) * throatScale) < 1e-6, 'Beveled groove retains its throat width');
 }
 const fourSlotsVolume = sectionIntegral(1) - 4 * (sectionIntegral(1) - expectedVolume);
 const secondary = EXPANSE.hero.secondaryGroove;
@@ -569,8 +487,8 @@ for(let i=0;i<=100;i++) {
 const peak=visibility.reduce((a,b) => b.blocked>a.blocked?b:a);
 assert(visibility.slice(50).every(v=>v.blocked===0),'The removed central plate no longer masks the destination on approach');
 meshes.forEach(m => m.geometry.dispose()); material.dispose();
-console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, aeolian, hardpanResearch: results,
+console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, aeolian, sandTransport,
   instances: monuments.length, minimumLeftSaddleRelief, comparedLandmarks, burial, pathValidation,
-  wedgeVolume,heroVolume,beveledVolume,coreVolume,
-  heroTriangles:{original:slotted.indices.length/3,beveled:beveled.indices.length/3,core:core.indices.length/3},
+  wedgeVolume,distantSteleVolume,coreVolume,
+  monumentTriangles:{distant:slotted.indices.length/3,core:core.indices.length/3},
   arrivalFraming,occlusion:{peak,samples:visibility.filter((v,i)=>i%5===0)} }, null, 2));

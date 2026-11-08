@@ -127,9 +127,8 @@ export function duneRelief(world: WorldParameters) {
   };
 }
 
-export function buildAeolianTerrain(world: WorldParameters, segments: readonly number[], original = false) {
+export function buildAeolianTerrain(world: WorldParameters, segments: readonly number[]) {
   const base = buildTerrainData(world, segments);
-  if (original) return base;
   const reliefAt = duneRelief(world);
   for (let i = 0; i < base.positions.length; i += 3) {
     base.positions[i + 1] += reliefAt(base.positions[i], base.positions[i + 2]);
@@ -238,7 +237,11 @@ export function buildMonuments(world: WorldParameters): Monument[] {
 
 export function worldVertices(part: Monument, world: WorldParameters) {
   const q = new Quaternion().fromArray(part.quaternion);
-  return localVertices(part.kind, world).map(p => p.multiply(new Vector3(...part.scale))
+  // All core cuts are inside this tapered envelope, which is enough for layout checks.
+  const vertices = part.id === world.hero.id
+    ? taperStele(steleCorners(), world.hero, new Vector3(1, 1, 1))
+    : localVertices(part.kind, world);
+  return vertices.map(p => p.multiply(new Vector3(...part.scale))
     .applyQuaternion(q).add(new Vector3(...part.position)));
 }
 
@@ -331,12 +334,6 @@ function taperStele(vertices: Vector3[], hero: Hero, scale: Vector3) {
     v.z *= taperAt(hero.topScale[1], v.y);
     return v.multiply(scale);
   });
-}
-
-export function buildBeveledMonolithData(hero: Hero) {
-  const scale = new Vector3(...hero.scale);
-  const vertices = taperStele(steleVertices(hero.groove), hero, scale);
-  return bevelStele(vertices, [...walls.map(face => [face]), [front, opening]], scale, scale.x * hero.bevelWidthRatio);
 }
 
 export function buildMonumentCoreData(hero: Hero) {

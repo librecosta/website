@@ -2,7 +2,7 @@
 
 ## 当前范围与工程
 
-- 当前 P1-A4 反馈修订在 `/lab/expanse` 研究左侧横卧露端面与右侧内倾的遗构、中景外倾双板、分段延伸的极远碑林与收分主碑；保留连续沙脊、原生滚动和整体取景。中央遮挡板已移除，终点保持距离并完整仰望主碑。正常界面仅品牌、轻提示和细进度线，调试限 `?debug=1`。不制作沙暴、正式材质或自然点缀；正式首页及后续世界不在当前范围。
+- 当前第一幕位于 `/lab/expanse`，以连续沙脊、原生滚动和四面双槽主碑灰模为基线。正常界面保留品牌、轻提示与细进度线，`?debug=1` 集中检查机位、减少动态效果、天空与风沙。阶段背景见 `docs/creative/act-01-expanse.md`，退役实验见 `docs/archive/expanse-legacy/`。
 - 使用 Next.js App Router、React、TypeScript、Three.js、React Three Fiber、GSAP / ScrollTrigger 与 pnpm；禁止 Astro。依赖采用兼容的稳定版本并保留 lockfile。
 - 优先静态导出；不接入后台、数据库、CMS、认证或其他业务系统。不预建 Scene Manager、渲染管线、插件架构或空目录。
 - `src/app/` 保存真实 HTML 页面。未来的 3D 场景作为独立客户端模块按需加载，HTML 阅读不能依赖 Canvas 初始化成功。

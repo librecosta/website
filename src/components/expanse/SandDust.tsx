@@ -1,17 +1,15 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
-  BufferAttribute, BufferGeometry, Color, DataTexture, DoubleSide, LinearFilter,
+  BufferAttribute, BufferGeometry, Color, DataTexture, DoubleSide, LinearFilter, RedFormat,
   ShaderMaterial, Vector2, Vector3,
 } from 'three';
-import { EXPANSE, type LightingLook, type WindView } from './parameters';
+import { EXPANSE, type WindView } from './parameters';
 import { createSandTransport, renderedGround } from './sand-transport';
 import { sandBedSupply, windSurfaceAbove, type Monument } from './world';
 
 const config = EXPANSE.windMotion;
 const densityRange = 96;
-const sourceRange = 84;
-const displayMode = { transport: 0, wind: 1, source: 2, concentration: 3 } as const;
 
 const vertex = /* glsl */ `
   attribute vec2 layer;
@@ -30,27 +28,20 @@ const fragment = /* glsl */ `
   uniform vec2 layerDrift, fieldOrigin, fieldSize, viewFade;
   uniform vec3 dustColor, skyLight, sunLight, sunDirection;
   uniform float edgeWidth, extinction, densityRange;
-  uniform int mode;
+  uniform bool showDensity;
   varying vec2 vLayer;
   varying vec3 vPosition, vNormal;
 
-  float arrow(vec2 p, vec2 direction) {
-    vec2 q = vec2(dot(p, direction), dot(p, vec2(-direction.y, direction.x)));
-    float shaft = max(abs(q.y) - 0.027, abs(q.x) - 0.29);
-    float tip = max(abs(abs(q.y) - (0.32 - q.x) * 0.64) - 0.028, abs(q.x - 0.22) - 0.13);
-    return 1.0 - smoothstep(0.0, 0.038, min(shaft, tip));
-  }
-
   void main() {
-    vec2 point = vPosition.xz - (mode == 0 ? layerDrift * vLayer.x : vec2(0.0));
+    vec2 point = vPosition.xz - (showDensity ? vec2(0.0) : layerDrift * vLayer.x);
     vec2 sampleUV = (point - fieldOrigin) / fieldSize;
     vec2 edge = min(sampleUV, 1.0 - sampleUV) * fieldSize;
     float fade = smoothstep(0.0, edgeWidth, min(edge.x, edge.y));
     fade *= 1.0 - smoothstep(viewFade.x, viewFade.y, distance(cameraPosition.xz, vPosition.xz));
     if (fade <= 0.0) discard;
-    vec4 data = texture2D(field, sampleUV);
-    if (mode == 0) {
-      float density = data.r * data.r * densityRange;
+    float value = texture2D(field, sampleUV).r;
+    if (!showDensity) {
+      float density = value * value * densityRange;
       if (density * fade < 0.025) discard;
       vec3 view = normalize(cameraPosition - vPosition);
       float grazing = 1.0 / max(abs(dot(normalize(vNormal), view)), 0.16);
@@ -60,23 +51,8 @@ const fragment = /* glsl */ `
       vec3 light = skyLight + sunLight * (0.75 + 0.52 * scattering);
       gl_FragColor = vec4(dustColor * light, alpha);
     } else {
-      vec3 color;
-      float alpha;
-      if (mode == 1) {
-        vec2 grid = point / 62.0;
-        vec2 wind = 2.0 * data.gb - 1.0;
-        float speed = length(wind);
-        vec2 center = ((floor(grid) + 0.5) * 62.0 - fieldOrigin) / fieldSize;
-        vec2 axis = 2.0 * texture2D(field, center).gb - 1.0;
-        float mark = arrow(fract(grid) - 0.5, axis / max(length(axis), 0.01)) * smoothstep(0.05, 0.14, length(axis));
-        color = mix(mix(vec3(0.035, 0.075, 0.17), vec3(0.12, 0.73, 0.93), speed), vec3(0.96), mark);
-        alpha = 0.62;
-      } else {
-        float value = mode == 2 ? data.a : data.r;
-        color = mode == 2 ? vec3(1.0, 0.31, 0.026) : vec3(0.025, 0.78, 0.58);
-        alpha = 0.91 * smoothstep(0.02, 0.55, value);
-      }
-      gl_FragColor = vec4(color, alpha * fade);
+      float alpha = 0.91 * smoothstep(0.02, 0.55, value);
+      gl_FragColor = vec4(0.025, 0.78, 0.58, alpha * fade);
     }
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -135,9 +111,9 @@ function buildLayers(terrain: BufferGeometry, mobile: boolean) {
   return { geometry, drawNear };
 }
 
-export function SandDust({ terrain, monuments, mobile, mode, lightingLook, visible, debug }: {
+export function SandDust({ terrain, monuments, mobile, mode, visible, debug }: {
   terrain: BufferGeometry; monuments: Monument[]; mobile: boolean;
-  mode: Exclude<WindView, 'static'>; lightingLook: LightingLook; visible: boolean; debug: boolean;
+  mode: Exclude<WindView, 'static'>; visible: boolean; debug: boolean;
 }) {
   const { gl, invalidate } = useThree();
   const clock = useRef({ remainder: 0, running: false });
@@ -150,15 +126,15 @@ export function SandDust({ terrain, monuments, mobile, mode, lightingLook, visib
     const simulation = createSandTransport(config, EXPANSE.aeolian.wind, ground, windSurfaceAbove(ground, monuments),
       { sediment: sandBedSupply(EXPANSE, ground), window: config.window });
     const { geometry, drawNear } = buildLayers(terrain, mobile);
-    const pixels = new Uint8Array(nx * nz * 4);
-    const field = new DataTexture(pixels, nx, nz);
+    const pixels = new Uint8Array(nx * nz);
+    const field = new DataTexture(pixels, nx, nz, RedFormat);
     field.minFilter = field.magFilter = LinearFilter;
     const direction = new Vector2(...EXPANSE.aeolian.wind).normalize();
     const material = new ShaderMaterial({
       vertexShader: vertex, fragmentShader: fragment, side: DoubleSide, forceSinglePass: true,
       depthWrite: false, transparent: true,
       uniforms: {
-        field: { value: field }, mode: { value: 0 },
+        field: { value: field }, showDensity: { value: false },
         fieldOrigin: { value: new Vector2(x0, 0) }, fieldSize: { value: new Vector2(x1 - x0, simulation.windowDepth) },
         layerDrift: { value: direction.multiplyScalar(8) },
         edgeWidth: { value: config.dust.edgeFade }, viewFade: { value: new Vector2(...config.dust.viewFade) },
@@ -168,14 +144,10 @@ export function SandDust({ terrain, monuments, mobile, mode, lightingLook, visib
       },
     });
     function upload() {
-      const { concentration, velocityX, velocityZ, sourceRate, maxVelocity } = simulation;
+      const { concentration } = simulation;
       const first = simulation.firstRow * nx;
-      for (let cell = 0; cell < nx * nz; cell++) {
-        const i = first + cell, p = cell * 4;
-        pixels[p] = Math.round(255 * Math.sqrt(Math.min(1, concentration[i] / densityRange)));
-        pixels[p + 1] = Math.round(127.5 * (1 + velocityX[i] / maxVelocity));
-        pixels[p + 2] = Math.round(127.5 * (1 + velocityZ[i] / maxVelocity));
-        pixels[p + 3] = Math.round(255 * Math.sqrt(Math.min(1, sourceRate[i] / sourceRange)));
+      for (let cell = 0; cell < pixels.length; cell++) {
+        pixels[cell] = Math.round(255 * Math.sqrt(Math.min(1, concentration[first + cell] / densityRange)));
       }
       material.uniforms.fieldOrigin.value.y = simulation.windowStart;
       field.needsUpdate = true;
@@ -184,13 +156,13 @@ export function SandDust({ terrain, monuments, mobile, mode, lightingLook, visib
   }, [mobile, monuments, terrain]);
   useLayoutEffect(() => {
     const { material } = resources;
-    const look = EXPANSE.atmosphere.looks[lightingLook];
-    material.uniforms.skyLight.value.set(look.hemisphereSky).multiplyScalar(look.hemisphereIntensity * 0.30);
-    material.uniforms.sunLight.value.set(look.sunColor).multiplyScalar(look.sunIntensity * 0.20);
-    material.uniforms.sunDirection.value.set(...look.sunPosition).sub(new Vector3(...EXPANSE.atmosphere.sunTarget)).normalize();
-    material.uniforms.mode.value = displayMode[mode];
+    const { daylight } = EXPANSE.atmosphere;
+    material.uniforms.skyLight.value.set(daylight.hemisphereSky).multiplyScalar(daylight.hemisphereIntensity * 0.30);
+    material.uniforms.sunLight.value.set(daylight.sunColor).multiplyScalar(daylight.sunIntensity * 0.20);
+    material.uniforms.sunDirection.value.set(...daylight.sunPosition).sub(new Vector3(...EXPANSE.atmosphere.sunTarget)).normalize();
+    material.uniforms.showDensity.value = mode === 'concentration';
     invalidate();
-  }, [invalidate, lightingLook, mode, resources]);
+  }, [invalidate, mode, resources]);
   useLayoutEffect(() => { clock.current = { remainder: 0, running: false }; }, [resources]);
   useLayoutEffect(() => { clock.current.running = false; }, [visible]);
   useEffect(() => () => {

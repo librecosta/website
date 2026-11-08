@@ -245,6 +245,6 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
   return {
     advance, follow, concentration: current, get time() { return steps * step; }, get firstRow() { return first; },
     get windowStart() { return z0 + first * spacingZ; }, windowDepth: (window?.rows ?? nz) * spacingZ,
-    bed, balance, sourceRate, velocityX, velocityZ, shelter, solid, threshold, cellArea, cfl, maxVelocity,
+    bed, balance, sourceRate, velocityX, velocityZ, shelter, solid, threshold, cellArea, cfl,
   };
 }

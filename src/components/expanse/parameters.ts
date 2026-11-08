@@ -1,14 +1,7 @@
 export type Vec3 = readonly [number, number, number];
 export type JourneySignal = { value: number; raw: number; invalidate: () => void };
-export const SURFACE_VIEWS = {
-  original: 'Original terrain',
-  dunes: 'Dune geometry only',
-  ripples: 'Dune geometry + ripple normals',
-  finalMaterial: 'Final sand material',
-} as const;
-export type SurfaceView = keyof typeof SURFACE_VIEWS;
 export const WIND_VIEWS = {
-  static: '静态基线', transport: '近地沙尘', wind: '风场', source: '起沙源', concentration: '浓度场',
+  transport: '近地沙尘', concentration: '浓度场', static: '关闭风沙',
 } as const;
 export type WindView = keyof typeof WIND_VIEWS;
 export const SKY_VIEWS = {
@@ -150,25 +143,6 @@ export const EXPANSE = {
       layers: [[0.095, 0.25], [0.22, 0.27], [0.38, 0.23], [0.57, 0.16], [0.82, 0.09]],
     },
   },
-  // P1-B2 research baseline. The live aeolian terrain does not consume it.
-  surface: {
-    analysisStep: 25, neighborhoodWidth: 0.15, minimumNeighborhoodCells: 1.5,
-    flatSlope: [8, 25], slopeDisplayMax: 45,
-    curvature: [0.000045, 0.001], corridor: [0.42, 1.6],
-    cover: { bias: 0.14, flat: 0.38, concavity: 0.27, valley: 0.18, exposure: 0.32, noise: 0.07 },
-    sandNoise: [{ wavelength: 410, weight: 2 / 3 }, { wavelength: 205, weight: 1 / 3 }],
-    thicknessFraction: 0.025,
-    material: {
-      hardpan: { color: '#cbd0cc', roughness: 0.84 },
-      sand: { color: '#d9cbb2', roughness: 0.98 },
-    },
-    drift: {
-      targets: ['basin-left-edge', 'field-axis'], wind: [1, -0.5],
-      reliefLimit: 0.032, widthLimit: 0.025, leeRamp: 0.18, leeDecay: 1.05,
-      leeExtent: [2.4, 3.2], crossFade: [0.08, 0.5],
-      steepSlope: [18, 33], protectedValley: [0.72, 0.98],
-    },
-  },
   // Exposure limits the upper surface above the sampled sand.
   remnants: [
     { id: 'basin-left-edge', family: 'Basin Remnant', kind: 'box', center: [-455, 285],
@@ -218,47 +192,12 @@ export const EXPANSE = {
     scale: [920, 2400, 560], orientation: [0, 24, 0], burial: 520,
     topScale: [0.76, 0.84],
     bevelWidthRatio: 0.005,
-    // The core uses this section on four centered faces. The offset belongs to the legacy stele.
+    // The core uses this section on four centered faces. Only the distant stelae use the offset.
     groove: { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 },
     // A single recessed return follows both shoulders and the crown of each face.
     // Margin is a fraction of face span. Width and depth reference the base X and Z spans.
     secondaryGroove: { margin: 0.07, width: 0.022, depth: 0.035, bottom: -0.438, top: 0.466 },
-    finish: {
-      surface: {
-        color: '#a69e91', roughness: 0.78,
-        panelContrast: 0.27, lineContrast: 0.19,
-        fresnel: 0.023, emission: 0.15,
-        lightTint: [1, 0.88, 0.66],
-        // Approximate optical spread in render pixels, restricted to emissive marks.
-        bloom: 0.026, bloomRadius: 1.7,
-      },
-      inscription: {
-        color: '#a69e91', roughness: 0.75,
-        // Section depth in scene units, plus seam contrast in linear reflectance.
-        looks: {
-          inscriptionA: { tier: 0, relief: 1.55, contrast: 0.12, label: 'A · 克制型' },
-          inscriptionB: { tier: 1, relief: 1.85, contrast: 0.15, label: 'B · 均衡型' },
-          inscriptionC: { tier: 2, relief: 2.10, contrast: 0.17, label: 'C · 纹刻网络' },
-        },
-      },
-      // Cell sizes, relief amplitude and distance fades are in scene units.
-      depositSize: [136, 290, 160], depositFade: [4300, 6650],
-      grainSize: 26, grainFade: [2650, 4350],
-      studies: {
-        mineral: { color: '#a69e91', roughness: 0.86, deposit: 0.037, grain: 0.020, roughnessVariation: 0.036, relief: 0.18 },
-        composite: { color: '#a0a5a4', roughness: 0.68, deposit: 0.013, grain: 0.010, roughnessVariation: 0.02, relief: 0.11 },
-        hybrid: { color: '#a3a59e', roughness: 0.74, deposit: 0.020, grain: 0.012, roughnessVariation: 0.025, relief: 0.14 },
-      },
-      refined: {
-        color: '#a69e91', roughness: 0.79,
-        // Dressed margins, groove shielding and hand-placed finishing passes in scene units.
-        marginWidth: 35, marginPolish: 0.20, grooveRoughness: 0.075, grooveOcclusion: 0.23,
-        // Across the tool path, half width, start and end along the face.
-        passes: [[-227, 68, -780, 780], [-97, 48, -400, 1120], [102, 76, -920, 970], [257, 47, -235, 710]],
-        passRelief: 0.56, passPolish: 0.095,
-        grainPeriod: 104, grainRelief: 0.095, grainRoughness: 0.07, grainOcclusion: 0.027,
-      },
-    } },
+  },
   atmosphere: {
     skyFinish: {
       fieldValue: 0.045,
@@ -298,45 +237,11 @@ export const EXPANSE = {
     distantSilhouette: '#bac0bd', distantFadeDepth: [15700, 40800], distantFog: [0.3, 0.94],
     monumentColor: '#999b95',
     sunTarget: [0, 0, -2800],
-    defaultLook: 'sideLight',
-    // The fixed maps cover the casters and their downhill ground projections.
-    looks: {
-      sideLight: {
-        sunPosition: [-6250, 2830, 1570], sunColor: '#fff0d6', sunIntensity: 3.9,
-        hemisphereSky: '#e3edf5', hemisphereGround: '#b2a694', hemisphereIntensity: 1.48,
-        shadowStrength: 0.95, shadowBounds: [-3120, 2820, 2810, -980, 5600, 16000],
-        air: null,
-      },
-      sculptural: {
-        sunPosition: [7700, 3650, 1900], sunColor: '#fff0db', sunIntensity: 3.35,
-        hemisphereSky: '#e1ebf7', hemisphereGround: '#b3a693', hemisphereIntensity: 1.35,
-        shadowStrength: 0.97, shadowBounds: [-3220, 3550, 2750, -1330, 7650, 16500],
-        air: {
-          sky: { turbidity: 2.8, rayleigh: 1.4, mieCoefficient: 0.005, mieDirectionalG: 0.77,
-            saturation: 0.32, blackLevel: 0.27, whiteLevel: 0.96, horizonTint: [1.026, 1.008, 0.954], horizonTintHeight: 0.24 },
-          fogRange: [1900, 13200], distantFog: [0.36, 0.96], nearMist: null,
-        },
-      },
-      backlit: {
-        sunPosition: [9200, 2400, -5550], sunColor: '#ffe9cc', sunIntensity: 2.75,
-        hemisphereSky: '#e1e9f3', hemisphereGround: '#beb09a', hemisphereIntensity: 2.15,
-        shadowStrength: 0.9, shadowBounds: [-3320, 3620, 1970, -1100, 7790, 17450],
-        air: {
-          sky: { turbidity: 4.6, rayleigh: 1.4, mieCoefficient: 0.013, mieDirectionalG: 0.74,
-            saturation: 0.28, blackLevel: 0.27, whiteLevel: 0.94, horizonTint: [1.036, 1.009, 0.941], horizonTintHeight: 0.27 },
-          fogRange: [1350, 11400], distantFog: [0.45, 0.97], nearMist: null,
-        },
-      },
-      layered: {
-        sunPosition: [-4050, 5100, 2950], sunColor: '#fff3e3', sunIntensity: 2.65,
-        hemisphereSky: '#e4edf5', hemisphereGround: '#c0b29e', hemisphereIntensity: 1.76,
-        shadowStrength: 0.87, shadowBounds: [-2480, 2400, 3630, -1990, 6030, 13800],
-        air: {
-          sky: { turbidity: 3.2, rayleigh: 1.4, mieCoefficient: 0.006, mieDirectionalG: 0.76,
-            saturation: 0.28, blackLevel: 0.31, whiteLevel: 0.96, horizonTint: [1.032, 1.008, 0.952], horizonTintHeight: 0.24 },
-          fogRange: [2300, 13700], distantFog: [0.43, 0.98], nearMist: [1050, 5400, 0.14],
-        },
-      },
+    // The fixed map covers the casters and their downhill ground projections.
+    daylight: {
+      sunPosition: [-6250, 2830, 1570], sunColor: '#fff0d6', sunIntensity: 3.9,
+      hemisphereSky: '#e3edf5', hemisphereGround: '#b2a694', hemisphereIntensity: 1.48,
+      shadowStrength: 0.95, shadowBounds: [-3120, 2820, 2810, -980, 5600, 16000],
     },
     shadowResolution: { desktop: 2560, mobile: 1280 },
     shadowRadius: { desktop: 1.75, mobile: 1.25 },
@@ -383,32 +288,3 @@ export const EXPANSE = {
 } as const;
 
 export type WorldParameters = typeof EXPANSE;
-export type MonumentView = 'original' | 'beveled' | 'core';
-export type InscriptionFinish = keyof WorldParameters['hero']['finish']['inscription']['looks'];
-export type MonumentFinish = 'authored' | 'gray' | 'refined' | InscriptionFinish | keyof WorldParameters['hero']['finish']['studies'];
-export const AUTHORED_MONUMENT_LAYERS = {
-  full: '完整合成',
-  color: '基础色',
-  panels: '面板遮罩',
-  lines: '精细线纹',
-  fresnel: 'Fresnel · 掠射',
-  emissive: '局部发光',
-  noBloom: '完整合成 · 关闭光晕',
-} as const;
-export const MONUMENT_LAYERS = {
-  full: '完整材质',
-  color: '基础色',
-  mask: '纹刻遮罩',
-  roughness: '粗糙度',
-  normal: '法线 · 放大细节',
-  cavity: '微凹面遮蔽',
-  clear: '完整材质 · 不混合空气色',
-} as const;
-export type MonumentLayer = keyof typeof MONUMENT_LAYERS | keyof typeof AUTHORED_MONUMENT_LAYERS;
-export type LightingLook = keyof WorldParameters['atmosphere']['looks'];
-export const LIGHTING_LOOKS: Record<LightingLook, string> = {
-  sideLight: '原版 · P1-J3',
-  sculptural: 'A · 雕塑式侧光',
-  backlit: 'B · 薄霾逆光',
-  layered: 'C · 柔和日照与分层空气',
-};

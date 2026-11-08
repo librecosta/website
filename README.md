@@ -12,7 +12,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-打开 [本地实验页](http://127.0.0.1:3000/lab/expanse)，滚动立即推进，随时停止或反向返回；有效旅程为初始视窗高度的 3 倍，缩窗不改变旅程进度。底部细线显示进度，窄窗按参考画幅整体缩小取景。`?debug=1` 提供进度跳转与静态模式检查。类型检查、生成／路径约束与生产静态导出：
+打开 [本地实验页](http://127.0.0.1:3000/lab/expanse)，原生滚动可随时停止或反向返回。`?debug=1` 提供起点、中景和终点跳转，显示原始、平滑和映射后的进度，并可检查减少动态效果、天空分层和近地沙尘浓度。运行场景约束、类型检查与生产静态导出：
 
 ```sh
 pnpm check
@@ -26,6 +26,7 @@ pnpm preview
 - `src/app/`：基础首页与 `/lab/expanse` 静态页面。
 - `src/components/expanse/`：场景参数、确定性地形／布局生成、独立客户端场景和实验页 UI。修改从 `parameters.ts` 开始。
 - `docs/research/`：程序化环境调研与浏览器验收记录。
+- `docs/archive/expanse-legacy/`：已退役的第一幕方案、截图与博客笔记。
 - `docs/creative/`：已确认世界观、叙事骨架、第一幕方向及未冻结事项。
 - `.agents/skills/`：五项官方 GSAP Skills，来源、固定版本及许可见该目录 README。
 - `AGENTS.md`：Monumental Precision 艺术方向与工程、交互边界。
@@ -36,6 +37,6 @@ World First, Detail Later：先确认世界的几何、尺度、构图与光线�
 
 P1-A 将 81 个实验二进制（约 122.2 MB）用 `git rm --cached` 移出当前索引，所有本地源文件保留，未改写历史；这不会删除历史 Git 对象或立即缩小已有 `.git`。旧文档中的生成物以本地路径说明，重建步骤保留于各研究目录。
 
-生成工程、模型、纹理、视频及审查截图默认忽略；最新浏览器截图放 `.local/expanse-horizon/`。网站 `public/` 的 PNG/WebP 等图片格式仍可提交。正式资产需先说明用途、来源和优化后大小，再在 `.gitignore` 写精确路径例外，审查暂存清单后提交，不用 `git add -f` 绕过约束。
+生成工程、模型、纹理、视频及日常审查截图留在本地。归档中的精简研究图板记录用途、来源与体积。网站 `public/` 的 PNG/WebP 等图片格式仍可提交。正式资产需先说明用途、来源和优化后大小，再在 `.gitignore` 写精确路径例外，审查暂存清单后提交。
 
 Official website: https://librecosta.com . Operated by Chengdu Yuanan Kaiwu Technology Co., Ltd.

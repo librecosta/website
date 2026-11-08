@@ -5,8 +5,6 @@ export function createAeolianMaterial() {
   const { sand, wind, ripples } = EXPANSE.aeolian;
   const material = new MeshStandardMaterial({ ...sand, metalness: 0 });
   const uniforms = {
-    duneRipples: { value: false },
-    duneFinish: { value: false },
     duneWind: { value: new Vector2(...wind).normalize() },
     duneBroad: { value: new Vector4(...ripples.broad) },
     duneFine: { value: new Vector4(...ripples.fine) },
@@ -28,7 +26,6 @@ export function createAeolianMaterial() {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec2 vDuneWorld;
-        uniform bool duneRipples, duneFinish;
         uniform vec2 duneWind, duneWarpScale, duneAA, duneBedScale, duneBedFade;
         uniform vec4 duneBroad, duneFine;
         uniform float duneBend, duneSpacingWarp, duneRoughness, duneBedRelief, duneBedTint;
@@ -97,19 +94,14 @@ export function createAeolianMaterial() {
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         vec2 acrossWind = vec2(-duneWind.y, duneWind.x);
         vec2 duneQ = vec2(dot(vDuneWorld, duneWind), dot(vDuneWorld, acrossWind));
-        vec3 detail = vec3(0.0);
+        // Evaluate derivatives before branching by depth.
+        vec2 pixelX = dFdx(duneQ), pixelY = dFdy(duneQ);
         float duneDepth = length(vViewPosition);
-        if (duneRipples) {
-          // Evaluate derivatives before branching by depth.
-          vec2 pixelX = dFdx(duneQ), pixelY = dFdy(duneQ);
-          if (duneDepth < duneBedFade.y) detail = duneSurface(duneQ, pixelX, pixelY, duneDepth);
-        }
-        if (duneFinish) {
-          roughnessFactor += duneRoughness * detail.x;
-          diffuseColor.rgb *= 1.0 + duneBedTint * detail.x * vec3(0.90, 1.05, 1.22);
-        }`)
+        vec3 detail = duneDepth < duneBedFade.y ? duneSurface(duneQ, pixelX, pixelY, duneDepth) : vec3(0.0);
+        roughnessFactor += duneRoughness * detail.x;
+        diffuseColor.rgb *= 1.0 + duneBedTint * detail.x * vec3(0.90, 1.05, 1.22);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        if (duneRipples && duneDepth < duneBedFade.y) {
+        if (duneDepth < duneBedFade.y) {
           float up = clamp(dot(normal, viewMatrix[1].xyz), 0.0, 1.0);
           float slope = sqrt(max(0.0, 1.0 - up * up));
           vec3 viewWind = mat3(viewMatrix) * vec3(duneWind.x, 0.0, duneWind.y);
@@ -125,5 +117,5 @@ export function createAeolianMaterial() {
           normal = normalize(normal - up * viewGradient);
         }`);
   };
-  return { material, uniforms };
+  return material;
 }

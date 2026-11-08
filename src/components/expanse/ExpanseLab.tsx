@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { AUTHORED_MONUMENT_LAYERS, EXPANSE, LIGHTING_LOOKS, MONUMENT_LAYERS, SKY_VIEWS, SURFACE_VIEWS, WIND_VIEWS,
-  type JourneySignal, type LightingLook, type MonumentFinish, type MonumentLayer, type MonumentView, type SkyView, type SurfaceView, type WindView } from './parameters';
+import { EXPANSE, SKY_VIEWS, WIND_VIEWS, type JourneySignal, type SkyView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
 import styles from './expanse.module.css';
 
@@ -41,12 +40,7 @@ export default function ExpanseLab() {
   const signal = useRef<JourneySignal>({ value: 0, raw: 0, invalidate: () => {} });
   const [mobile, setMobile] = useState(false), [mediaReduced, setMediaReduced] = useState(false);
   const [debug, setDebug] = useState(false), [forceReduced, setForceReduced] = useState(false);
-  const [surfaceView, setSurfaceView] = useState<SurfaceView>('finalMaterial');
-  const [lightingLook, setLightingLook] = useState<LightingLook>(EXPANSE.atmosphere.defaultLook);
   const [skyView, setSkyView] = useState<SkyView>('color');
-  const [monumentView, setMonumentView] = useState<MonumentView>('core');
-  const [monumentFinish, setMonumentFinish] = useState<MonumentFinish>('authored');
-  const [monumentLayer, setMonumentLayer] = useState<MonumentLayer>('full');
   const [windView, setWindView] = useState<WindView>('transport');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
   const reduced = mediaReduced || forceReduced;
@@ -67,7 +61,7 @@ export default function ExpanseLab() {
     if (params.get('debug') === '1') {
       setDebug(true);
       const wind = params.get('wind');
-      if (wind === 'static' || wind === 'wind' || wind === 'source' || wind === 'concentration') setWindView(wind);
+      if (wind === 'static' || wind === 'concentration') setWindView(wind);
     }
     narrow.addEventListener('change', update); motion.addEventListener('change', update);
     return () => { narrow.removeEventListener('change', update); motion.removeEventListener('change', update); };
@@ -105,8 +99,7 @@ export default function ExpanseLab() {
     <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
-          debug={debug} surfaceView={surfaceView} lightingLook={lightingLook} skyView={skyView} monumentView={monumentView}
-          monumentFinish={monumentFinish} monumentLayer={monumentLayer} windView={windView}
+          debug={debug} skyView={skyView} windView={windView}
           onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
@@ -124,43 +117,15 @@ export default function ExpanseLab() {
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} aria-label="场景调试">
         <output ref={debugOutput} aria-label="原始滚动、平滑滚动与旅程进度">原始 0.0% / 平滑 0.0% / 旅程 0.0%</output>
-        <div>{[0, .25, EXPANSE.journey.passage.scroll, .5, .65, .75, 1].map(p => <button key={p} type="button" onClick={() => seek(p)}>{Math.round(p * 100)}%</button>)}</div>
-        <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />静态模式验证</label>
-        <label>地表 <select value={surfaceView} onChange={event => setSurfaceView(event.target.value as SurfaceView)}>
-          {Object.entries(SURFACE_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
-        </select></label>
-        <label>光照 <select value={lightingLook} onChange={event => setLightingLook(event.target.value as LightingLook)}>
-          {Object.entries(LIGHTING_LOOKS).map(([look, label]) => <option key={look} value={look}>{label}</option>)}
-        </select></label>
-        <label>风沙 <select value={windView} onChange={event => setWindView(event.target.value as WindView)}>
+        <div>{([['起点', 0], ['中景', EXPANSE.journey.passage.scroll], ['终点', 1]] as const)
+          .map(([label, progress]) => <button key={label} type="button" disabled={reduced || contextLost} onClick={() => seek(progress)}>{label}</button>)}</div>
+        <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />验证减少动态效果</label>
+        <label>风沙 <select disabled={reduced || contextLost} value={reduced ? 'static' : windView}
+          onChange={event => setWindView(event.target.value as WindView)}>
           {Object.entries(WIND_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
-        <label>天空视图 <select value={skyView} onChange={event => setSkyView(event.target.value as SkyView)}>
+        <label>天空分层 <select disabled={contextLost} value={skyView} onChange={event => setSkyView(event.target.value as SkyView)}>
           {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
-        </select></label>
-        <label>主碑几何 <select value={monumentView} onChange={event => setMonumentView(event.target.value as MonumentView)}>
-          <option value="core">四面主槽与辅槽</option>
-          <option value="beveled">旧单槽 · 倒角</option>
-          <option value="original">旧单槽 · 原版</option>
-        </select></label>
-        <label>主碑材质 <select disabled={monumentView !== 'beveled'} value={monumentView === 'beveled' ? monumentFinish : 'gray'}
-          onChange={event => {
-            setMonumentFinish(event.target.value as MonumentFinish);
-            setMonumentLayer('full');
-          }}>
-          <option value="authored">主碑专属平面纹样</option>
-          <option value="gray">灰模参照</option>
-          {Object.entries(EXPANSE.hero.finish.inscription.looks).map(([finish, look]) =>
-            <option key={finish} value={finish}>旧纹刻研究 · {look.label}</option>)}
-          <option value="refined">旧研究 · Dressed Mineral</option>
-          <option value="mineral">旧版 A · Wind-Worn Mineral</option>
-          <option value="composite">旧版 B · Precision Composite Stone</option>
-          <option value="hybrid">旧版 C · Hybrid</option>
-        </select></label>
-        <label>材质分层 <select disabled={monumentView !== 'beveled' || monumentFinish === 'gray'} value={monumentView === 'beveled' ? monumentLayer : 'full'}
-          onChange={event => setMonumentLayer(event.target.value as MonumentLayer)}>
-          {Object.entries(monumentFinish === 'authored' ? AUTHORED_MONUMENT_LAYERS : MONUMENT_LAYERS)
-            .map(([layer, label]) => <option key={layer} value={layer}>{label}</option>)}
         </select></label>
       </aside>}
     </figure>
