@@ -81,8 +81,9 @@ export function createAtmosphere(look: LightingLook) {
       );
     }
   });
-  const data = new Uint16Array(base.length).fill(DataUtils.toHalfFloat(1));
-  const texture = new DataTexture(data, SKY_WIDTH, SKY_HEIGHT, RGBAFormat, HalfFloatType);
+  // Stack visible sky and cloud-free air light in one texture. Each pass still uses one lookup.
+  const data = new Uint16Array(2 * base.length).fill(DataUtils.toHalfFloat(1));
+  const texture = new DataTexture(data, SKY_WIDTH, 2 * SKY_HEIGHT, RGBAFormat, HalfFloatType);
   texture.wrapS = RepeatWrapping;
   texture.colorSpace = LinearSRGBColorSpace;
   texture.minFilter = texture.magFilter = LinearFilter;
@@ -125,6 +126,7 @@ export function bakeSkyRadiance(atmosphere: Atmosphere, field: Uint8Array, view:
         const sky = base[i + channel] + brightness + thermal * fieldWarmth[channel];
         const clouded = MathUtils.lerp(sky, cloudLight[channel], opacity);
         data[i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(clouded, hazeTint[channel], haze));
+        data[base.length + i + channel] = DataUtils.toHalfFloat(MathUtils.lerp(sky, hazeTint[channel], haze));
       }
     }
   }
@@ -138,11 +140,16 @@ export const sampleSky = /* glsl */ `
   vec2 skyDirectionUv(vec3 direction) {
     float u = 0.5 + atan(direction.x, -direction.z + 1e-7) / 6.28318530718;
     float row = sqrt(clamp(direction.y, 0.0, 1.0)) * float(${SKY_HEIGHT - 1}) + 0.5;
-    return vec2(u, row / float(${SKY_HEIGHT}));
+    // Keep linear filtering inside the selected half, including the horizon and zenith rows.
+    return vec2(u, row / float(${2 * SKY_HEIGHT}));
   }
 
   vec3 skyRadiance(vec3 direction) {
     return texture2D(airSky, skyDirectionUv(direction)).rgb;
+  }
+
+  vec3 airRadiance(vec3 direction) {
+    return texture2D(airSky, skyDirectionUv(direction) + vec2(0.0, 0.5)).rgb;
   }
 `;
 
@@ -187,7 +194,7 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
               float haze = 1.0 - smoothstep(0.0, float(${hazeHeight}), ray.y);
               fogAmount = mix(fogAmount, 1.0, haze * float(${distantHaze}));
             ` : ''}
-            gl_FragColor.rgb = mix(gl_FragColor.rgb, skyRadiance(ray), fogAmount);
+            gl_FragColor.rgb = mix(gl_FragColor.rgb, airRadiance(ray), fogAmount);
           }
         #endif
         #include <colorspace_fragment>
