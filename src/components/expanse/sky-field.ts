@@ -40,11 +40,14 @@ export function createSkyField() {
   const along = east.clone().multiplyScalar(Math.cos(t)).addScaledVector(up, Math.sin(t));
   const across = up.multiplyScalar(Math.cos(t)).addScaledVector(east, -Math.sin(t));
   const halfWidth = degToRad(flow.halfWidth), bend = degToRad(flow.bend);
-  const branches = flow.branches.map(branch => ({ ...branch, offset: degToRad(branch.offset), halfWidth: degToRad(branch.halfWidth) }));
+  const branches = flow.branches.map(branch => ({
+    ...branch, offset: degToRad(branch.offset), halfWidth: degToRad(branch.halfWidth),
+    fringeReach: degToRad(branch.fringeReach), outward: Math.sign(branch.offset),
+  }));
   const widthBase = 0.95, widthLong = 0.24, widthShort = 0.18;
   const maxWidth = widthBase + widthLong + widthShort;
   const cloudLimit = Math.sin(bend + Math.max(halfWidth * maxWidth,
-    ...branches.map(branch => Math.abs(branch.offset) + branch.halfWidth * maxWidth)));
+    ...branches.map(branch => Math.abs(branch.offset) + Math.max(branch.halfWidth * maxWidth, branch.fringeReach))));
   const seed = EXPANSE.seed + 297;
   const data = new Uint8Array(SKY_WIDTH * SKY_HEIGHT * 4);
   const ray = new Vector3();
@@ -65,13 +68,20 @@ export function createSkyField() {
     const spine = bend * (0.63 * Math.sin(1 + lon) + 0.37 * Math.sin(2 * lon - 1.4));
     const local = lat - spine;
     const width = widthBase + widthLong * Math.sin(2 * lon + 0.9) + widthShort * Math.sin(5 * lon - 1.4);
-    const density = 0.82 + 0.18 * flowNoise(lon, 0.6, 19, seed);
     const main = flow.density * (1 - smoothstep(Math.abs(local), halfWidth * width * 0.11, halfWidth * width));
     let secondary = 0;
     for (const branch of branches) {
       const separation = branch.offset * (0.62 + 0.38 * Math.sin(lon * 2 + branch.phase));
-      const envelope = 1 - smoothstep(Math.abs(local - separation), 0, branch.halfWidth * width);
-      secondary += branch.density * (0.72 + 0.28 * Math.cos(lon * 3 - branch.phase)) * envelope;
+      const distance = local - separation;
+      const span = branch.halfWidth * width;
+      const envelope = 1 - smoothstep(Math.abs(distance), 0, span);
+      // Feather only the outward edge. The extension shares the branch's fiber field.
+      const outwardDistance = distance * branch.outward;
+      const reach = branch.fringeReach * (0.85 + 0.15 * Math.cos(2 * lon + branch.phase));
+      const fringe = smoothstep(outwardDistance, 0, 0.8 * span)
+        * (1 - smoothstep(outwardDistance, 0.22 * reach, reach));
+      secondary += branch.density * (0.72 + 0.28 * Math.cos(lon * 3 - branch.phase))
+        * (envelope + branch.fringeStrength * fringe);
     }
     if (main + secondary <= 0) return;
 
@@ -82,6 +92,7 @@ export function createSkyField() {
       + 0.15 * flowNoise(lon, 105 * fork + 2.8, 39, seed + 5);
     const feather = smoothstep(fibers, -0.31, 0.38);
     const lowFade = lerp(0.26, 1, smoothstep(y, 0.018, 0.18));
+    const density = 0.82 + 0.18 * flowNoise(lon, 0.6, 19, seed);
     const contrast = lowFade * density * (0.13 + 0.87 * feather);
     data[offset + 1] = Math.round(255 * main * contrast);
     data[offset + 2] = Math.round(255 * secondary * contrast);

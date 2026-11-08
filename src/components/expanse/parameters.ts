@@ -232,8 +232,8 @@ export const EXPANSE = {
       flow: {
         azimuth: -8, elevation: 22, tilt: -13, halfWidth: 8, density: 0.94, bend: 8.5,
         branches: [
-          { offset: 16, halfWidth: 5.2, density: 0.43, phase: 0.7 },
-          { offset: -8, halfWidth: 3.8, density: 0.22, phase: -1.1 },
+          { offset: 16, halfWidth: 5.2, density: 0.43, phase: 0.7, fringeReach: 44, fringeStrength: 0.69 },
+          { offset: -8, halfWidth: 3.8, density: 0.22, phase: -1.1, fringeReach: 21, fringeStrength: 1.2 },
         ],
       },
     },
