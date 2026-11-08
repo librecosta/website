@@ -209,6 +209,16 @@ export const EXPANSE = {
     // Margin is a fraction of face span. Width and depth reference the base X and Z spans.
     secondaryGroove: { margin: 0.07, width: 0.022, depth: 0.035, bottom: monumentGrooveY(-0.438), top: monumentGrooveY(0.466) },
   },
+  sanctuary: {
+    // Relative to the actual stele's width, height and depth, in that order.
+    radiusScale: [2.65, 0.95, 4.50], elevation: 0.36,
+    proximity: [1.8, 5.1], distantGain: 0.24,
+    air: { color: '#f9d89a', opticalDepth: 0.57 },
+    ground: { count: { desktop: 1280, mobile: 710 }, life: [4.5, 8.5], rise: [75, 280], size: [1.4, 3.0] },
+    ascending: { count: { desktop: 245, mobile: 140 }, life: [9, 16], rise: [430, 1450], size: [2.4, 5.5] },
+    pointer: { radius: 180, depth: 610, offsetFraction: 0.32, strength: 25, responseSeconds: 0.30 },
+    stillTime: 4.2,
+  },
   atmosphere: {
     skyFinish: {
       fieldValue: 0.045,

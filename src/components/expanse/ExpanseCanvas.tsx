@@ -14,12 +14,16 @@ import { createAeolianMaterial } from './aeolian-material';
 import { AtmosphericSky } from './AtmosphericSky';
 import { applyAerialPerspective, createAtmosphere, type Atmosphere } from './atmosphere';
 import { SandDust } from './SandDust';
+import { SanctuaryMotes } from './Sanctuary';
+import { createSanctuaryField, sanctuaryUniforms, type SanctuaryPointer } from './sanctuary-field';
+import { renderedGround } from './sand-transport';
 import { createMonumentGeometry, createMonumentMaterial, useMonumentAtlas } from '../monument-surface/atlas';
 import styles from './expanse.module.css';
 
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
   skyView: SkyView;
   windView: WindView; onReady: () => void; onContextLost: () => void };
+type SanctuaryInput = { sanctuary: boolean; sanctuaryPointer: RefObject<SanctuaryPointer> };
 
 function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array; normals?: Float32Array }) {
   const g = new BufferGeometry();
@@ -52,8 +56,8 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant && items[0]?.kind === 'slotted'} dispose={null} />;
 }
 
-function World({ mobile, windView, visible, debug, atmosphere }:
-  Pick<Props, 'mobile' | 'windView' | 'debug'> & { visible: boolean; atmosphere: Atmosphere }) {
+function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere, sanctuary, sanctuaryPointer }:
+  Pick<Props, 'mobile' | 'windView' | 'skyView' | 'debug' | 'reduced'> & SanctuaryInput & { visible: boolean; atmosphere: Atmosphere }) {
   const { invalidate, gl } = useThree();
   const monuments = useMemo(() => buildMonuments(EXPANSE), []);
   const batches = useMemo(() => {
@@ -67,6 +71,11 @@ function World({ mobile, windView, visible, debug, atmosphere }:
     geometry.computeBoundingSphere();
     return { geometry, fingerprint: fingerprint(data.positions) };
   }, [mobile]);
+  const groundHeight = useMemo(() => renderedGround(terrain.geometry.getAttribute('position').array,
+    EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop'], EXPANSE.terrain), [terrain, mobile]);
+  const hero = batches.hero[0];
+  const field = useMemo(() => sanctuary ? createSanctuaryField(hero, groundHeight) : null, [hero, groundHeight, sanctuary]);
+  const scatter = useMemo(() => field ? sanctuaryUniforms(field) : undefined, [field]);
   const geometries = useMemo(() => ({
     box: new BoxGeometry(1,1,1), wedge: batches.wedge.length ? indexedGeometry(buildWedgeData()) : null,
     slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.distantSteleGroove,EXPANSE.hero.topScale)),
@@ -74,20 +83,20 @@ function World({ mobile, windView, visible, debug, atmosphere }:
   }), [batches]);
   const atlas = useMonumentAtlas(gl, invalidate);
   const heroStone = useMemo(() => {
-    const material = createMonumentMaterial(atlas, batches.hero[0].position);
-    applyAerialPerspective(material, atmosphere);
+    const material = createMonumentMaterial(atlas, hero.position);
+    applyAerialPerspective(material, atmosphere, false, scatter);
     return material;
-  }, [atlas, atmosphere, batches.hero]);
+  }, [atlas, atmosphere, hero, scatter]);
   useEffect(() => () => heroStone.dispose(), [heroStone]);
   const resources = useMemo(() => {
     const ground = createAeolianMaterial();
     const stone = new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1, metalness: 0, flatShading: true });
     const distant = new MeshBasicMaterial({ color: EXPANSE.atmosphere.distantSilhouette, toneMapped: false });
-    applyAerialPerspective(ground, atmosphere);
-    applyAerialPerspective(stone, atmosphere);
-    applyAerialPerspective(distant, atmosphere, true);
+    applyAerialPerspective(ground, atmosphere, false, scatter);
+    applyAerialPerspective(stone, atmosphere, false, scatter);
+    applyAerialPerspective(distant, atmosphere, true, scatter);
     return { ground, stone, distant };
-  }, [atmosphere]);
+  }, [atmosphere, scatter]);
   useLayoutEffect(() => {
     gl.domElement.dataset.windView = windView;
     if (windView === 'static') {
@@ -113,6 +122,7 @@ function World({ mobile, windView, visible, debug, atmosphere }:
     resources.distant.dispose();
   }, [resources]);
   return <group dispose={null}>
+    <AtmosphericSky atmosphere={atmosphere} view={skyView} sanctuary={scatter} />
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
     <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />
     {geometries.wedge && <Instances items={batches.wedge} geometry={geometries.wedge} material={resources.stone} />}
@@ -120,16 +130,18 @@ function World({ mobile, windView, visible, debug, atmosphere }:
     <Instances items={batches.distant} geometry={geometries.slotted} material={resources.distant} distant />
     {windView !== 'static' && <SandDust terrain={terrain.geometry} monuments={monuments} mobile={mobile}
       mode={windView} visible={visible} debug={debug} />}
+    {field && <SanctuaryMotes hero={hero} field={field} ground={groundHeight} mobile={mobile}
+      visible={visible} reduced={reduced} pointer={sanctuaryPointer} debug={debug} />}
   </group>;
 }
 
-function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, windView, visible }:
-  Props & { visible: boolean }) {
+function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, windView, visible, sanctuary, sanctuaryPointer }:
+  Props & SanctuaryInput & { visible: boolean }) {
   const { camera, invalidate, gl, size } = useThree();
   const ready = useRef(false), frames = useRef(0), readback = useRef(false);
   const lastPose = useRef({ smoothed: -1, aspect: 0, camera, reduced, rotation: new Quaternion(), x: 0, y: 0 });
   const pointer = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, sampledAt: null as number | null });
-  const animated = visible && windView !== 'static';
+  const animated = visible && !reduced && (windView !== 'static' || sanctuary);
   useEffect(() => {
     const current = signal.current;
     const interval = 1000 / EXPANSE.windMotion.fps[mobile ? 'mobile' : 'desktop'];
@@ -167,6 +179,8 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
     if (!container || reduced || !visible) return;
     const fineHover = window.matchMedia('(any-pointer: fine) and (any-hover: hover)');
     const motion = pointer.current;
+    const motePointer = sanctuaryPointer.current;
+    const releaseMotes = () => { motePointer.active = false; };
     const setTarget = (x: number, y: number) => {
       if (x === motion.targetX && y === motion.targetY) return;
       motion.targetX = x;
@@ -178,19 +192,21 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
     const move = (event: PointerEvent) => {
       if (event.pointerType !== 'mouse' || !fineHover.matches || document.hidden) return;
       if (event.target instanceof Element && event.target.closest('a, aside')) {
+        releaseMotes();
         setTarget(0, 0);
         return;
       }
       const { left, top, width, height } = container.getBoundingClientRect();
-      setTarget(
-        MathUtils.clamp(2 * (event.clientX - left) / width - 1, -1, 1),
-        MathUtils.clamp(1 - 2 * (event.clientY - top) / height, -1, 1),
-      );
+      motePointer.x = MathUtils.clamp(2 * (event.clientX - left) / width - 1, -1, 1);
+      motePointer.y = MathUtils.clamp(1 - 2 * (event.clientY - top) / height, -1, 1);
+      motePointer.active = true;
+      setTarget(motePointer.x, motePointer.y);
     };
     const leave = (event: PointerEvent) => {
-      if (event.pointerType === 'mouse') setTarget(0, 0);
+      if (event.pointerType === 'mouse') { releaseMotes(); setTarget(0, 0); }
     };
     const reset = () => {
+      releaseMotes();
       const moved = motion.x !== 0 || motion.y !== 0;
       motion.x = motion.y = motion.targetX = motion.targetY = 0;
       motion.sampledAt = null;
@@ -207,7 +223,7 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
       fineHover.removeEventListener('change', reset);
       reset();
     };
-  }, [stage, signal, reduced, visible]);
+  }, [stage, signal, reduced, visible, sanctuaryPointer]);
   useEffect(() => addAfterEffect(() => {
     if (!readback.current) return;
     readback.current = false;
@@ -291,6 +307,8 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
 export default function ExpanseCanvas(props: Props) {
   const [visible, setVisible] = useState(true);
   const windView = props.reduced ? 'static' : props.windView;
+  const sanctuaryPointer = useRef<SanctuaryPointer>({ x: 0, y: 0, active: false });
+  const sanctuary = !props.debug || new URLSearchParams(window.location.search).get('sanctuary') !== 'off';
   const atmosphere = useMemo(createAtmosphere, []);
   useEffect(() => () => atmosphere.uniforms.airSky.value.dispose(), [atmosphere]);
   useEffect(() => {
@@ -322,7 +340,6 @@ export default function ExpanseCanvas(props: Props) {
     }} fallback={<p>苍白荒原与半埋巨构。三维视图需要 WebGL2。</p>}>
     <color attach="background" args={[atmosphere.horizon]} />
     <fog attach="fog" args={[atmosphere.horizon, ...atmosphere.fogRange]} />
-    <AtmosphericSky atmosphere={atmosphere} view={props.skyView} />
     <hemisphereLight color={daylight.hemisphereSky} groundColor={daylight.hemisphereGround} intensity={daylight.hemisphereIntensity} />
     <primitive object={target} />
     <directionalLight key={quality} position={[...daylight.sunPosition]} target={target} color={daylight.sunColor} intensity={daylight.sunIntensity}
@@ -330,8 +347,8 @@ export default function ExpanseCanvas(props: Props) {
       shadow-radius={a.shadowRadius[quality]} shadow-bias={a.shadowBias} shadow-normalBias={a.shadowNormalBias}>
       <orthographicCamera attach="shadow-camera" args={[...daylight.shadowBounds]} />
     </directionalLight>
-    <World mobile={props.mobile} windView={windView}
-      visible={visible} debug={props.debug} atmosphere={atmosphere} />
-    <Observation {...props} windView={windView} visible={visible} />
+    <World mobile={props.mobile} windView={windView} skyView={props.skyView} reduced={props.reduced}
+      visible={visible} debug={props.debug} atmosphere={atmosphere} sanctuary={sanctuary} sanctuaryPointer={sanctuaryPointer} />
+    <Observation {...props} windView={windView} visible={visible} sanctuary={sanctuary} sanctuaryPointer={sanctuaryPointer} />
   </Canvas>;
 }

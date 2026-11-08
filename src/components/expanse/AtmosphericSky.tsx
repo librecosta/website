@@ -5,6 +5,8 @@ import { useLayoutEffect, useMemo } from 'react';
 import { bakeSkyRadiance, sampleSky, type Atmosphere } from './atmosphere';
 import { type SkyView } from './parameters';
 import { createSkyField } from './sky-field';
+import { EXPANSE } from './parameters';
+import { sanctuaryAir, type SanctuaryUniforms } from './sanctuary-field';
 
 const triangle = new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]);
 const vertex = /* glsl */ `
@@ -30,7 +32,10 @@ const fragment = /* glsl */ `
   }
 `;
 
-export function AtmosphericSky({ atmosphere, view }: { atmosphere: Atmosphere; view: SkyView }) {
+const sanctuaryFragment = fragment.replace('void main()', `${sanctuaryAir}\nvoid main()`)
+  .replace('skyRadiance(ray)', `scatterSanctuary(skyRadiance(ray), ray * ${EXPANSE.atmosphere.cameraFar.toFixed(1)})`);
+
+export function AtmosphericSky({ atmosphere, view, sanctuary }: { atmosphere: Atmosphere; view: SkyView; sanctuary?: SanctuaryUniforms }) {
   const invalidate = useThree(state => state.invalidate);
   const canvas = useThree(state => state.gl.domElement);
   const field = useMemo(createSkyField, []);
@@ -44,7 +49,8 @@ export function AtmosphericSky({ atmosphere, view }: { atmosphere: Atmosphere; v
   // Draw at far depth after the opaque world so foreground pixels reject the sky.
   return <mesh frustumCulled={false} renderOrder={1}>
     <bufferGeometry><bufferAttribute attach="attributes-position" args={[triangle, 3]} /></bufferGeometry>
-    <shaderMaterial uniforms={atmosphere.uniforms} vertexShader={vertex} fragmentShader={fragment}
+    <shaderMaterial key={sanctuary ? 'sanctuary' : 'sky'} uniforms={{ ...atmosphere.uniforms, ...sanctuary }}
+      vertexShader={vertex} fragmentShader={sanctuary ? sanctuaryFragment : fragment}
       toneMapped={false} depthWrite={false} />
   </mesh>;
 }

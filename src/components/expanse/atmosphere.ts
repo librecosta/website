@@ -1,6 +1,7 @@
 import { Color, DataTexture, DataUtils, HalfFloatType, LinearFilter, LinearSRGBColorSpace, MathUtils, RepeatWrapping, RGBAFormat, Vector3, Vector4, type Material } from 'three';
 import { EXPANSE, type SkyView } from './parameters';
 import { forSkyDirection, SKY_HEIGHT, SKY_WIDTH } from './sky-field';
+import { sanctuaryAir, type SanctuaryUniforms } from './sanctuary-field';
 
 const skySize = [96, 64] as const;
 const luminance = ([r, g, b]: number[]) => r * 0.2126 + g * 0.7152 + b * 0.0722;
@@ -149,15 +150,15 @@ export const sampleSky = /* glsl */ `
   }
 `;
 
-export function applyAerialPerspective(material: Material, atmosphere: Atmosphere, distant = false) {
+export function applyAerialPerspective(material: Material, atmosphere: Atmosphere, distant = false, sanctuary?: SanctuaryUniforms) {
   const compile = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey();
   const { hazeHeight, distantHaze } = EXPANSE.atmosphere.skyFinish;
   material.dithering = true;
-  material.customProgramCacheKey = () => `${key}:aerial-perspective:${distant}`;
+  material.customProgramCacheKey = () => `${key}:aerial-perspective:${distant}:sanctuary:${!!sanctuary}`;
   material.onBeforeCompile = (shader, renderer) => {
     compile(shader, renderer);
-    Object.assign(shader.uniforms, atmosphere.uniforms);
+    Object.assign(shader.uniforms, atmosphere.uniforms, sanctuary);
     if (distant) shader.uniforms.airDistantFade = { value: atmosphere.distantFade };
     shader.vertexShader = shader.vertexShader
       .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vAirRay;')
@@ -169,6 +170,7 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
         #include <fog_pars_fragment>
         varying vec3 vAirRay;
         ${sampleSky}
+        ${sanctuary ? sanctuaryAir : ''}
         ${distant ? 'uniform vec4 airDistantFade;' : ''}
       `)
       .replace('#include <colorspace_fragment>', `
@@ -186,6 +188,7 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
             gl_FragColor.rgb = mix(gl_FragColor.rgb, airRadiance(ray), fogAmount);
           }
         #endif
+        ${sanctuary ? 'gl_FragColor.rgb = scatterSanctuary(gl_FragColor.rgb, vAirRay);' : ''}
         #include <colorspace_fragment>
       `)
       .replace('#include <fog_fragment>', '');
