@@ -1,0 +1,69 @@
+.study {
+  --ink: #29322f;
+  --soft: #4e5b55;
+  --rule: #a9b1a7;
+  --paper: #dce0d7;
+  max-width: none;
+  min-height: 100svh;
+  box-sizing: border-box;
+  padding: 1.4rem clamp(1.1rem, 5vw, 5rem) 3rem;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+.masthead, .title, .switcher, .workspace { max-width: 93rem; margin-inline: auto; }
+.masthead { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: .75rem; }
+.masthead a { color: inherit; text-decoration: none; font-weight: 650; }
+.masthead a span, .reference { font-weight: 400; color: var(--soft); }
+.reference { font-size: .77rem; font-variant-numeric: tabular-nums; }
+.title { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: .6rem 2rem; padding-block: 1.25rem 1.35rem; }
+.title p { margin: 0; font-size: .9rem; color: var(--soft); }
+.title > p { max-width: 26rem; }
+.title h1 { margin: .1rem 0 0; font-size: clamp(1.8rem, 4vw, 3.1rem); font-weight: 520; line-height: 1.2; }
+.switcher { display: flex; border-bottom: 1px solid var(--rule); gap: 1.5rem; }
+.study button { color: inherit; background: none; border: 0; font: inherit; cursor: pointer; }
+.switcher button { border-bottom: 2px solid transparent; padding: .55rem .16rem; font-size: .9rem; }
+.switcher button[aria-pressed='true'] { border-bottom-color: var(--ink); font-weight: 650; }
+.study :is(a, button, input, [tabindex]):focus-visible { outline: 2px solid #445f57; outline-offset: 3px; }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(13rem, 17rem); gap: clamp(1.3rem, 3vw, 3rem); margin-top: 1.2rem; }
+.boardHeading, .planFoot { display: flex; align-items: baseline; justify-content: space-between; gap: .3rem 1rem; flex-wrap: wrap; }
+.boardHeading { padding-bottom: .6rem; }
+.boardHeading h2, .spec h2 { margin: 0; font-size: .88rem; font-weight: 650; }
+.guides, .planFoot { font-size: .76rem; color: var(--soft); }
+.guides input { accent-color: #42544a; vertical-align: middle; }
+.planScroll { overflow-x: auto; background: #e9eae2; box-shadow: inset 0 0 0 1px #bfc5b9; }
+.plan { display: block; width: 100%; min-width: 31rem; height: clamp(25rem, 64vh, 44rem); object-fit: contain; }
+.planFoot { padding: .5rem 0; }
+.viewport { position: relative; height: clamp(25rem, 64vh, 44rem); background: radial-gradient(ellipse at 48% 45%, #53615a, #323c39 75%); }
+.previewMessage { position: absolute; inset: 0; display: grid; align-content: center; text-align: center; color: #e9eae2; padding: 1rem; margin: 0; }
+.angles { display: flex; flex-wrap: wrap; gap: .2rem 1rem; padding-top: .35rem; }
+.angles button { padding: .25rem 0; font-size: .78rem; text-underline-offset: .3rem; }
+.angles button[aria-pressed='true'] { text-decoration: underline; font-weight: 650; }
+
+.notes { display: flex; flex-direction: column; gap: 1.15rem; }
+.spec { border-top: 1px solid var(--rule); padding-top: .55rem; }
+.legend, .faces { list-style: none; padding: 0; margin: .45rem 0 0; }
+.legend li + li, .faces li + li { margin-top: .48rem; }
+.legend p, .legend button { display: flex; gap: .45rem; align-items: center; margin: 0; font-size: .83rem; font-weight: 600; padding: 0; text-align: left; }
+.legend button { padding-right: .25rem; }
+.legend button[aria-pressed='true'] { text-decoration: underline; text-underline-offset: .23rem; }
+.legend span { display: grid; place-items: center; width: 1.12rem; height: 1.12rem; background: #b5afa2; font-size: .68rem; }
+.legend [data-layer='primary'] span { background: #d0c4aa; }
+.legend [data-layer='secondary'] span { background: #a8aa9b; }
+.legend [data-layer='fine'] span { background: #eee2c5; }
+.legend small { padding-left: 1.57rem; }
+.notes small, .seam { display: block; font-size: .74rem; line-height: 1.45; color: var(--soft); }
+.dimensions { margin: .35rem 0 .65rem; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.dimensions span { margin-inline-start: .5rem; color: var(--soft); font-size: .72rem; }
+.faces strong { display: block; font-size: .8rem; font-weight: 600; }
+.seam { margin: .55rem 0 0; }
+.download { display: flex; flex-wrap: wrap; gap: .45rem .8rem; }
+.download a { color: var(--ink); font-size: .82rem; text-underline-offset: .25rem; }
+
+@media (max-width: 730px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+  .viewport { height: min(65svh, 35rem); }
+}

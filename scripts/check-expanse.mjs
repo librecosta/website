@@ -4,6 +4,8 @@ import { EXPANSE } from '../src/components/expanse/parameters.ts';
 import { buildAeolianTerrain, duneRelief, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { createSandTransport, renderedGround } from '../src/components/expanse/sand-transport.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
+import { unwrapMonument } from '../src/components/monument-surface/unwrap.ts';
+import { splice } from '../src/components/monument-surface/layout.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const rendered = {};
@@ -372,6 +374,37 @@ const frontHit=(x,y) => {
 assert(Math.abs(frontHit(groove.center,0)-(.5-groove.depth)*(1-(1-tz)*.5))<1e-6,'Groove ray reaches an actual recessed back wall');
 assert(Math.abs(frontHit(groove.center,.45)-.5*(1-(1-tz)*.95))<1e-6,'The tapered crown remains continuous above the groove');
 const core = buildMonumentCoreData(EXPANSE.hero), coreVolume = solidVolume(core);
+const net = unwrapMonument(core, EXPANSE.hero.scale);
+assert.deepEqual(net.faces.map(face => face.id), ['front', 'right', 'back', 'left']);
+const almost = (a, b) => assert(Math.abs(a - b) < 1e-5, `${a} ≠ ${b}`);
+const distance = (a, b) => Math.hypot(...a.map((value, i) => value - b[i]));
+const area = loop => Math.abs(loop.reduce((sum, [x, y], i) => {
+  const [nextX, nextY] = loop[(i + 1) % loop.length];
+  return sum + x * nextY - y * nextX;
+}, 0)) / 2;
+for (const [i, face] of net.faces.entries()) {
+  const original = core.facades[i].corners;
+  for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++) {
+    almost(distance(original[a], original[b]), distance(face.corners[a], face.corners[b]));
+  }
+  const next = net.faces[i + 1];
+  if (next) for (const v of [0, splice.lower, splice.datum, splice.upper, 1]) {
+    almost(distance(face.point([1, v]), next.point([0, v])), 0);
+  }
+  const [outline, ...holes] = face.outlines;
+  assert.deepEqual(holes.map(loop => loop.length), [4, 8]);
+  const inside = new Set([face.outline, ...face.holes].flat());
+  const triangles = core.indices.slice(face.indexStart, face.indexStart + face.indexCount);
+  assert(triangles.every(index => inside.has(index)), `${face.id} UVs stay on the facade`);
+  let areaFromMesh = 0;
+  for (let j = 0; j < triangles.length; j += 3) {
+    areaFromMesh += area([...triangles.slice(j, j + 3)].map(face.projectVertex));
+  }
+  almost(area(outline) - holes.reduce((sum, loop) => sum + area(loop), 0), areaFromMesh);
+}
+for (const [left, front] of [[0, 1], [3, 2]]) {
+  assert.deepEqual(core.facades[0].corners[left], core.facades[3].corners[front], 'The cut closes from left to front');
+}
 const heroPart = hero[0], q = new Quaternion().fromArray(heroPart.quaternion);
 const heroScale = new Vector3(...heroPart.scale), heroPosition = new Vector3(...heroPart.position);
 {

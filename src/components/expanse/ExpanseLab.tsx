@@ -127,6 +127,7 @@ export default function ExpanseLab() {
         <label>天空分层 <select disabled={contextLost} value={skyView} onChange={event => setSkyView(event.target.value as SkyView)}>
           {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
+        <a href="/lab/monument-surface">主碑展开图</a>
       </aside>}
     </figure>
   </main>;

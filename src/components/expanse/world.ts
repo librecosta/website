@@ -273,6 +273,10 @@ const walls = [
   [12, 15, 14, 13], [8, 12, 13, 9], [11, 10, 14, 15], [9, 13, 14, 10], [8, 11, 15, 12],
 ];
 const front = [4, 5, 6, 7], opening = [8, 9, 10, 11];
+const coreSides: { id: 'front' | 'right' | 'back' | 'left'; outline: number[] }[] = [
+  { id: 'front', outline: front }, { id: 'right', outline: [5, 1, 2, 6] },
+  { id: 'back', outline: [1, 0, 3, 2] }, { id: 'left', outline: [0, 4, 7, 3] },
+];
 
 function steleCorners() {
   const outline = [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]];
@@ -353,7 +357,7 @@ export function buildMonumentCoreData(hero: Hero) {
 
   // Four outward-facing charts with matching physical sections. Referencing the
   // original front section keeps the slit legible on the narrower side faces.
-  for (const face of [front, [5, 1, 2, 6], [1, 0, 3, 2], [0, 4, 7, 3]]) {
+  for (const { outline: face } of coreSides) {
     const [a, b, c, d] = face.map(i => vertices[i]);
     const base = a.clone().lerp(b, .5), crown = d.clone().lerp(c, .5);
     const across = b.clone().sub(a).normalize();
@@ -388,6 +392,7 @@ function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, wi
   const vertices: Vector3[] = [], normals: Vector3[] = [], indices: number[] = [];
   const edges = new Map<string, [number, number]>();
   const caps = original.map(() => new Map<number, number>());
+  const facades = [];
 
   for (const loops of faces) {
     const normal = faceNormal(original, loops[0]);
@@ -426,8 +431,12 @@ function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, wi
     });
 
     const [outline, ...holes] = inset;
+    const indexStart = indices.length;
     if (!holes.length && outline.length === 4) quad(indices, outline);
     else indices.push(...triangulateFace(vertices, outline, holes));
+    const side = coreSides.find(side => side.outline === loops[0]);
+    if (side) facades.push({ id: side.id, corners: side.outline.map(i => original[i].toArray()),
+      outline, holes, indexStart, indexCount: indices.length - indexStart });
   }
 
   // This stele has exactly three incident faces at each original corner.
@@ -439,6 +448,7 @@ function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, wi
     positions: new Float32Array(vertices.flatMap(v => v.divide(scale).toArray())),
     normals: new Float32Array(normals.flatMap(v => v.toArray())),
     indices: new Uint16Array(indices),
+    facades,
   };
 }
 
