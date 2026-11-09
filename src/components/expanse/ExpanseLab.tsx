@@ -1,12 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { EXPANSE, SKY_VIEWS, WIND_VIEWS, type JourneySignal, type SkyView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
+import { ExpanseInstrument, WordmarkStudy } from './ExpanseInstrument';
 import styles from './expanse.module.css';
 
 const ExpanseCanvas = dynamic(() => import('./ExpanseCanvas'), { ssr: false });
@@ -72,8 +72,8 @@ export default function ExpanseLab() {
     signal.current.raw = 0;
     const paint = () => {
       signal.current.invalidate();
-      if (hint.current) hint.current.style.opacity = String(1 - Math.min(1, signal.current.value * 5));
       const progress = Math.max(0, Math.min(1, signal.current.raw));
+      if (hint.current) hint.current.style.opacity = String(1 - Math.min(1, progress / .02));
       if (progressFill.current) progressFill.current.style.transform = `scaleX(${progress})`;
       progressBar.current?.setAttribute('aria-valuenow', String(Math.round(progress * 100)));
       if (debugOutput.current) debugOutput.current.value = progressText(signal.current, reduced || contextLost);
@@ -103,17 +103,9 @@ export default function ExpanseLab() {
           onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
-      <Link href="/" className={styles.brand} aria-label="LibreCosta 首页">LibreCosta</Link>
+      <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost}
+        hint={hint} progressBar={progressBar} progressFill={progressFill} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
-      <figcaption className={styles.srOnly}>以页面滚动走近遗落巨构。随时停止，向上滚动可以原路返回。</figcaption>
-      {!reduced && !contextLost && <>
-        <p ref={hint} className={styles.hint}>滚动，沿谷前行</p>
-        <div ref={progressBar} className={styles.progress} role="progressbar" aria-label="旅程进度"
-          aria-valuemin={0} aria-valuemax={100} aria-valuenow={0}>
-          <span ref={progressFill} />
-        </div>
-      </>}
-      {reduced && <p className={styles.staticNote}>静态观览 · 已减少动态效果</p>}
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} aria-label="场景调试">
         <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
@@ -128,7 +120,9 @@ export default function ExpanseLab() {
           {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
         <a href="/lab/monument-surface">主碑展开图</a>
+        <WordmarkStudy />
       </aside>}
+      <figcaption className={styles.srOnly}>以页面滚动走近遗落巨构。随时停止，向上滚动可以原路返回。</figcaption>
     </figure>
   </main>;
 }

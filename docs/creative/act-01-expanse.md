@@ -9,7 +9,13 @@
 - 镜头从远眺逐渐加速逼近，随后穿越巨构群，在外围门槛停下。
 - 运动由滚动进度驱动，可逆，具有适度惯性；用户能够停止、继续和反向探索。
 - 可采用曲线路径、俯仰、倾斜及有限滚转，不强制 S 形。
-- 首屏极简，仅保留 LibreCosta、轻微滚动提示和底部细进度线。
+- 首屏采用轻量观察界面，保留必要的品牌识别、章节状态和滚动提示。
+
+## P1-U2-A 观察界面
+
+- 四个断开的切角和固定中央准星围出观察画幅。Tech Precision 为默认字标，Pixel Modular 与其在调试面板内并列展示。两者都是 LibreCosta 原创 SVG 字形。
+- 五格章节指示器固定在当前章节。底部细线独立显示章节内的原生滚动进度。WORKS 和 ABOUT 保留版位，等待对应页面上线。
+- 英文标签与数字使用本地托管的 Oxanium 600。仅保留 [Google Fonts 的 Latin WOFF2 子集](https://fonts.gstatic.com/s/oxanium/v21/RrQPboN_4yJ0JmiMUW7sIGjd1IA9G82XeUiLD3U.woff2)，体积 8,940 字节。中文沿用系统字体。[SIL Open Font License 1.1](../../public/expanse/OFL-Oxanium.txt)
 
 ## P1-E0 短章节剪辑
 
