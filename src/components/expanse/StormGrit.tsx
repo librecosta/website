@@ -7,6 +7,8 @@ import type { SandstormUniforms } from './sandstorm';
 const { veil } = EXPANSE.sandstorm;
 const period = [290, 236, 290] as const;
 const vertex = /* glsl */ `
+  #include <common>
+  #include <logdepthbuf_pars_vertex>
   uniform vec2 stormWind;
   uniform float stormTime, veilStrength, pixelScale;
   attribute vec2 grain;
@@ -24,6 +26,7 @@ const vertex = /* glsl */ `
     vec3 relative = mod(point - cameraPosition + period * 0.5, period) - period * 0.5;
     vec4 view = viewMatrix * vec4(cameraPosition + relative, 1.0);
     gl_Position = projectionMatrix * view;
+    #include <logdepthbuf_vertex>
     vec3 projectedWind = mat3(viewMatrix) * (direction + vec3(0.0, cos(phase) * 0.11, 0.0));
     vFlow = normalize(projectedWind.xy * max(1.0, -view.z) + view.xy * projectedWind.z + vec2(0.001, 0.0));
     gl_PointSize = clamp(pixelScale * mix(0.20, 0.49, grain.y) / max(2.0, -view.z), 1.0, 7.5);
@@ -35,6 +38,7 @@ const vertex = /* glsl */ `
   }
 `;
 const fragment = /* glsl */ `
+  #include <logdepthbuf_pars_fragment>
   uniform vec3 veilColor;
   varying vec2 vFlow;
   varying float vAlpha, vShade;
@@ -44,6 +48,7 @@ const fragment = /* glsl */ `
     float alpha = (1.0 - smoothstep(0.24, 1.0, length(axis))) * vAlpha;
     if (alpha < 0.008) discard;
     gl_FragColor = vec4(veilColor * vShade, alpha);
+    #include <logdepthbuf_fragment>
     #include <colorspace_fragment>
   }
 `;

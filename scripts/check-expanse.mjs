@@ -1,16 +1,15 @@
 import assert from 'node:assert/strict';
-import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Euler, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
-import { EXPANSE, monumentFaceHeight, monumentSplice } from '../src/components/expanse/parameters.ts';
-import { buildAeolianTerrain, duneRelief, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, localVertices, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
+import { BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
+import { EXPANSE } from '../src/components/expanse/parameters.ts';
+import { buildAeolianTerrain, duneRelief, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, localVertices, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { createSandTransport, renderedGround, stormExposure } from '../src/components/expanse/sand-transport.ts';
 import { addRuinDeposits } from '../src/components/expanse/dressing-terrain.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
-import { unwrapMonument } from '../src/components/monument-surface/unwrap.ts';
+import { buildSkyline } from '../src/components/expanse/skyline.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const rendered = {};
 const monuments = buildMonuments(EXPANSE);
-const legacyMonuments = buildMonuments({ ...EXPANSE, futureCity: { ...EXPANSE.futureCity, enabled: false } });
 const timing = EXPANSE.journey.timing;
 const mapped = s => mapJourneyProgress(s, timing);
 const chapterPose = s => sampleJourney(mapped(s), EXPANSE);
@@ -79,10 +78,11 @@ assert(Math.abs((sum(impulse.concentration) + sum(impulse.bed)) * impulse.cellAr
 const feedConfig = { ...transportImpulseConfig, bounds: [-600, 600, -4400, -660], resolution: [48, 32], baseShear: 0.12 };
 const feedOptions = { sediment: () => 1, background: EXPANSE.sandstorm.background };
 const openWind = createSandTransport(feedConfig, [1, 0], flat, flat, feedOptions);
-const exposureAt = z => stormExposure(z, EXPANSE.sandstorm.shelter.approach);
+const { approach, driftMinimum, veilMinimum, settling } = EXPANSE.sandstorm.shelter;
+const exposureAt = z => stormExposure(z, approach, driftMinimum);
 const lee = createSandTransport(feedConfig, [1, 0], flat, flat, {
   ...feedOptions,
-  shelter: { exposure: exposureAt, settling: EXPANSE.sandstorm.shelter.settling },
+  shelter: { exposure: exposureAt, settling },
 });
 const shelteredCell = 4 * 48 + 24, openCell = 31 * 48 + 24;
 let minimumOpenDensity = Infinity;
@@ -91,12 +91,12 @@ for (let i = 0; i < 640; i++) {
   minimumOpenDensity = Math.min(minimumOpenDensity, openWind.concentration[openCell]);
 }
 assert(minimumOpenDensity > 0 && openWind.balance.fed > 0 && openWind.balance.entered > 0);
-assert(lee.concentration[shelteredCell] < 1e-8, 'Sheltered air has no lift or inlet on the flat bed');
+assert(lee.concentration[shelteredCell] > 0 && lee.concentration[shelteredCell] < openWind.concentration[shelteredCell],
+  'Shelter reduces ground transport without extinguishing it');
 assert(lee.concentration[openCell] > .99 * openWind.concentration[openCell], 'The exposed inlet remains active');
-const exposureSamples = [0, .25, .5, .75, 1].map(s => exposureAt(chapterPose(s).position[2]));
+const exposureSamples = [0, .25, .5, .75, 1].map(s => stormExposure(chapterPose(s).position[2], approach, veilMinimum));
 assert(exposureSamples[0] > .97 && exposureSamples.every((value, i) => i === 0 || value <= exposureSamples[i - 1]));
-assert.equal(exposureSamples.at(-1), 0);
-assert.equal(exposureAt(EXPANSE.hero.center[1]), 0);
+assert.equal(exposureSamples.at(-1), veilMinimum);
 for (const layer of [openWind, lee]) {
   const budget = layer.measureBudget();
   assert(Math.abs(budget.residual) < 1e-6 && Math.abs(budget.totalResidual) < 1e-6);
@@ -104,6 +104,31 @@ for (const layer of [openWind, lee]) {
 
 const sandGround = renderedGround(rendered.desktop, EXPANSE.terrain.resolution.desktop, EXPANSE.terrain);
 const windSurface = windSurfaceAbove(sandGround, monuments);
+const liveWind = createSandTransport(windConfig, EXPANSE.aeolian.wind, sandGround, windSurface, {
+  sediment: sandBedSupply(EXPANSE, sandGround), window: windConfig.window, background: EXPANSE.sandstorm.background,
+  shelter: { exposure: exposureAt, settling },
+});
+const [leftWind, rightWind, backWind, frontWind] = windConfig.bounds;
+const [windColumns, windRows] = windConfig.resolution;
+const windDx = (rightWind - leftWind) / windColumns, windDz = (frontWind - backWind) / windRows;
+for (const progress of [0, .25, .5, .75, 1, .5, 0]) {
+  const [x, , z] = chapterPose(progress).position;
+  liveWind.follow(z);
+  const nearRow = Math.floor((z - 50 - backWind) / windDz), farRow = Math.floor((z - 430 - backWind) / windDz);
+  assert(farRow >= liveWind.firstRow && nearRow < liveWind.firstRow + windConfig.window.rows, 'The visible valley stays inside the transport window');
+  for (let i = 0; i < 8; i++) {
+    liveWind.advance();
+    let density = 0, samples = 0;
+    for (let row = farRow; row <= nearRow; row++) {
+      const column = Math.floor((x - leftWind) / windDx);
+      for (let offset = -5; offset <= 5; offset++) {
+        density += liveWind.concentration[row * windColumns + column + offset];
+        samples++;
+      }
+    }
+    assert(density / samples > 1, 'Ground dust persists in the visible corridor on the full round trip');
+  }
+}
 const sand = createSandTransport(windConfig, EXPANSE.aeolian.wind, sandGround, windSurface,
   { sediment: sandBedSupply(EXPANSE, sandGround), window: windConfig.window });
 const bedStart = sum(sand.bed) * sand.cellArea;
@@ -200,21 +225,14 @@ for (const z of [1900,1100,200,-800,-2000,-3200]) {
   assert(heightAt(spine.x-500,z,EXPANSE)-floor > 30, 'Left bank wraps the channel');
   assert(heightAt(spine.x+500,z,EXPANSE)-floor > 30, 'Right bank wraps the channel');
 }
-const field=legacyMonuments.filter(m => m.family === 'Mid Monoliths');
-const hero=legacyMonuments.filter(m => m.family === 'Hero Structure');
-assert(field.length > 0 && hero.length > 0, 'Field and destination remain represented');
-assert.equal(hero.length,1,'One distant destination');
-assert.equal(field.length,2,'Keep the outward pair; remove the central masking plate');
-assert(!monuments.some(m => m.id==='field-veil' || m.id==='basin-right-return'),'Remove the annotated intrusive pieces');
-const grove=monuments.filter(m => m.family==='Distant Stelae');
-const fieldCount = EXPANSE.futureCity.enabled ? 1 : 3;
-assert(monuments.length-grove.length===fieldCount && grove.length<=12,'Only the selected ruins and silhouettes are active');
-if (EXPANSE.futureCity.enabled) assert(monuments.some(m=>m.id===EXPANSE.futureCity.ruin.id));
-assert(grove.some(m => m.position[0]<0) && grove.some(m => m.position[0]>0),'Horizon stelae flank the destination');
-const terrainEnd=EXPANSE.terrain.centerZ-EXPANSE.terrain.depth/2;
-assert(grove.every(m => m.kind===hero[0].kind && m.position[2]<terrainEnd &&
-  m.position[1]-m.scale[1]/2<0),'Horizon silhouettes share the stele geometry and extend below the sand line');
-assert(EXPANSE.hero.scale[1] > Math.max(...EXPANSE.alignment.map(m => m.scale[1]))*2,'Legacy hero has a distinct scale hierarchy');
+const field = monuments.filter(m => m.family === 'Mid Monoliths');
+assert.deepEqual(field.map(m => m.id), [EXPANSE.futureCity.ruin.id], 'Only the left entrance ruin remains');
+const grove = monuments.filter(m => m.family === 'Distant Stelae');
+assert.equal(monuments.length, field.length + grove.length, 'The retired main monument is absent');
+assert(grove.some(m => m.position[0]<0) && grove.some(m => m.position[0]>0), 'Horizon stelae flank the destination');
+const terrainEnd = EXPANSE.terrain.centerZ - EXPANSE.terrain.depth / 2;
+assert(grove.every(m => m.kind === 'slotted' && m.position[2] < terrainEnd &&
+  m.position[1] - m.scale[1] / 2 < 0), 'Horizon silhouettes extend below the sand line');
 const shadowReceiverFloor=-100;
 assert(rendered.desktop.every((v, i) => i%3!==1 || v>=shadowReceiverFloor) &&
        rendered.mobile.every((v, i) => i%3!==1 || v>=shadowReceiverFloor), 'Shadow receiver floor is below the terrain');
@@ -233,7 +251,6 @@ for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
     }
   }
 }
-assert(Math.min(...field.map(m => m.position[2])) > Math.max(...hero.map(m => m.position[2])), 'Destination stays beyond the field');
 assert(chapterPose(.01).position[2] < chapterPose(0).position[2]-10, 'First scroll produces travel, no dead segment');
 assert.equal(EXPANSE.journey.screens - 1, 2.5);
 assert.deepEqual([mapped(0), mapped(1), EXPANSE.journey.reducedProgress], [.356, 1, .356]);
@@ -300,7 +317,7 @@ let minimumTerrainClearance = Infinity, minimumStructureClearance = Infinity;
 let maxQuaternionStep = 0, previousPose, previousQuaternion;
 const poses = [], radius = EXPANSE.journey.cameraRadius;
 const { futureCity } = EXPANSE;
-const cameraFar = futureCity.enabled ? futureCity.cameraFar : EXPANSE.atmosphere.cameraFar;
+const cameraFar = futureCity.cameraFar;
 for (let i=0;i<=1000;i++) {
   const p=i/1000, pose=chapterPose(p);
   const {position,target,roll}=pose;
@@ -349,29 +366,33 @@ assert(comparedLandmarks>0);
 const arrival=sampleJourney(1,EXPANSE), arrivalCamera=new PerspectiveCamera(arrival.fov,EXPANSE.journey.framingAspect,3,cameraFar);
 arrivalCamera.position.set(...arrival.position); arrivalCamera.lookAt(...arrival.target); arrivalCamera.updateMatrixWorld();
 const cityCenter = new Vector3(...futureCity.center);
-const [pitch,yaw,roll] = futureCity.ring.tilt.map(angle=>angle*Math.PI/180);
-const ringRotation = new Quaternion().setFromEuler(new Euler(pitch,yaw,roll,'YXZ'));
 const cityAxis = new Vector3(0,1,0);
 const cityWorld = point => {
   point.y=Math.max(point.y,0); // Below the distant grade, behind the valley horizon.
   return point.multiplyScalar(futureCity.scale).add(cityCenter);
 };
-const destination = futureCity.enabled ? [
-  ...Array.from({length:64}, (_,i)=>2*Math.PI*i/64).flatMap(angle=>[-.5,.5].map(z=>cityWorld(
-    new Vector3(.51*Math.cos(angle),.51*Math.sin(angle),z).multiply(new Vector3(...futureCity.ring.scale))
-      .applyQuaternion(ringRotation).add(new Vector3(0,futureCity.ring.height,0))))),
-  ...futureCity.skyline.flatMap(({center,size})=>localVertices('box',EXPANSE).map(vertex=>cityWorld(
-    vertex.multiply(new Vector3(...size)).add(new Vector3(...center)).applyAxisAngle(cityAxis,futureCity.skylineYaw)))),
-] : worldVertices(hero[0],EXPANSE).map(v => { v.y=Math.max(v.y,meshHeight(v.x,v.z,'desktop')); return v; });
-if (futureCity.enabled) {
-  assert(futureCity.center[2] < terrainEnd && futureCity.scale >= 15, 'The hub stands beyond the sand mesh at monumental scale');
+const skyline = buildSkyline(futureCity, EXPANSE.seed, false);
+const positions = skyline.civic.getAttribute('position');
+const destination = Array.from({ length: positions.count }, (_, i) => cityWorld(new Vector3().fromBufferAttribute(positions, i)));
+let buildings = 0;
+for (const batch of skyline.batches) {
+  buildings += batch.buildings.length;
+  for (const { position, size, yaw } of batch.buildings) for (const vertex of localVertices('box', EXPANSE)) {
+    vertex.y += .5;
+    destination.push(cityWorld(vertex.multiply(new Vector3(...size)).applyAxisAngle(cityAxis, yaw).add(new Vector3(...position))));
+  }
+  batch.geometry.dispose();
 }
+skyline.civic.dispose();
+assert(buildings >= 300 && buildings <= 500, 'The districts supply hundreds of reusable skyline silhouettes');
+assert((futureCity.ring.radius - futureCity.ring.guideOffset) * 2 > futureCity.coreWidth * 5.8, 'Open space separates the axis from the rails');
+assert(destination.every(point => point.z < terrainEnd), 'Every district stands beyond the valley mesh');
 const arrivalBounds=destination.map(v=>v.project(arrivalCamera));
 assert(arrivalBounds.every(p => Math.abs(p.x)<.93 && Math.abs(p.y)<.93 && p.z>-1 && p.z<1),'Whole destination fits with breathing room at arrival');
 assert(arrival.target[1]>arrival.position[1]+500,'Arrival looks upward from the low valley');
 const arrivalFraming={horizontalRange:[Math.min(...arrivalBounds.map(p=>p.x)),Math.max(...arrivalBounds.map(p=>p.x))],
  verticalRange:[Math.min(...arrivalBounds.map(p=>p.y)),Math.max(...arrivalBounds.map(p=>p.y))],
- centerDistance:new Vector3(...arrival.position).distanceTo(futureCity.enabled ? cityCenter : new Vector3(...hero[0].position))};
+ centerDistance:new Vector3(...arrival.position).distanceTo(cityCenter)};
 function solidVolume(data) {
  const edges = new Map(); let volume=0;
  for (let i = 0; i < data.indices.length; i += 3) {
@@ -389,8 +410,8 @@ function solidVolume(data) {
 }
 const wedgeVolume=solidVolume(buildWedgeData());
 const distantGroove=EXPANSE.distantSteleGroove;
-const slotted=buildSlottedMonolithData(distantGroove,EXPANSE.hero.topScale), distantSteleVolume=solidVolume(slotted);
-const [tx,tz]=EXPANSE.hero.topScale, groove=EXPANSE.hero.groove;
+const slotted=buildSlottedMonolithData(distantGroove,EXPANSE.distantSteleTaper), distantSteleVolume=solidVolume(slotted);
+const [tx,tz]=EXPANSE.distantSteleTaper;
 const sectionIntegral=t => t-((1-tx)+(1-tz))*t*t/2+(1-tx)*(1-tz)*t*t*t/3;
 const slotVolume=({width,depth,top,bottom})=>width*depth*(sectionIntegral(top+.5)-sectionIntegral(bottom+.5));
 const expectedVolume=sectionIntegral(1)-slotVolume(distantGroove);
@@ -405,155 +426,7 @@ const frontHit=(x,y) => {
 };
 assert(Math.abs(frontHit(distantGroove.center,0)-(.5-distantGroove.depth)*(1-(1-tz)*.5))<1e-6,'Groove ray reaches an actual recessed back wall');
 assert(Math.abs(frontHit(distantGroove.center,.45)-.5*(1-(1-tz)*.95))<1e-6,'The tapered crown remains continuous above the groove');
-const core = buildMonumentCoreData(EXPANSE.hero), coreVolume = solidVolume(core);
-const net = unwrapMonument(core, EXPANSE.hero.scale);
-assert.deepEqual(net.faces.map(face => face.id), ['front', 'right', 'back', 'left']);
-const almost = (a, b) => assert(Math.abs(a - b) < 1e-5, `${a} ≠ ${b}`);
-const distance = (a, b) => Math.hypot(...a.map((value, i) => value - b[i]));
-const area = loop => Math.abs(loop.reduce((sum, [x, y], i) => {
-  const [nextX, nextY] = loop[(i + 1) % loop.length];
-  return sum + x * nextY - y * nextX;
-}, 0)) / 2;
-for (const [i, face] of net.faces.entries()) {
-  const original = core.facades[i].corners;
-  for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++) {
-    almost(distance(original[a], original[b]), distance(face.corners[a], face.corners[b]));
-  }
-  const next = net.faces[i + 1];
-  if (next) for (const v of [0, monumentSplice.lower, monumentSplice.datum, monumentSplice.upper, 1].map(monumentFaceHeight)) {
-    almost(distance(face.point([1, v]), next.point([0, v])), 0);
-  }
-  const [outline, ...holes] = face.outlines;
-  assert.deepEqual(holes.map(loop => loop.length), [4, 8]);
-  const inside = new Set([face.outline, ...face.holes].flat());
-  const triangles = core.indices.slice(face.indexStart, face.indexStart + face.indexCount);
-  assert(triangles.every(index => inside.has(index)), `${face.id} UVs stay on the facade`);
-  let areaFromMesh = 0;
-  for (let j = 0; j < triangles.length; j += 3) {
-    areaFromMesh += area([...triangles.slice(j, j + 3)].map(face.projectVertex));
-  }
-  almost(area(outline) - holes.reduce((sum, loop) => sum + area(loop), 0), areaFromMesh);
-}
-for (const [left, front] of [[0, 1], [3, 2]]) {
-  assert.deepEqual(core.facades[0].corners[left], core.facades[3].corners[front], 'The cut closes from left to front');
-}
-const heroPart = hero[0], q = new Quaternion().fromArray(heroPart.quaternion);
-const heroScale = new Vector3(...heroPart.scale), heroPosition = new Vector3(...heroPart.position);
-{
-  const { positions, indices, normals } = core;
-  for (let i = 0; i < positions.length; i += 3) {
-    const point = new Vector3().fromArray(positions, i);
-    assert(Math.max(Math.abs(point.x), Math.abs(point.y), Math.abs(point.z)) <= .5, 'Bevel stays inside the original outer bounds');
-    if (point.y < -.49) {
-      point.multiply(heroScale).applyQuaternion(q).add(heroPosition);
-      for (const quality of ['desktop', 'mobile']) {
-        assert(meshHeight(point.x, point.z, quality) - point.y > 30, 'The footing chamfer stays buried in both terrain grids');
-      }
-    }
-  }
-  for (let i = 0; i < indices.length; i += 3) {
-    const ids = indices.subarray(i, i + 3);
-    const [a, b, c] = Array.from(ids, id => new Vector3().fromArray(positions, id * 3).multiply(heroScale));
-    const face = b.sub(a).cross(c.sub(a));
-    assert(face.lengthSq() > 0.01, 'Beveled faces must not collapse');
-    for (const id of ids) {
-      const normal = new Vector3().fromArray(normals, id * 3).divide(heroScale).normalize();
-      assert(face.dot(normal) > 0, 'Authored normals face outward after the instance scale');
-    }
-  }
-}
-const fourSlotsVolume = sectionIntegral(1) - 4 * slotVolume(groove);
-const secondary = EXPANSE.hero.secondaryGroove;
-const secondaryWidth = secondary.width * heroScale.x, secondaryDepth = secondary.depth * heroScale.z;
-const returnShoulder = secondary.top - secondaryWidth / heroScale.y;
-const faceSpan = (span, taper, y) => span * (1 + (taper - 1) * (y + .5));
-const railArea = 2 * secondaryWidth * (returnShoulder - secondary.bottom) * heroScale.y;
-const barY = (returnShoulder + secondary.top) / 2;
-const barSpan = (faceSpan(heroScale.x, tx, barY) + faceSpan(heroScale.z, tz, barY)) * (1 - 2 * secondary.margin);
-const secondaryVolume = secondaryDepth * (4 * railArea + 2 * secondaryWidth * barSpan) / (heroScale.x * heroScale.y * heroScale.z);
-assert(Math.abs(coreVolume - (fourSlotsVolume - secondaryVolume)) < .001, 'Only the primary and secondary grooves remove mass from the tapered core');
-probeGeometry.setAttribute('position', new BufferAttribute(core.positions, 3));
-probeGeometry.setIndex(new BufferAttribute(core.indices, 1));
-probeGeometry.computeBoundingSphere();
-probe.scale.copy(heroScale);
-probe.updateMatrixWorld(true);
-
-for (const [name, dx, dz] of [['front', 0, 1], ['right', 1, 0], ['back', 0, -1], ['left', -1, 0]]) {
-  const outward = new Vector3(dx, 0, dz), across = new Vector3(dz, 0, -dx);
-  const plane = y => dx ? heroScale.x * (1 + (tx - 1) * (y + .5)) / 2
-    : heroScale.z * (1 + (tz - 1) * (y + .5)) / 2;
-  const hit = (y, offset = 0) => {
-    const origin = outward.clone().multiplyScalar(2000).addScaledVector(across, offset).setY(y * heroScale.y);
-    probeRay.set(origin, outward.clone().negate());
-    return probeRay.intersectObject(probe, false)[0]?.point.dot(outward);
-  };
-  for (const y of [-.3, 0, .35]) {
-    const depth = groove.depth * heroScale.z * (1 + (tz - 1) * (y + .5));
-    const width = groove.width * heroScale.x * (1 + (tx - 1) * (y + .5));
-    assert(Math.abs(hit(y) - (plane(y) - depth)) < .001, `${name}: centered slot has the shared physical depth`);
-    assert(Math.abs(hit(y, width) - plane(y)) < .001, `${name}: the outer shoulders retain their original planes`);
-    for (const side of [-1, 1]) {
-      const origin = outward.clone().multiplyScalar(plane(y) - depth / 2).setY(y * heroScale.y);
-      probeRay.set(origin, across.clone().multiplyScalar(side));
-      const throat = probeRay.intersectObject(probe, false)[0]?.point.dot(across);
-      assert(Math.abs(throat - side * width / 2) < .001, `${name}: centered slot has equal throat widths`);
-    }
-  }
-  assert(Math.abs(hit(groove.top + .02) - plane(groove.top + .02)) < .001, `${name}: the crown closes above the slot`);
-  const secondaryEdge = y => (dx ? faceSpan(heroScale.z, tz, y) : faceSpan(heroScale.x, tx, y)) * (.5 - secondary.margin);
-  for (const y of [-.37, 0, .43]) {
-    for (const side of [-1, 1]) {
-      const middle = side * (secondaryEdge(y) - secondaryWidth / 2);
-      assert(Math.abs(hit(y, middle) - (plane(y) - secondaryDepth)) < .001, `${name}: each return leg has a solid recessed back`);
-      for (const sign of [-1, 1]) {
-        const origin = outward.clone().multiplyScalar(plane(y) - secondaryDepth / 2)
-          .addScaledVector(across, middle).setY(y * heroScale.y);
-        probeRay.set(origin, across.clone().multiplyScalar(sign));
-        const wall = probeRay.intersectObject(probe, false)[0]?.point.dot(across);
-        assert(Math.abs(wall - (middle + sign * secondaryWidth / 2)) < .001, `${name}: the return stays narrow on both sides`);
-      }
-      const rim = side * (secondaryEdge(y) + 9);
-      assert(Math.abs(hit(y, rim) - plane(y)) < .001, `${name}: the outer rim stays solid between the return and the corner`);
-    }
-  }
-  for (const offset of [-1, 0, 1].map(side => side * secondaryEdge(barY) * .85)) {
-    assert(Math.abs(hit(barY, offset) - (plane(barY) - secondaryDepth)) < .001, `${name}: the crown return connects both legs`);
-    const capY = secondary.top + .015;
-    assert(Math.abs(hit(capY, offset) - plane(capY)) < .001, `${name}: the solid crown continues above the return`);
-  }
-  const footingY = secondary.bottom - .015;
-  assert(Math.abs(hit(footingY, secondaryEdge(footingY) - secondaryWidth / 2) - plane(footingY)) < .001,
-    `${name}: the secondary groove closes at its footing`);
-}
 probeGeometry.dispose(); probeMaterial.dispose();
-// Actual transformed triangle intersections, independent of drawing or fog.
-// Sample a 3x3 patch of the hero's front; report finite ray visibility, not a
-// universal claim about every pixel or every possible camera trajectory.
-const material=new MeshBasicMaterial({side:DoubleSide});
-const meshes=field.map(part => {
- const mesh=new Mesh(new BoxGeometry(1,1,1),material);
- mesh.position.set(...part.position); mesh.quaternion.fromArray(part.quaternion); mesh.scale.set(...part.scale);
- mesh.updateMatrixWorld(true); mesh.name=part.id; return mesh;
-});
-const raycaster=new Raycaster();
-const visibility=[];
-for(let i=0;i<=100;i++) {
- const p=i/100, camera=new Vector3(...chapterPose(p).position); let blocked=0;
- const blockers=new Set();
- for(const x of [-.3,0,.3]) for(const y of [-.05,.13,.32]) {
-  const point=new Vector3(x*(1-(1-tx)*(y+.5))*heroPart.scale[0],y*heroPart.scale[1],
-   .501*(1-(1-tz)*(y+.5))*heroPart.scale[2]).applyQuaternion(q).add(new Vector3(...heroPart.position));
-  const direction=point.clone().sub(camera); raycaster.set(camera,direction.clone().normalize()); raycaster.far=direction.length()-.5;
-  const hits=raycaster.intersectObjects(meshes,false);
-  if(hits.length) {blocked++; blockers.add(hits[0].object.name);}
- }
- visibility.push({progress:p,blocked:blocked/9,blockers:[...blockers]});
-}
-const peak=visibility.reduce((a,b) => b.blocked>a.blocked?b:a);
-assert(visibility.slice(50).every(v=>v.blocked===0),'The removed central plate no longer masks the destination on approach');
-meshes.forEach(m => m.geometry.dispose()); material.dispose();
 console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, aeolian, sandTransport,
-  instances: monuments.length, minimumLeftSaddleRelief, comparedLandmarks, burial, pathValidation,
-  wedgeVolume,distantSteleVolume,coreVolume,
-  monumentTriangles:{distant:slotted.indices.length/3,core:core.indices.length/3},
-  arrivalFraming,occlusion:{peak,samples:visibility.filter((v,i)=>i%5===0)} }, null, 2));
+  instances: monuments.length, cityBuildings: buildings, minimumLeftSaddleRelief, comparedLandmarks, burial, pathValidation,
+  wedgeVolume, distantSteleVolume, arrivalFraming }, null, 2));

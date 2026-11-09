@@ -13,22 +13,7 @@ const passage = { scroll: 0.35, path: 0.356, slope: 0.646729 } as const;
 const chapterSpan = 1 - passage.scroll;
 // Crop the old opening's grid rows while retaining the far edge and cell spacing.
 const terrainDepth = 16200 * 16 / 21;
-const monumentHeight = 1910;
-const footDatum = .08, panelDatum = .25;
-const footTop = 192, panelBase = 230;
-export const monumentSplice = { lower: .422, upper: .435, datum: .4285 };
-export const monumentPanelUnits = (monumentHeight - panelBase) / (1 - panelDatum);
-
-// Keep the plinth at its authored size, take most of the reduction from the
-// unmarked spacer above it, and shorten the upper panel run slightly.
-export function monumentFaceHeight(v: number) {
-  if (v <= footDatum) return (v / footDatum) * footTop / monumentHeight;
-  if (v < panelDatum) return (footTop + (panelBase - footTop) * (v - footDatum) / (panelDatum - footDatum)) / monumentHeight;
-  return (panelBase + (v - panelDatum) * monumentPanelUnits) / monumentHeight;
-}
-
 const distantSteleGroove = { center: -0.08, width: 0.085, depth: 0.27, bottom: -0.42, top: 0.39 } as const;
-const monumentGrooveY = (y: number) => monumentFaceHeight(y + .5) - .5;
 
 // Continuous dune banks; authored offsets are measured from the valley spine.
 export const EXPANSE = {
@@ -162,7 +147,8 @@ export const EXPANSE = {
   },
   sandstorm: {
     background: { feed: 10.5, inlet: 13 }, // mg/m²/s and mg/m² from unresolved upwind dust
-    shelter: { approach: [-930, -3570], settling: 10 }, // World Z from Passage to the sheltered valley and its horizon.
+    // World Z from Passage to the lee. Air visibility recovers more than bed transport.
+    shelter: { approach: [-930, -3720], veilMinimum: .23, driftMinimum: .74, settling: 1.2 },
     veil: {
       extinction: 0.0115, // per world unit, calibrated against the previous mid-journey look.
       range: [89, 175],
@@ -172,48 +158,37 @@ export const EXPANSE = {
     },
   },
   futureCity: {
-    enabled: true,
     center: [3600, 0, -128000],
     scale: 15,
     cameraFar: 260000,
     fov: 55,
-    fog: [72000, 196000, .47, .86],
-    skylineYaw: -0.26,
+    fog: [51000, 255000, .30, .94],
+    haze: { foothillHeight: 41000, foothillDensity: .51,
+      crownCenter: [4000, 101000, -113000], crownRadius: [96500, 21900, 37000], crownDensity: 3.25 },
     lookAtHeights: [49300, 55500],
     retarget: [0.356, 1],
-    ring: { height: 5080, scale: [7770, 7770, 1160], tilt: [-35, -13, -7] },
+    ring: { height: 3760, radius: 4700, guideOffset: 222, tilt: [8, 0, -4] },
     ruin: { id: 'field-axis', shift: [-260, 0], scale: [490, 1420, 530], orientation: [5, -17, 25], burial: 410 },
-    // Local XYZ around the ring hub. Tapered sections share a common civic datum.
-    skyline: [
-      { center: [0, 40, 0], size: [5290, 890, 4510], taper: .87 },
-      { center: [0, 2200, 0], size: [3300, 3900, 2600], taper: .72 },
-      { center: [-1330, 2700, -55], size: [960, 4420, 1780], taper: .65 },
-      { center: [1380, 2630, -160], size: [940, 4200, 1690], taper: .64 },
-      { center: [0, 4750, -100], size: [2100, 2100, 1900], taper: .87 },
-      { center: [0, 4710, -100], size: [2750, 295, 2250], taper: .92 },
-      { center: [0, 6690, -190], size: [1510, 2130, 1400], taper: .73 },
-      { center: [0, 7570, -190], size: [1750, 350, 1630], taper: .85 },
-      { center: [0, 8235, -190], size: [1040, 1370, 1020], taper: .58 },
-      { center: [0, 8980, -190], size: [480, 880, 550], taper: .63 },
-      { center: [-2750, 910, -1080], size: [1430, 2480, 1570], taper: .73 },
-      { center: [-2850, 2260, -1080], size: [890, 1350, 1150], taper: .8 },
-      { center: [2880, 820, -780], size: [1490, 2050, 1760], taper: .86 },
-      { center: [2940, 1900, -780], size: [760, 1400, 930], taper: .65 },
-      { center: [-4600, 610, -1860], size: [1280, 1760, 1240], taper: .74 },
-      { center: [-6010, 405, -2900], size: [830, 1510, 920], taper: .7 },
-      { center: [4800, 510, -2440], size: [1020, 1840, 1200], taper: .8 },
-      { center: [6370, 320, -3740], size: [790, 1470, 1020], taper: .75 },
+    // Local X, Z, width, depth, terrace elevation, alignment angle.
+    // Outlying shelves step outward and rearward, leaving gaps at the ravine mouths.
+    outerDistricts: [
+      [-7800, -2640, 1490, 1350, 160, -9], [-6260, -1950, 1340, 1050, 186, -11],
+      [-5990, -1150, 1640, 1530, 295, -12], [-4010, 1680, 1560, 1240, 166, -16],
+      [ 7940, -2600, 1600, 1360, 148,   8], [ 6230, -2620, 1240, 1300, 170,  10],
+      [ 5780, -1230, 1730, 1440, 248,  11], [ 3980, 1540, 1420, 1330, 138,  15],
     ],
+    middleDistricts: [
+      [-4640, -3000, 1790, 1300, 420, -10], [-3620, -880, 1660, 1500, 330, -12],
+      [-2380,  1120, 1410, 1370, 245, -15], [ 4370, -3240, 1640, 1460, 405,   9],
+      [ 3290, -1340, 1680, 1510, 350,  12], [ 2540,  880, 1530, 1460, 258,  13],
+    ],
+    coreWidth: 1510,
   },
-  // A shared 12-degree datum and 750-unit bays describe the original order.
-  // These explicit disturbances never come from a random scatter.
+  // The surviving ruin retains its position in the original alignment.
   alignment: [
     { id: 'field-axis', scale: [200, 920, 250],
       ideal: { center: [-500, -2850], yaw: 12, burial: 290 },
       disturbed: { offset: [-150, -140], orientation: [3, 2, 22], settlement: 45 } },
-    { id: 'field-lean', scale: [310, 760, 260],
-      ideal: { center: [500, -3600], yaw: 12, burial: 190 },
-      disturbed: { offset: [150, 110], orientation: [-6, -30, -24], settlement: 30 } },
   ],
   // Broad markers punctuate the slender stelae. Gaps separate runs that
   // recede across the horizon, with the right bank screening more of them.
@@ -244,10 +219,10 @@ export const EXPANSE = {
       scale: [615, 2840, 330], orientation: [0, 18, 0], burial: 460 },
   ],
   distantSteleGroove,
+  distantSteleTaper: [0.76, 0.84],
   dressing: {
     deposits: [
       { id: 'field-axis', height: 27, tail: 390 },
-      { id: 'field-lean', height: 31, tail: 410 },
       { id: 'still-monolith', height: 19, tail: 510 },
     ],
     // World X/Z at the edge of the travelled valley, not a uniform scatter.
@@ -269,26 +244,6 @@ export const EXPANSE = {
       { center: [-137, -3020], length: 57, yaw: 0.27, ribs: 3 },
       { center: [-325, -4480], length: 55, yaw: 0.67, ribs: 3 },
     ],
-  },
-  hero: { id: 'still-monolith', family: 'Hero Structure', kind: 'slotted', center: [70, -6000],
-    scale: [920, monumentHeight, 560], orientation: [0, 24, 0], burial: 230,
-    topScale: [0.76, 0.84],
-    bevelWidthRatio: 0.005,
-    // The core uses this section on four centered faces. Only the distant stelae use the offset.
-    groove: { ...distantSteleGroove, bottom: monumentGrooveY(distantSteleGroove.bottom), top: monumentGrooveY(distantSteleGroove.top) },
-    // A single recessed return follows both shoulders and the crown of each face.
-    // Margin is a fraction of face span. Width and depth reference the base X and Z spans.
-    secondaryGroove: { margin: 0.07, width: 0.022, depth: 0.035, bottom: monumentGrooveY(-0.438), top: monumentGrooveY(0.466) },
-  },
-  sanctuary: {
-    // Relative to the actual stele's width, height and depth, in that order.
-    radiusScale: [2.65, 0.95, 4.50], elevation: 0.36,
-    proximity: [1.8, 5.1], distantGain: 0.24,
-    air: { color: '#f9d89a', opticalDepth: 0.57 },
-    ground: { count: { desktop: 1280, mobile: 710 }, life: [4.5, 8.5], rise: [75, 280], size: [1.4, 3.0] },
-    ascending: { count: { desktop: 245, mobile: 140 }, life: [9, 16], rise: [430, 1450], size: [2.4, 5.5] },
-    pointer: { radius: 180, depth: 610, offsetFraction: 0.32, strength: 25, responseSeconds: 0.30 },
-    stillTime: 4.2,
   },
   atmosphere: {
     skyFinish: {

@@ -1,7 +1,7 @@
 
 # LibreCosta Website
 
-LibreCosta 远岸开物官网。正式首页维持基础 HTML；实验页 `/lab/expanse` 以原生滚动经过浅谷残缘与外倾巨板，远眺碑林，在终点保持距离、完整仰望收分主碑。
+LibreCosta 远岸开物官网。正式首页维持基础 HTML；实验页 `/lab/expanse` 沿浅谷经过左坡半埋遗构，逐步看清远方的台地、塔群和分段环轨。
 
 ## 本地开发
 
@@ -20,8 +20,6 @@ pnpm preview
 ```
 
 静态产物位于 `out/`，不需要业务后端。保留 Next.js App Router、React、TypeScript、Three.js / React Three Fiber、GSAP / ScrollTrigger。实验页只按需加载一个客户端 WebGL2 Canvas；GSAP 驱动进度，渲染循环统一控制相机。减少动态效果时为静态画面；初始化失败时保留 HTML 描述与重试入口。
-
-[主碑展开图](http://127.0.0.1:3000/lab/monument-surface) 可查看四面图板、单层拆解与三维折合，并导出同坐标 SVG。设计规则见 [静默巨碑四面展开](docs/creative/monument-surface.md)。
 
 ## 目录与约束
 

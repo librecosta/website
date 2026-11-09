@@ -119,7 +119,6 @@ export default function ExpanseLab() {
         <label>天空分层 <select disabled={contextLost} value={skyView} onChange={event => setSkyView(event.target.value as SkyView)}>
           {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
-        <a href="/lab/monument-surface">主碑展开图</a>
         <WordmarkStudy />
       </aside>}
       <figcaption className={styles.srOnly}>以页面滚动走近遗落巨构。随时停止，向上滚动可以原路返回。</figcaption>

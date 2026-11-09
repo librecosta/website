@@ -195,16 +195,15 @@ export function sandBedSupply(world: WorldParameters, ground: (x: number, z: num
 
 export function localVertices(kind: Monument['kind'], world: WorldParameters): Vector3[] {
   if (kind !== 'box') {
-    const data = kind === 'wedge' ? buildWedgeData().positions : buildSlottedMonolithData(world.distantSteleGroove,world.hero.topScale).positions;
+    const data = kind === 'wedge' ? buildWedgeData().positions : buildSlottedMonolithData(world.distantSteleGroove,world.distantSteleTaper).positions;
     return Array.from({ length: data.length / 3 }, (_, i) => new Vector3().fromArray(data, i * 3));
   }
   return [-.5,.5].flatMap(x => [-.5,.5].flatMap(y => [-.5,.5].map(z => new Vector3(x,y,z))));
 }
 
 export function buildMonuments(world: WorldParameters): Monument[] {
-  const ruin = world.futureCity.enabled ? world.futureCity.ruin : null;
-  const alignment = ruin ? world.alignment.filter(part => part.id === ruin.id) : world.alignment;
-  const field = alignment.map(part => {
+  const field = world.alignment.map(part => {
+    const ruin = part.id === world.futureCity.ruin.id ? world.futureCity.ruin : null;
     const [pitch, yaw, roll] = part.disturbed.orientation;
     const [shiftX, shiftZ] = ruin?.shift ?? [0, 0];
     return {
@@ -214,7 +213,7 @@ export function buildMonuments(world: WorldParameters): Monument[] {
       burial: ruin?.burial ?? part.ideal.burial + part.disturbed.settlement,
     };
   });
-  return [...field, ...world.distantStelae, ...(ruin ? [] : [world.hero])].map(part => {
+  return [...field, ...world.distantStelae].map(part => {
     const radians = part.orientation.map(v => v * Math.PI / 180);
     const quaternion = new Quaternion().setFromEuler(new Euler(radians[0], radians[1], radians[2], 'YXZ'));
     const z=part.center[1], x=valleyAt(z,world).x+part.center[0];
@@ -234,11 +233,7 @@ export function buildMonuments(world: WorldParameters): Monument[] {
 
 export function worldVertices(part: Monument, world: WorldParameters) {
   const q = new Quaternion().fromArray(part.quaternion);
-  // All core cuts are inside this tapered envelope, which is enough for layout checks.
-  const vertices = part.id === world.hero.id
-    ? taperStele(steleCorners(), world.hero, new Vector3(1, 1, 1))
-    : localVertices(part.kind, world);
-  return vertices.map(p => p.multiply(new Vector3(...part.scale))
+  return localVertices(part.kind, world).map(p => p.multiply(new Vector3(...part.scale))
     .applyQuaternion(q).add(new Vector3(...part.position)));
 }
 
@@ -262,25 +257,18 @@ export function buildWedgeData() {
   return { positions, indices };
 }
 
-type Hero = WorldParameters['hero'];
-
 const topCap = [3, 7, 6, 2], bottomCap = [0, 1, 5, 4];
 const walls = [
   [0, 3, 2, 1], [0, 4, 7, 3], [1, 2, 6, 5], topCap, bottomCap,
   [12, 15, 14, 13], [8, 12, 13, 9], [11, 10, 14, 15], [9, 13, 14, 10], [8, 11, 15, 12],
 ];
 const front = [4, 5, 6, 7], opening = [8, 9, 10, 11];
-const coreSides: { id: 'front' | 'right' | 'back' | 'left'; outline: number[] }[] = [
-  { id: 'front', outline: front }, { id: 'right', outline: [5, 1, 2, 6] },
-  { id: 'back', outline: [1, 0, 3, 2] }, { id: 'left', outline: [0, 4, 7, 3] },
-];
-
 function steleCorners() {
   const outline = [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]];
   return [-.5, .5].flatMap(z => outline.map(([x, y]) => new Vector3(x, y, z)));
 }
 
-function steleVertices(groove: Hero['groove']) {
+function steleVertices(groove: WorldParameters['distantSteleGroove']) {
   const l = groove.center - groove.width / 2, r = groove.center + groove.width / 2;
   const b = groove.bottom, t = groove.top;
   const slot = [[l, b], [l, t], [r, t], [r, b]];
@@ -316,7 +304,7 @@ function quad(indices: number[], [a, b, c, d]: number[]) {
   indices.push(a, b, c, a, c, d);
 }
 
-export function buildSlottedMonolithData(groove: Hero['groove'], topScale: Hero['topScale']) {
+export function buildSlottedMonolithData(groove: WorldParameters['distantSteleGroove'], topScale: WorldParameters['distantSteleTaper']) {
   const vertices = steleVertices(groove);
   const indices: number[] = [];
   walls.forEach(face => quad(indices, face));
@@ -327,132 +315,6 @@ export function buildSlottedMonolithData(groove: Hero['groove'], topScale: Hero[
     positions[i + 2] *= taperAt(topScale[1], positions[i + 1]);
   }
   return { positions, indices: new Uint16Array(indices) };
-}
-
-function taperStele(vertices: Vector3[], hero: Hero, scale: Vector3) {
-  return vertices.map(v => {
-    v.x *= taperAt(hero.topScale[0], v.y);
-    v.z *= taperAt(hero.topScale[1], v.y);
-    return v.multiply(scale);
-  });
-}
-
-export function buildMonumentCoreData(hero: Hero) {
-  const scale = new Vector3(...hero.scale);
-  const vertices = taperStele(steleCorners(), hero, scale);
-  const faces = [[bottomCap], [topCap]];
-  const mainSideWalls = new Set<number[]>();
-  const { width, depth, bottom, top } = hero.groove;
-  const secondary = hero.secondaryGroove;
-  const returnWidth = secondary.width * scale.x;
-  const returnShoulder = secondary.top - returnWidth / scale.y;
-  const mainSection = [[-1, bottom], [-1, top], [1, top], [1, bottom]];
-  // Both legs and the crown return belong to one opening, open toward the footing.
-  const returnSection = [
-    [-1, 0, secondary.bottom], [-1, 0, secondary.top], [1, 0, secondary.top], [1, 0, secondary.bottom],
-    [1, 1, secondary.bottom], [1, 1, returnShoulder], [-1, 1, returnShoulder], [-1, 1, secondary.bottom],
-  ];
-
-  // Four outward-facing charts with matching physical sections. Referencing the
-  // original front section keeps the slit legible on the narrower side faces.
-  for (const { outline: face } of coreSides) {
-    const [a, b, c, d] = face.map(i => vertices[i]);
-    const base = a.clone().lerp(b, .5), crown = d.clone().lerp(c, .5);
-    const across = b.clone().sub(a).normalize();
-    const outward = across.clone().cross(new Vector3(0, 1, 0));
-    const ring = (section: number[][], setback: (y: number) => number) => section.map(([offset, y]) =>
-      vertices.push(base.clone().lerp(crown, y + .5)
-        .addScaledVector(across, offset).addScaledVector(outward, -setback(y))) - 1);
-    const recess = (section: number[][], setback: (y: number) => number, main = false) => {
-      const mouth = ring(section, () => 0), back = ring(section, setback);
-      faces.push([[...back].reverse()]);
-      mouth.forEach((id, i) => {
-        const j = (i + 1) % mouth.length;
-        const wall = [mouth[j], id, back[i], back[j]];
-        faces.push([wall]);
-        if (main && i % 2 === 0) mainSideWalls.add(wall);
-      });
-      return mouth;
-    };
-    const main = recess(mainSection.map(([side, y]) => [side * width * scale.x * taperAt(hero.topScale[0], y) / 2, y]),
-      y => depth * scale.z * taperAt(hero.topScale[1], y), true);
-    const baseSpan = a.distanceTo(b), crownSpan = d.distanceTo(c);
-    const secondaryMouth = recess(returnSection.map(([side, inner, y]) => {
-      const span = lerp(baseSpan, crownSpan, y + .5);
-      return [side * (span * (.5 - secondary.margin) - inner * returnWidth), y];
-    }), () => secondary.depth * scale.z);
-    faces.push([face, main, secondaryMouth]);
-  }
-
-  return bevelStele(vertices, faces, scale, scale.x * hero.bevelWidthRatio, mainSideWalls);
-}
-
-function bevelStele(original: Vector3[], faces: number[][][], scale: Vector3, width: number, mainSideWalls: Set<number[]>) {
-  // Inset in world units so the object's non-uniform scale does not stretch the bevel.
-  const vertices: Vector3[] = [], normals: Vector3[] = [], indices: number[] = [];
-  const edges = new Map<string, [number, number]>();
-  const caps = original.map(() => new Map<number, number>());
-  const facades = [];
-  const grooveWalls = [];
-
-  for (const loops of faces) {
-    const normal = faceNormal(original, loops[0]);
-    // Three applies the instance normal matrix later. Encode the inverse of
-    // that correction here, leaving the world-space plane normal intact.
-    const localNormal = normal.clone().multiply(scale).normalize();
-    const inset = loops.map(loop => {
-      const corners = loop.map((id, i) => {
-        const point = original[id];
-        const previous = original[loop[(i + loop.length - 1) % loop.length]];
-        const next = original[loop[(i + 1) % loop.length]];
-        const inA = normal.clone().cross(point.clone().sub(previous).normalize());
-        const inB = normal.clone().cross(next.clone().sub(point).normalize());
-        const miter = inA.clone().add(inB).multiplyScalar(width / (1 + inA.dot(inB)));
-        vertices.push(point.clone().add(miter));
-        normals.push(localNormal);
-        return vertices.length - 1;
-      });
-
-      // Opposite face loops run in opposite directions on every shared edge.
-      // Joining their insets adds a real chamfer with interpolated face normals.
-      loop.forEach((id, i) => {
-        const j = (i + 1) % loop.length, next = loop[j];
-        const from = corners[i], to = corners[j];
-        const reverse = edges.get(`${next}:${id}`);
-        if (reverse) {
-          const [otherTo, otherFrom] = reverse;
-          quad(indices, [to, from, otherFrom, otherTo]);
-          caps[id].set(otherFrom, from);
-          caps[next].set(to, otherTo);
-        } else {
-          edges.set(`${id}:${next}`, [from, to]);
-        }
-      });
-      return corners;
-    });
-
-    const [outline, ...holes] = inset;
-    const indexStart = indices.length;
-    if (!holes.length && outline.length === 4) quad(indices, outline);
-    else indices.push(...triangulateFace(vertices, outline, holes));
-    const side = coreSides.find(side => side.outline === loops[0]);
-    if (side) facades.push({ id: side.id, corners: side.outline.map(i => original[i].toArray()),
-      outline, holes, indexStart, indexCount: indices.length - indexStart });
-    if (mainSideWalls.has(loops[0])) grooveWalls.push({ outline, indexStart, indexCount: indices.length - indexStart });
-  }
-
-  // This stele has exactly three incident faces at each original corner.
-  for (const cap of caps) {
-    const [a, b] = cap.entries().next().value!;
-    indices.push(a, b, cap.get(b)!);
-  }
-  return {
-    positions: new Float32Array(vertices.flatMap(v => v.divide(scale).toArray())),
-    normals: new Float32Array(normals.flatMap(v => v.toArray())),
-    indices: new Uint16Array(indices),
-    facades,
-    grooveWalls,
-  };
 }
 
 export function fingerprint(data: ArrayBufferView) {
@@ -488,19 +350,10 @@ export function sampleJourney(progress: number, world: WorldParameters) {
   const position = [0,1,2].map(axis => channel(world, progress, i => keys[i].position[axis])) as [number,number,number];
   position[0] += valleyAt(position[2],world).x;
   position[1] += heightAt(position[0], position[2], world);
-  const target = [0,1,2].map(axis => channel(world, progress, i => keys[i].target[axis])) as [number,number,number];
-  target[0] += valleyAt(target[2],world).x;
-  target[1] += valleyAt(target[2],world).floor;
-  if (world.futureCity.enabled) {
-    const { center, lookAtHeights, retarget } = world.futureCity;
-    const weight = smoothstep(...retarget, progress);
-    target[0] = center[0];
-    target[1] = center[1] + lerp(...lookAtHeights, weight);
-    target[2] = center[2];
-  }
-  return { position, target: target as Vec3,
-    roll: channel(world, progress, i => keys[i].roll),
-    fov: world.futureCity.enabled ? world.futureCity.fov : channel(world, progress, i => keys[i].fov) };
+  const { center, lookAtHeights, retarget, fov } = world.futureCity;
+  const height = center[1] + lerp(...lookAtHeights, smoothstep(...retarget, progress));
+  return { position, target: [center[0], height, center[2]] as Vec3,
+    roll: channel(world, progress, i => keys[i].roll), fov };
 }
 
 // Contain the authored film gate: narrower windows reveal vertical space instead

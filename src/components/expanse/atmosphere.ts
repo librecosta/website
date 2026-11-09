@@ -1,7 +1,6 @@
 import { Color, DataTexture, DataUtils, HalfFloatType, LinearFilter, LinearSRGBColorSpace, MathUtils, RepeatWrapping, RGBAFormat, Vector3, Vector4, type Material } from 'three';
 import { EXPANSE, type SkyView } from './parameters';
 import { forSkyDirection, SKY_HEIGHT, SKY_WIDTH } from './sky-field';
-import { sanctuaryAir, type SanctuaryUniforms } from './sanctuary-field';
 import { sandstormAir, type SandstormUniforms } from './sandstorm';
 
 const skySize = [96, 64] as const;
@@ -151,16 +150,40 @@ export const sampleSky = /* glsl */ `
   }
 `;
 
+const cityHaze = EXPANSE.futureCity.haze;
+const glslVec3 = (vector: readonly number[]) => `vec3(${vector.map(value => value.toFixed(1)).join(', ')})`;
+export const skylineCloud = /* glsl */ `
+  // Approximate the optical depth through a broad, world-space Gaussian bank.
+  float cloudIntegral(float t) {
+    return 0.5 + 0.5 * t * inversesqrt(0.7 + t * t);
+  }
+
+  vec3 scatterSkylineCloud(vec3 color, vec3 ray, float depth) {
+    vec3 radius = ${glslVec3(cityHaze.crownRadius)};
+    vec3 origin = (cameraPosition - ${glslVec3(cityHaze.crownCenter)}) / radius;
+    vec3 direction = ray / radius;
+    float rate = length(direction);
+    vec3 axis = direction / rate;
+    float center = dot(origin, axis);
+    vec3 lateral = origin - axis * center;
+    lateral.y += 0.17 * sin(lateral.x * 5.6 + 0.7) + 0.09 * sin(lateral.x * 13.8);
+    float column = exp(-dot(lateral, lateral)) * (cloudIntegral(center + depth * rate) - cloudIntegral(center));
+    float haze = 1.0 - exp(-${cityHaze.crownDensity.toFixed(2)} * column);
+    vec3 mist = mix(airRadiance(ray), vec3(0.77, 0.82, 0.89), 0.22);
+    return mix(color, mist, haze);
+  }
+`;
+
 export function applyAerialPerspective(material: Material, atmosphere: Atmosphere, distant = false,
-  sanctuary?: SanctuaryUniforms, storm?: SandstormUniforms, mobile = false) {
+  storm?: SandstormUniforms, mobile = false, skyline = false) {
   const compile = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey();
   const { hazeHeight, distantHaze } = EXPANSE.atmosphere.skyFinish;
   material.dithering = true;
-  material.customProgramCacheKey = () => `${key}:aerial-perspective:${distant}:sanctuary:${!!sanctuary}:storm:${!!storm}:${mobile}`;
+  material.customProgramCacheKey = () => `${key}:aerial-perspective:${distant}:storm:${!!storm}:${mobile}:${skyline}`;
   material.onBeforeCompile = (shader, renderer) => {
     compile(shader, renderer);
-    Object.assign(shader.uniforms, atmosphere.uniforms, sanctuary, storm);
+    Object.assign(shader.uniforms, atmosphere.uniforms, storm);
     if (distant) shader.uniforms.airDistantFade = { value: atmosphere.distantFade };
     shader.vertexShader = shader.vertexShader
       .replace('#include <fog_pars_vertex>', '#include <fog_pars_vertex>\nvarying vec3 vAirRay;')
@@ -172,7 +195,7 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
         #include <fog_pars_fragment>
         varying vec3 vAirRay;
         ${sampleSky}
-        ${sanctuary ? sanctuaryAir : ''}
+        ${skyline ? skylineCloud : ''}
         ${storm ? sandstormAir(mobile) : ''}
         ${distant ? 'uniform vec4 airDistantFade;' : ''}
       `)
@@ -188,10 +211,16 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
               float haze = 1.0 - smoothstep(0.0, float(${hazeHeight}), ray.y);
               fogAmount = mix(fogAmount, 1.0, haze * float(${distantHaze}));
             ` : ''}
-            gl_FragColor.rgb = mix(gl_FragColor.rgb, airRadiance(ray), fogAmount);
+            vec3 scatter = airRadiance(ray);
+            ${skyline ? `
+              float foothill = 1.0 - smoothstep(0.0, ${cityHaze.foothillHeight.toFixed(1)}, cameraPosition.y + vAirRay.y);
+              fogAmount = mix(fogAmount, 1.0, ${cityHaze.foothillDensity.toFixed(2)} * foothill);
+              scatter = mix(scatter, vec3(0.48, 0.54, 0.63), 0.16 * (1.0 - foothill));
+            ` : ''}
+            gl_FragColor.rgb = mix(gl_FragColor.rgb, scatter, fogAmount);
+            ${skyline ? 'gl_FragColor.rgb = scatterSkylineCloud(gl_FragColor.rgb, ray, airDepth);' : ''}
           }
         #endif
-        ${sanctuary ? 'gl_FragColor.rgb = scatterSanctuary(gl_FragColor.rgb, vAirRay);' : ''}
         ${storm ? 'gl_FragColor.rgb = scatterSandstorm(gl_FragColor.rgb, vAirRay);' : ''}
         #include <colorspace_fragment>
       `)

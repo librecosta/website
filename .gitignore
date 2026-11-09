@@ -32,4 +32,4 @@ __pycache__/
 
 # Approved production assets require a documented, exact-path exception here.
 # Do not use `git add -f` to bypass the review.
-!/public/expanse/future-city.glb
+!/public/expanse/entrance-ruin.glb

@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BufferAttribute, BufferGeometry, Color, DataTexture, DoubleSide, LinearFilter, RedFormat,
-  ShaderMaterial, Vector2, Vector3, type Mesh,
+  ShaderMaterial, Vector2, Vector3,
 } from 'three';
 import { EXPANSE, type WindView } from './parameters';
 import { createSandTransport, stormExposure } from './sand-transport';
@@ -11,10 +11,12 @@ import { sandBedSupply } from './world';
 
 const config = EXPANSE.windMotion;
 const { shelter } = EXPANSE.sandstorm;
-const exposureAt = (z: number) => stormExposure(z, shelter.approach);
+const driftExposure = (z: number) => stormExposure(z, shelter.approach, shelter.driftMinimum);
 const densityRange = 96;
 
 const vertex = /* glsl */ `
+  #include <common>
+  #include <logdepthbuf_pars_vertex>
   attribute vec2 layer;
   varying vec2 vLayer;
   varying vec3 vPosition, vNormal;
@@ -23,10 +25,12 @@ const vertex = /* glsl */ `
     vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
     vNormal = mat3(modelMatrix) * normal;
     gl_Position = projectionMatrix * viewMatrix * vec4(vPosition, 1.0);
+    #include <logdepthbuf_vertex>
   }
 `;
 
 const fragment = /* glsl */ `
+  #include <logdepthbuf_pars_fragment>
   uniform sampler2D field;
   uniform vec2 layerDrift, fieldOrigin, fieldSize, viewFade;
   uniform vec3 dustColor, skyLight, sunLight, sunDirection;
@@ -59,6 +63,7 @@ const fragment = /* glsl */ `
       float alpha = 0.91 * smoothstep(0.02, 0.55, value);
       gl_FragColor = vec4(0.025, 0.78, 0.58, alpha * fade);
     }
+    #include <logdepthbuf_fragment>
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -123,16 +128,14 @@ export function SandDust({ terrain, ground, windSurface, storm, mobile, mode, vi
   mode: Exclude<WindView, 'static'>; visible: boolean; debug: boolean;
 }) {
   const { gl, invalidate } = useThree();
-  const mesh = useRef<Mesh>(null);
   const clock = useRef({ remainder: 0, running: false, nextRead: 0 });
   const resources = useMemo(() => {
     const [nx] = config.resolution;
-    const [x0, x1, z0, z1] = config.bounds;
-    const dz = (z1 - z0) / config.resolution[1];
+    const [x0, x1] = config.bounds;
     const nz = config.window.rows;
     const simulation = createSandTransport(config, EXPANSE.aeolian.wind, ground, windSurface, {
       sediment: sandBedSupply(EXPANSE, ground), window: config.window, background: EXPANSE.sandstorm.background,
-      shelter: { exposure: exposureAt, settling: shelter.settling },
+      shelter: { exposure: driftExposure, settling: shelter.settling },
     });
     const { geometry, drawNear } = buildLayers(terrain, mobile);
     const pixels = new Uint8Array(nx * nz);
@@ -156,11 +159,9 @@ export function SandDust({ terrain, ground, windSurface, storm, mobile, mode, vi
     function upload() {
       const { concentration } = simulation;
       const first = simulation.firstRow * nx;
-      for (let row = 0; row < nz; row++) {
-        const exposure = exposureAt(simulation.windowStart + (row + 0.5) * dz);
-        for (let cell = row * nx; cell < (row + 1) * nx; cell++) {
-          pixels[cell] = Math.round(255 * Math.sqrt(Math.min(1, exposure * concentration[first + cell] / densityRange)));
-        }
+      // The simulation already applies shelter to source, transport and settling.
+      for (let cell = 0; cell < pixels.length; cell++) {
+        pixels[cell] = Math.round(255 * Math.sqrt(Math.min(1, concentration[first + cell] / densityRange)));
       }
       material.uniforms.fieldOrigin.value.y = simulation.windowStart;
       field.needsUpdate = true;
@@ -189,9 +190,8 @@ export function SandDust({ terrain, ground, windSurface, storm, mobile, mode, vi
       return;
     }
     const { simulation } = resources;
-    const exposure = exposureAt(camera.position.z);
+    const exposure = stormExposure(camera.position.z, shelter.approach, shelter.veilMinimum);
     storm.veilStrength.value = exposure;
-    if (mesh.current) mesh.current.visible = exposure > 0;
     let changed = simulation.follow(camera.position.z);
     resources.drawNear(camera.position.z, mode !== 'transport');
     // Skip the inactive wall time and bound catch-up after a stall.
@@ -216,5 +216,5 @@ export function SandDust({ terrain, ground, windSurface, storm, mobile, mode, vi
       gl.domElement.dataset.sandBudget = JSON.stringify({ ground: simulation.measureBudget() });
     }
   });
-  return <mesh ref={mesh} geometry={resources.geometry} material={resources.material} dispose={null} />;
+  return <mesh geometry={resources.geometry} material={resources.material} dispose={null} />;
 }

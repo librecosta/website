@@ -1,55 +1,110 @@
 import { useLoader, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo } from 'react';
-import { CylinderGeometry, MathUtils, MeshStandardMaterial, Vector4, type BufferGeometry, type Mesh } from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Color, MeshStandardMaterial, Object3D, Vector4, type BufferGeometry, type InstancedMesh, type Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyAerialPerspective, type Atmosphere } from './atmosphere';
 import { EXPANSE } from './parameters';
 import type { SandstormUniforms } from './sandstorm';
+import { buildSkyline } from './skyline';
 import type { Monument } from './world';
 
 const city = EXPANSE.futureCity;
-const cityAsset = '/expanse/future-city.glb';
+type District = ReturnType<typeof buildSkyline>['batches'][number];
 
-function buildSkyline() {
-  const radius = Math.SQRT1_2;
-  const sections = city.skyline.map(({ center: [x, y, z], size: [width, height, depth], taper }) =>
-    new CylinderGeometry(radius * taper, radius, 1, 4, 1, false, Math.PI / 4)
-      .scale(width, height, depth).translate(x, y, z));
-  const geometry = mergeGeometries(sections)!;
-  sections.forEach(section => section.dispose());
-  return geometry;
+const skylineEmission = /* glsl */ `
+  varying vec3 vCityMark;
+  vec3 skylineLight(vec3 mark) {
+    bool window = mark.z > 2.5 && mark.z < 3.5;
+    float across = window ? mark.y : mark.x;
+    float along = window ? mark.x : mark.y;
+    float axis = mark.z < 1.5 ? 0.27 : 0.5;
+    float width = mark.z < 1.5 ? 0.041 : (mark.z > 3.5 ? 0.052 : 0.15);
+    float footprint = max(fwidth(across), 0.0001);
+    float distanceToLine = abs(across - axis);
+    // Retain a soft, energy-limited trace even when the core is smaller than a pixel.
+    float core = (1.0 - smoothstep(max(width - footprint * 0.5, 0.0), width + footprint * 0.5, distanceToLine))
+      * min(1.0, width * 2.0 / footprint);
+    float glow = 1.0 - smoothstep(width, width * 2.8, distanceToLine);
+    float inset = mark.z > 3.5 ? 0.24 : 0.018;
+    float endFade = smoothstep(inset, inset + 0.03, min(along, 1.0 - along));
+    float strength = mark.z < 1.5 ? 2.05 : (mark.z < 2.5 ? 2.25 : 1.3);
+    vec3 color = mark.z < 1.5 ? vec3(0.50, 0.84, 1.0) : vec3(0.20, 0.61, 1.0);
+    return color * (core + glow * 0.10) * strength * endFade * step(0.5, mark.z);
+  }
+`;
+
+function DistrictInstances({ geometry, buildings, material }: District & { material: MeshStandardMaterial }) {
+  const mesh = useRef<InstancedMesh>(null);
+  const invalidate = useThree(state => state.invalidate);
+  useLayoutEffect(() => {
+    const batch = mesh.current!;
+    const transform = new Object3D(), color = new Color();
+    buildings.forEach(({ position, size, yaw, shade }, i) => {
+      transform.position.set(...position);
+      transform.scale.set(...size);
+      transform.rotation.y = yaw;
+      transform.updateMatrix();
+      batch.setMatrixAt(i, transform.matrix);
+      batch.setColorAt(i, color.setScalar(shade));
+    });
+    batch.instanceMatrix.needsUpdate = true;
+    batch.instanceColor!.needsUpdate = true;
+    batch.computeBoundingSphere();
+    invalidate();
+    return () => batch.dispose();
+  }, [buildings, geometry, material, invalidate]);
+  return <instancedMesh ref={mesh} args={[geometry, material, buildings.length]} />;
 }
 
-export function FutureCity({ ruin, atmosphere, storm, mobile }: {
+export function EntranceRuin({ ruin, atmosphere, storm, mobile }: {
   ruin: Monument; atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean;
 }) {
-  const { nodes } = useLoader(GLTFLoader, cityAsset);
+  const { nodes } = useLoader(GLTFLoader, '/expanse/entrance-ruin.glb');
   const { gl, invalidate } = useThree();
-  const skyline = useMemo(buildSkyline, []);
-  const materials = useMemo(() => {
-    const ruin = new MeshStandardMaterial({ color: '#aa9a84', roughness: .91 });
-    const hub = new MeshStandardMaterial({ color: '#877f77', roughness: 1 });
-    applyAerialPerspective(ruin, atmosphere, false, undefined, storm, mobile);
-    applyAerialPerspective(hub, { ...atmosphere, distantFade: new Vector4(...city.fog) }, true, undefined, storm, mobile);
-    return { ruin, hub };
+  const material = useMemo(() => {
+    const stone = new MeshStandardMaterial({ color: '#aa9a84', roughness: .91 });
+    applyAerialPerspective(stone, atmosphere, false, storm, mobile);
+    return stone;
   }, [atmosphere, mobile, storm]);
   useLayoutEffect(() => {
     gl.shadowMap.needsUpdate = true;
     invalidate();
   }, [gl, invalidate]);
-  useEffect(() => () => skyline.dispose(), [skyline]);
-  useEffect(() => () => { materials.ruin.dispose(); materials.hub.dispose(); }, [materials]);
+  useEffect(() => () => material.dispose(), [material]);
+  return <mesh geometry={(nodes.Tower as Mesh<BufferGeometry>).geometry} material={material} position={ruin.position}
+    quaternion={ruin.quaternion} scale={ruin.scale} castShadow receiveShadow dispose={null} />;
+}
 
-  const geometry = (name: string) => (nodes[name] as Mesh<BufferGeometry>).geometry;
-  const [pitch, yaw, roll] = city.ring.tilt.map(MathUtils.degToRad);
-  return <group dispose={null}>
-    <mesh geometry={geometry('Tower')} material={materials.ruin} position={ruin.position}
-      quaternion={ruin.quaternion} scale={ruin.scale} castShadow receiveShadow />
-    <group position={[...city.center]} scale={city.scale}>
-      <mesh geometry={skyline} material={materials.hub} rotation-y={city.skylineYaw} />
-      <mesh geometry={geometry('Ring')} material={materials.hub} position-y={city.ring.height}
-        rotation={[pitch, yaw, roll, 'YXZ']} scale={[...city.ring.scale]} />
-    </group>
+export function FutureCity({ atmosphere, storm, mobile }: {
+  atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean;
+}) {
+  const skyline = useMemo(() => buildSkyline(city, EXPANSE.seed, mobile), [mobile]);
+  const material = useMemo(() => {
+    const alloy = new MeshStandardMaterial({ vertexColors: true, roughness: .55, metalness: .26 });
+    alloy.onBeforeCompile = shader => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec3 cityMark;\nvarying vec3 vCityMark;')
+        .replace('#include <begin_vertex>', `
+          #include <begin_vertex>
+          vCityMark = cityMark;
+          #ifdef USE_INSTANCING_COLOR
+            vCityMark.z *= step(0.96, instanceColor.r);
+          #endif
+        `);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>\n${skylineEmission}`)
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skylineLight(vCityMark);');
+    };
+    applyAerialPerspective(alloy, { ...atmosphere, distantFade: new Vector4(...city.fog) }, true, storm, mobile, true);
+    return alloy;
+  }, [atmosphere, storm, mobile]);
+  useEffect(() => () => {
+    skyline.civic.dispose();
+    skyline.batches.forEach(batch => batch.geometry.dispose());
+  }, [skyline]);
+  useEffect(() => () => material.dispose(), [material]);
+  return <group position={[...city.center]} scale={city.scale} dispose={null}>
+    <mesh geometry={skyline.civic} material={material} />
+    {skyline.batches.map((batch, index) => <DistrictInstances key={index} {...batch} material={material} />)}
   </group>;
 }

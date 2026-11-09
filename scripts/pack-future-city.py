@@ -1,4 +1,4 @@
-"""Pack the two supplied CC BY Sketchfab GLBs into the scene's geometry-only GLB."""
+"""Pack the CC BY entrance ruin as a geometry-only GLB."""
 
 import json
 import math
@@ -48,13 +48,12 @@ def compact(positions, normals, triangles):
     return vertices, indices
 
 
-def pack(ring_path, tower_path, output):
-    ring, ring_normals, ring_faces, ring_credit = read_mesh(ring_path)
+def pack(tower_path, output):
     tower, tower_normals, tower_faces, tower_credit = read_mesh(tower_path)
     tower_faces = [face for face in tower_faces if max(tower[i][1] for i in face) < 7950]
-    meshes = [('Ring', ring, ring_normals, ring_faces), ('Tower', tower, tower_normals, tower_faces)]
+    meshes = [('Tower', tower, tower_normals, tower_faces)]
     data = bytearray()
-    gltf = dict(asset=dict(version='2.0', extras={'sources': [ring_credit, tower_credit]}),
+    gltf = dict(asset=dict(version='2.0', extras={'sources': [tower_credit]}),
                 extensionsUsed=['KHR_mesh_quantization'], extensionsRequired=['KHR_mesh_quantization'],
                 scene=0, scenes=[{'nodes': list(range(len(meshes)))}], nodes=[], meshes=[], accessors=[], bufferViews=[])
 

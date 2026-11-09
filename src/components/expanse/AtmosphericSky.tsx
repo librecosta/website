@@ -3,10 +3,9 @@
 import { useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import { ShaderMaterial } from 'three';
-import { bakeSkyRadiance, sampleSky, type Atmosphere } from './atmosphere';
+import { bakeSkyRadiance, sampleSky, skylineCloud, type Atmosphere } from './atmosphere';
 import { EXPANSE, type SkyView } from './parameters';
 import { createSkyField } from './sky-field';
-import { sanctuaryAir, type SanctuaryUniforms } from './sanctuary-field';
 import { sandstormAir, type SandstormUniforms } from './sandstorm';
 
 const triangle = new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]);
@@ -33,26 +32,29 @@ const fragment = /* glsl */ `
   }
 `;
 
-export function AtmosphericSky({ atmosphere, view, sanctuary, storm, mobile }: {
-  atmosphere: Atmosphere; view: SkyView; sanctuary?: SanctuaryUniforms; storm?: SandstormUniforms;
+export function AtmosphericSky({ atmosphere, view, storm, mobile }: {
+  atmosphere: Atmosphere; view: SkyView; storm?: SandstormUniforms;
   mobile: boolean;
 }) {
   const invalidate = useThree(state => state.invalidate);
   const canvas = useThree(state => state.gl.domElement);
   const field = useMemo(createSkyField, []);
-  const useStorm = !!storm && view === 'color';
-  const useSanctuary = !!sanctuary;
+  const composite = view === 'color';
+  const useStorm = !!storm && composite;
   const material = useMemo(() => {
-    const ray = `ray * ${EXPANSE.atmosphere.cameraFar.toFixed(1)}`;
-    let color = 'skyRadiance(ray)';
-    if (useSanctuary) color = `scatterSanctuary(${color}, ${ray})`;
-    if (useStorm) color = `scatterSandstorm(${color}, ${ray})`;
-    const fragmentShader = fragment.replace('void main()', `${useSanctuary ? sanctuaryAir : ''}\n${useStorm ? sandstormAir(mobile) : ''}\nvoid main()`)
+    const far = EXPANSE.futureCity.cameraFar.toFixed(1);
+    let color = composite ? `scatterSkylineCloud(skyRadiance(ray), ray, ${far})` : 'skyRadiance(ray)';
+    if (useStorm) color = `scatterSandstorm(${color}, ray * ${far})`;
+    const fragmentShader = fragment.replace('void main()', `
+      ${composite ? skylineCloud : ''}
+      ${useStorm ? sandstormAir(mobile) : ''}
+      void main()
+    `)
       .replace('skyRadiance(ray)', color);
-    // Keep the same uniform entries as the opaque materials and motes, including live exposure.
-    return new ShaderMaterial({ uniforms: { ...atmosphere.uniforms, ...sanctuary, ...storm },
+    // Keep the same uniform entries as the opaque materials, including live exposure.
+    return new ShaderMaterial({ uniforms: { ...atmosphere.uniforms, ...storm },
       vertexShader: vertex, fragmentShader, toneMapped: false, depthWrite: false });
-  }, [atmosphere, sanctuary, storm, useSanctuary, useStorm, mobile]);
+  }, [atmosphere, storm, composite, useStorm, mobile]);
   useEffect(() => () => material.dispose(), [material]);
   useLayoutEffect(() => {
     const bakeMs = bakeSkyRadiance(atmosphere, field.data, view);

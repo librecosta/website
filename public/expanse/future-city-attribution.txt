@@ -1,17 +1,11 @@
-The Expanse — P1-F3 scene geometry
-
-City Ring - Sci-Fi by Inditrion Dradnon
-https://sketchfab.com/3d-models/city-ring-sci-fi-91e77c9d2f8242309101714809e6c353
-CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
-Adapted as the distant hub ring.
+The Expanse — entrance-ruin.glb
 
 Sci-Fi Building Tower Skyscraper by Volodymyr Hrushevskiy
 https://sketchfab.com/3d-models/sci-fi-building-tower-skyscraper-c2ab95f390e4452dbc3a033b5a34e1c1
 CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
 Adapted as the buried left ruin. The tallest antenna was trimmed.
 
-Both were centered, rescaled and given the scene's warm mineral material. The
-runtime GLB omits original maps and unused vertex data, welds matching vertices,
-and packs the mesh attributes and indices. The two supplied GLBs total 6.04 MB.
-The runtime file is 1.32 MB with 55,439 triangles. The original files retain
-their source data. See scripts/pack-future-city.py for the geometry export.
+Centered, rescaled and given the scene's warm mineral material. The runtime
+GLB omits original maps and unused vertex data, welds matching vertices, and
+packs the mesh attributes and indices. It is 645 kB with 32,399 triangles.
+See scripts/pack-future-city.py for the geometry export.

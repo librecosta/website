@@ -20,8 +20,8 @@ type TransportOptions = {
   shelter?: { exposure: (z: number) => number; settling: number };
 };
 
-export function stormExposure(z: number, [start, clear]: readonly [number, number]) {
-  return 1 - MathUtils.smoothstep(-z, -start, -clear);
+export function stormExposure(z: number, [start, end]: readonly [number, number], minimum: number) {
+  return MathUtils.lerp(1, minimum, MathUtils.smoothstep(-z, -start, -end));
 }
 
 export function saltationThreshold({ grainDiameter, grainDensity, airDensity, gravity, bagnoldFactor }: Transport['threshold']) {
