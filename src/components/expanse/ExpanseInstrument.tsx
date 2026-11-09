@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { RefObject } from 'react';
+import { ExpanseSoundToggle } from './ExpanseAudio';
 import styles from './expanse.module.css';
 
 // Hand-drawn centerlines. The short diagonal cuts are shared across the wordmark.
@@ -71,6 +72,7 @@ export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressB
     <header className={styles.instrumentHeader}>
       <Link href="/" className={styles.brand} aria-label="LibreCosta 首页"><Wordmark /></Link>
       <div className={styles.instrumentRight}>
+        <ExpanseSoundToggle />
         <div className={styles.reservedNav} lang="en" aria-hidden="true"><span>Works</span><span>About</span></div>
         <div className={styles.chapterGauge}>
           <svg viewBox="0 0 65 16" aria-hidden="true" fill="none" stroke="currentColor">

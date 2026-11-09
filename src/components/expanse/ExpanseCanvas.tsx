@@ -184,17 +184,12 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
     };
     const move = (event: PointerEvent) => {
       if (event.pointerType !== 'mouse' || !fineHover.matches || document.hidden) return;
-      if (event.target instanceof Element && event.target.closest('a, aside')) {
-        setTarget(0, 0);
-        return;
-      }
+      // Retain the last scene sample over controls and when the pointer leaves the viewport.
+      if (event.target instanceof Element && event.target.closest('a, button, aside')) return;
       const { left, top, width, height } = container.getBoundingClientRect();
-      const x = MathUtils.clamp(2 * (event.clientX - left) / width - 1, -1, 1);
-      const y = MathUtils.clamp(1 - 2 * (event.clientY - top) / height, -1, 1);
-      setTarget(x, y);
-    };
-    const leave = (event: PointerEvent) => {
-      if (event.pointerType === 'mouse') setTarget(0, 0);
+      const x = (event.clientX - left) / width, y = (event.clientY - top) / height;
+      if (x < 0 || x > 1 || y < 0 || y > 1) return;
+      setTarget(2 * x - 1, 1 - 2 * y);
     };
     const reset = () => {
       const moved = motion.x !== 0 || motion.y !== 0;
@@ -203,13 +198,9 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
       if (moved) signal.current.invalidate();
     };
     container.addEventListener('pointermove', move, { passive: true });
-    container.addEventListener('pointerleave', leave);
-    container.addEventListener('pointercancel', leave);
     fineHover.addEventListener('change', reset);
     return () => {
       container.removeEventListener('pointermove', move);
-      container.removeEventListener('pointerleave', leave);
-      container.removeEventListener('pointercancel', leave);
       fineHover.removeEventListener('change', reset);
       reset();
     };

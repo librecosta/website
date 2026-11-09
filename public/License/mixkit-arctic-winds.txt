@@ -1,0 +1,11 @@
+Arctic winds (Mixkit item 1154)
+Provider: Mixkit / Envato
+Listing: https://mixkit.co/free-sound-effects/desert/
+License: https://mixkit.co/license/modal/sfxFree/
+Terms: https://mixkit.co/terms/
+
+Use: looped environmental wind in The Expanse. LibreCosta trims, filters,
+crossfades and encodes its locally obtained copy for the website end product.
+Mixkit permits this use in an end product. Its license restricts redistribution
+of the sound by itself, as stock or with source files. The supplied WAV and the
+locally generated Opus / MP3 are excluded from the source repository.

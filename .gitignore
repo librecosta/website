@@ -29,6 +29,7 @@ __pycache__/
 /docs/creative/witness-core/**/*.jpg
 /docs/creative/witness-core/**/*.webp
 /.local/
+/public/audio/local/
 
 # Approved production assets require a documented, exact-path exception here.
 # Do not use `git add -f` to bypass the review.

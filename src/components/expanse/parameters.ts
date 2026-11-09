@@ -300,7 +300,7 @@ export const EXPANSE = {
     scrubSeconds: 0.18, cameraRadius: 12,
     reducedProgress: passage.path,
     framingAspect: 2,
-    pointer: { yawDegrees: 1.8, pitchDegrees: 1.05, responseMs: 250, settleDistance: 0.0025 },
+    pointer: { yawDegrees: 4.05, pitchDegrees: 2.475, responseMs: 250, settleDistance: 0.0025 },
     // Reparameterize the retained Hermite segments onto the full chapter scroll range.
     timing: [
       passage,
