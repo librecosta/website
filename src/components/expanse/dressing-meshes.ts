@@ -61,7 +61,8 @@ export function buildDressingRocks(ground: Ground, mobile: boolean) {
   const random = sampler(EXPANSE.seed);
   const rocks = rockSections.map((_, variant) => ({ geometry: rockShape(variant), matrices: [] as Object3D['matrix'][] }));
   const transform = new Object3D();
-  for (const { center, spread, count, sizes } of EXPANSE.dressing.rockGroups) {
+  for (const { center, spread, count, sizes, omit } of EXPANSE.dressing.rockGroups) {
+    const omitted: readonly number[] = omit;
     for (let i = 0; i < count; i++) {
       const angle = 2 * Math.PI * random();
       const reach = Math.sqrt(random());
@@ -71,7 +72,8 @@ export function buildDressingRocks(ground: Ground, mobile: boolean) {
       const yaw = random() * Math.PI;
       const height = .52 + .47 * random();
       const burial = scale * (.045 + .15 * random());
-      if (mobile && scale < 5) continue;
+      // Consume each slot's random samples before omitting it to keep the other rocks in place.
+      if (omitted.includes(i) || (mobile && scale < 5)) continue;
       transform.position.set(x, ground(x, z) - burial, z);
       transform.rotation.set(Math.atan2(ground(x, z + 12) - ground(x, z - 12), 24), yaw,
         Math.atan2(ground(x + 12, z) - ground(x - 12, z), 24), 'YXZ');
@@ -122,24 +124,7 @@ function location(center: readonly [number, number], yaw: number, length: number
 
 export function buildDressingRemains(ground: Ground, mobile: boolean) {
   const data: MeshData = { positions: [], colors: [], indices: [] };
-  const timber = new Color('#766452'), exposedWood = new Color('#8d7960'), bone = new Color('#ddcfb3');
-  EXPANSE.dressing.deadwood.forEach(({ center, length, yaw }, i) => {
-    const point = location(center, yaw, length, ground);
-    const lay = (points: Point[], profile: number[], color: Color, sections: number) =>
-      tube(data, points.map(point), profile.map(v => v * length), color, sections);
-    const bend = i % 2 ? -1 : 1;
-    lay([[-.54,-.028,-.10],[-.32,.032,-.075],[-.10,.044,-.049],[.11,.035,.018],[.29,.05,.048],[.47,.018,.10],[.59,-.016,.10]],
-      [.06,.054,.048,.036,.028,.018,.008], timber, 15);
-    lay([[-.10,.043,-.049],[.041,.068,-.14*bend],[.156,.071,-.19*bend],[.269,.06,-.27*bend],[.385,.028,-.29*bend]],
-      [.034,.028,.020,.013,.003], timber, 9);
-    lay([[.156,.071,-.19*bend],[.226,.098,-.20*bend],[.31,.11,-.205*bend]], [.016,.012,.004], exposedWood, 6);
-    lay([[.11,.035,.018],[.19,.057,.126*bend],[.27,.08,.194*bend],[.34,.042,.24*bend]],
-      [.025,.019,.011,.006], timber, 7);
-    if (!mobile) {
-      lay([[-.40,.013,-.085],[-.48,.026,-.13],[-.56,.02,-.158]], [.029,.021,.005], exposedWood, 5);
-      lay([[.268,.06,-.27*bend],[.30,.093,-.33*bend],[.339,.083,-.38*bend]], [.011,.008,.003], timber, 5);
-    }
-  });
+  const bone = new Color('#ddcfb3');
   EXPANSE.dressing.bones.forEach(({ center, length, yaw, ribs }, group) => {
     const point = location(center, yaw, length, ground);
     const count = mobile ? ribs - 1 : ribs;

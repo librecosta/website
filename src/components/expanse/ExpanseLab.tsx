@@ -39,6 +39,7 @@ export default function ExpanseLab() {
   const stage = useRef<HTMLElement>(null);
   const debugOutput = useRef<HTMLOutputElement>(null);
   const progressBar = useRef<HTMLDivElement>(null), progressFill = useRef<HTMLSpanElement>(null);
+  const introDistance = useRef(0);
   const cameraRef = useRef<Camera>(null);
   const signal = useRef<JourneySignal>({ value: 0, raw: 0, invalidate: () => {} });
   const [mobile, setMobile] = useState(false), [mediaReduced, setMediaReduced] = useState(false);
@@ -55,7 +56,9 @@ export default function ExpanseLab() {
   useEffect(() => {
     // A resize changes the film gate, not the travelled distance. Keep the
     // native scroll range fixed for this visit; the sticky stage stays fluid.
-    root.current?.style.setProperty('--journey-distance', `${(EXPANSE.journey.screens - 1) * window.innerHeight}px`);
+    const { introScreens, screens } = EXPANSE.journey;
+    introDistance.current = introScreens * window.innerHeight;
+    root.current?.style.setProperty('--journey-distance', `${(screens - 1 + introScreens) * window.innerHeight}px`);
     const narrow = window.matchMedia('(max-width: 700px)');
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => { setMobile(narrow.matches); setMediaReduced(motion.matches); };
@@ -76,12 +79,20 @@ export default function ExpanseLab() {
     const paint = () => {
       signal.current.invalidate();
       const progress = Math.max(0, Math.min(1, signal.current.raw));
-      if (hint.current) hint.current.style.opacity = String(1 - Math.min(1, progress / .02));
       progressBar.current?.setAttribute('aria-valuenow', String(Math.round(progress * 100)));
       if (debugOutput.current) debugOutput.current.value = progressText(signal.current, reduced || contextLost);
     };
     const context = gsap.context(() => {
       if (reduced || contextLost) return;
+      const entranceEnd = () => `top+=${introDistance.current} top`;
+      const updateEntrance = ({ progress }: ScrollTrigger) => {
+        if (hint.current) hint.current.style.opacity = String(1 - progress * progress * (3 - 2 * progress));
+        root.current?.toggleAttribute('data-exploring', progress === 1);
+      };
+      ScrollTrigger.create({
+        trigger: root.current, start: 'top top', end: entranceEnd,
+        onUpdate: updateEntrance, onRefresh: updateEntrance,
+      });
       const fill = progressFill.current;
       const follow = fill && gsap.quickTo(fill, 'scaleX', { duration: .55, ease: 'power2.out' });
       const updateScroll = (trigger: ScrollTrigger) => {
@@ -91,20 +102,26 @@ export default function ExpanseLab() {
       };
       gsap.to(signal.current, {
         value: 1, ease: 'none', onUpdate: paint,
-        scrollTrigger: { trigger: root.current, start: 'top top', end: 'bottom bottom',
+        scrollTrigger: { trigger: root.current, start: entranceEnd, end: 'bottom bottom',
           scrub: EXPANSE.journey.scrubSeconds,
           onUpdate: updateScroll, onRefresh: updateScroll },
       });
     }, root);
     paint(); ScrollTrigger.refresh();
-    return () => context.revert();
+    const element = root.current;
+    return () => {
+      context.revert();
+      element?.removeAttribute('data-exploring');
+    };
   }, [reduced, contextLost]);
   const seek = (progress: number) => {
     const distance = Math.max(0, root.current!.offsetHeight - window.innerHeight);
-    window.scrollTo({ top: root.current!.offsetTop + distance * progress, behavior: 'instant' });
+    const intro = introDistance.current;
+    const offset = progress === 0 ? 0 : intro + (distance - intro) * progress;
+    window.scrollTo({ top: root.current!.offsetTop + offset, behavior: 'instant' });
   };
   return <main ref={root} className={styles.journey} data-reduced={reduced || contextLost} data-ready={ready}
-    style={{ '--journey-screens': EXPANSE.journey.screens } as CSSProperties}>
+    style={{ '--journey-screens': EXPANSE.journey.screens, '--journey-intro': EXPANSE.journey.introScreens } as CSSProperties}>
     <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}

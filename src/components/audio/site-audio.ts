@@ -37,11 +37,10 @@ export class SiteAudio {
       this.buses[bus].gain.value = levels[bus];
       this.buses[bus].connect(this.master);
     }
-    document.addEventListener('visibilitychange', this.onVisibility);
   }
 
   private get audible() {
-    return this.enabled && !document.hidden && !this.abort.signal.aborted;
+    return this.enabled && !this.abort.signal.aborted;
   }
 
   private fade(param: AudioParam, level: number, seconds = fadeSeconds) {
@@ -55,16 +54,9 @@ export class SiteAudio {
     param.linearRampToValueAtTime(level, now + seconds);
   }
 
-  private onVisibility = () => { void this.syncPlayback().catch(() => {}); };
-
   private async syncPlayback() {
     window.clearTimeout(this.suspendTimer);
-    if (document.hidden) {
-      const now = this.context.currentTime;
-      this.master.gain.cancelScheduledValues(now);
-      this.master.gain.setValueAtTime(0, now);
-      await this.context.suspend();
-    } else if (!this.enabled) {
+    if (!this.enabled) {
       this.fade(this.master.gain, 0);
       this.suspendTimer = window.setTimeout(() => {
         if (!this.enabled) void this.context.suspend().catch(() => {});
@@ -164,7 +156,7 @@ export class SiteAudio {
   }
 
   cue(kind: AudioCue) {
-    if (!this.audible || this.context.state !== 'running') return;
+    if (!this.audible || document.hidden || this.context.state !== 'running') return;
     const now = this.context.currentTime;
     if (kind === 'hover') {
       if (now - this.hoverAt < .12) return;
@@ -188,7 +180,6 @@ export class SiteAudio {
   }
 
   close() {
-    document.removeEventListener('visibilitychange', this.onVisibility);
     window.clearTimeout(this.suspendTimer);
     this.abort.abort();
     void this.context.close().catch(() => {});

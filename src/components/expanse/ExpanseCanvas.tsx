@@ -57,8 +57,8 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant} dispose={null} />;
 }
 
-function World({ mobile, windView, skyView, visible, debug, atmosphere }:
-  Pick<Props, 'mobile' | 'windView' | 'skyView' | 'debug'> & { visible: boolean; atmosphere: Atmosphere }) {
+function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere }:
+  Pick<Props, 'mobile' | 'windView' | 'skyView' | 'reduced' | 'debug'> & { visible: boolean; atmosphere: Atmosphere }) {
   const { invalidate, gl } = useThree();
   const monuments = useMemo(() => buildMonuments(EXPANSE), []);
   const entrance = monuments.find(item => item.id === EXPANSE.futureCity.ruin.id);
@@ -118,7 +118,7 @@ function World({ mobile, windView, skyView, visible, debug, atmosphere }:
     <AtmosphericSky atmosphere={atmosphere} view={skyView}
       storm={storm ?? undefined} mobile={mobile} />
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
-    <FutureCity atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} />
+    <FutureCity atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} visible={visible} reduced={reduced} />
     {entrance && <Suspense fallback={null}>
       <EntranceRuin ruin={entrance} atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} />
     </Suspense>}
@@ -130,7 +130,7 @@ function World({ mobile, windView, skyView, visible, debug, atmosphere }:
   </group>;
 }
 
-function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, windView, cameraRef, visible }:
+function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, cameraRef, visible }:
   Props & { visible: boolean }) {
   const { camera, invalidate, gl, size } = useThree();
   useEffect(() => {
@@ -140,7 +140,7 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
   const ready = useRef(false), frames = useRef(0), readback = useRef(false);
   const lastPose = useRef({ smoothed: -1, aspect: 0, camera, reduced, rotation: new Quaternion(), x: 0, y: 0 });
   const pointer = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, sampledAt: null as number | null });
-  const animated = visible && !reduced && windView !== 'static';
+  const animated = visible && !reduced;
   useEffect(() => {
     const current = signal.current;
     const interval = 1000 / EXPANSE.windMotion.fps[mobile ? 'mobile' : 'desktop'];
@@ -334,8 +334,8 @@ export default function ExpanseCanvas(props: Props) {
       shadow-radius={a.shadowRadius[quality]} shadow-bias={a.shadowBias} shadow-normalBias={a.shadowNormalBias}>
       <orthographicCamera attach="shadow-camera" args={[...daylight.shadowBounds]} />
     </directionalLight>
-    <World mobile={props.mobile} windView={windView} skyView={props.skyView}
+    <World mobile={props.mobile} windView={windView} skyView={props.skyView} reduced={props.reduced}
       visible={visible} debug={props.debug} atmosphere={atmosphere} />
-    <Observation {...props} windView={windView} visible={visible} />
+    <Observation {...props} visible={visible} />
   </Canvas>;
 }

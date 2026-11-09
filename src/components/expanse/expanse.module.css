@@ -10,7 +10,7 @@
   max-width: none;
   margin: 0;
   padding: 0;
-  min-height: calc(var(--journey-distance, calc((var(--journey-screens) - 1) * 100svh)) + 100dvh);
+  min-height: calc(var(--journey-distance, calc((var(--journey-screens) - 1 + var(--journey-intro)) * 100svh)) + 100dvh);
   color: #40463f;
   background: #dedfd9;
   font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
@@ -48,17 +48,17 @@
 }
 .corner {
   position: absolute;
-  width: clamp(68px, 8vw, 108px);
+  width: clamp(68px, 8vw, 103px);
   height: auto;
   color: #34453ccc;
-  filter: drop-shadow(0 0 1px var(--instrument-glint));
 }
-.cornerInlay { opacity: .46; }
+.cornerInlay { opacity: .19; }
 .topLeft { top: var(--edge-top); left: var(--edge-left); }
 .topRight { top: var(--edge-top); right: var(--edge-right); transform: scaleX(-1); }
 .bottomLeft { bottom: var(--edge-bottom); left: var(--edge-left); transform: scaleY(-1); }
 .bottomRight { bottom: var(--edge-bottom); right: var(--edge-right); transform: scale(-1); }
 .instrumentHeader {
+  --brand-height: 44px;
   position: absolute;
   top: calc(var(--edge-top) + var(--rail) - 8px);
   left: calc(var(--edge-left) + var(--rail));
@@ -75,15 +75,24 @@
 }
 .brand {
   width: clamp(122px, 13vw, 174px);
-  min-height: 44px;
+  min-height: var(--brand-height);
   display: flex;
   align-items: center;
   color: inherit;
   pointer-events: auto;
-  transition: color 180ms ease;
 }
 .brand svg, .wordmarkSamples svg { display: block; width: 100%; height: auto; }
 .brand svg { filter: drop-shadow(0 0 1.5px var(--instrument-glint)); }
+.wordmarkNoise {
+  fill: currentColor;
+  stroke: none;
+  font: 600 17px/1 var(--instrument-type);
+  text-anchor: middle;
+  opacity: .66;
+}
+.encryptedLabel { white-space: pre; }
+.encryptedCell { position: relative; display: inline-block; }
+.encryptedNoise { position: absolute; inset: 0; text-align: center; opacity: .66; }
 .soundIndicator {
   --indicator-transition: 420ms cubic-bezier(.2, .65, .25, 1);
   display: grid;
@@ -109,8 +118,7 @@
   content: '';
 }
 .soundIndicator[data-enabled='true']::before { opacity: 1; transform: scale(1); }
-@media (hover: hover) { .brand:hover { color: #4c6960; } }
-.brand:focus-visible, .debug :focus-visible { outline: 2px solid #476254; outline-offset: 4px; }
+.brand:focus-visible, .bilibiliMark:focus-visible, .debug :focus-visible { outline: 2px solid #476254; outline-offset: 4px; }
 .instrumentRight, .reservedNav, .chapterGauge {
   display: flex;
   align-items: center;
@@ -123,6 +131,7 @@
   text-shadow: 0 0 3px var(--instrument-glint);
 }
 .reservedNav { gap: clamp(12px, 2vw, 28px); color: var(--instrument-muted); }
+.reservedNav > span { pointer-events: auto; }
 .soundToggle {
   display: inline-flex;
   align-items: center;
@@ -139,7 +148,7 @@
   cursor: pointer;
   pointer-events: auto;
 }
-.soundToggle span { inline-size: 60px; text-align: start; }
+.soundToggle > span { inline-size: 70px; text-align: start; }
 .soundToggle:focus-visible { outline: 2px solid #476254; outline-offset: 4px; }
 .soundToggle[aria-pressed='false'] { color: var(--instrument-muted); }
 .audioStartPrompt {
@@ -172,8 +181,10 @@
   left: 50%;
   width: clamp(15px, 1.5vw, 20px);
   transform: translate(-50%, -50%);
-  opacity: .62;
+  opacity: 0;
+  transition: opacity 420ms ease;
 }
+.journey[data-exploring] .reticle { opacity: .62; }
 .readout {
   position: absolute;
   bottom: calc(var(--edge-bottom) + var(--rail));
@@ -184,6 +195,15 @@
   transform: translateX(-50%);
 }
 .hint, .staticNote { margin: 0; color: var(--instrument-muted); font-size: 11px; letter-spacing: .12em; text-align: center; text-shadow: 0 0 3px var(--instrument-glint); }
+.hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: 600 11px/1.1 var(--instrument-type);
+  text-transform: uppercase;
+}
+.hint svg { width: 8px; height: 10px; flex: none; }
 .trackLabel { display: flex; justify-content: space-between; font-size: 10px; }
 .progress {
   position: relative;
@@ -229,11 +249,16 @@
   place-items: center;
   color: var(--instrument-muted);
   pointer-events: auto;
-  transition: color 180ms ease;
 }
-.bilibiliMark svg { width: 21px; height: 21px; }
-@media (hover: hover) {
-  .bilibiliMark:hover { color: var(--instrument-ink); filter: drop-shadow(0 0 2px var(--instrument-glint)); }
+.bilibiliMark svg {
+  width: 21px;
+  height: 21px;
+  filter: drop-shadow(0 0 2px transparent);
+  transition: color 500ms ease, filter 500ms ease;
+}
+.bilibiliMark:is(:hover, :focus-visible) svg {
+  color: #fff3d9;
+  filter: drop-shadow(0 0 2px #4a423980);
 }
 .journey[data-ready='true'] .instrument { animation: instrument-reveal 460ms ease-out both; }
 @keyframes instrument-reveal { from { opacity: .72; } to { opacity: 1; } }
@@ -279,25 +304,23 @@
   .observationData { font-size: 9px; }
   .debug { max-width: calc(100% - var(--edge-left) - var(--edge-right) - 2 * var(--rail) - 26px); }
 }
-@media (max-width: 520px) {
-  .instrumentRight { display: grid; grid-template-columns: auto auto; justify-items: end; gap: 4px 8px; padding-block: 5px 0; }
-  .soundToggle { grid-row: 1; min-height: 28px; font-size: 10px; }
-  .soundToggle span { inline-size: 54px; }
-  .reservedNav { grid-column: 1 / -1; grid-row: 2; }
+@media (max-width: 560px) {
+  .instrumentHeader { align-items: start; }
+  .instrumentRight { display: grid; grid-template-rows: var(--brand-height) auto auto; justify-items: end; gap: 2px; }
+  .chapterGauge { grid-row: 1; }
+  .soundToggle { grid-row: 2; min-height: 28px; font-size: 10px; }
+  .soundToggle > span { inline-size: auto; }
+  .reservedNav { grid-row: 3; }
   .reservedNav, .chapterGauge { font-size: 10px; }
 }
 @media (max-width: 400px) {
   .instrumentHeader { gap: 8px; }
   .brand { width: 104px; }
 }
-@media (max-width: 369px) {
-  .soundToggle { min-width: 28px; justify-content: center; }
-  .soundToggle span { display: none; }
-}
 .journey[data-reduced='true'] .instrument { animation: none; }
-.journey[data-reduced='true'] :is(.brand, .bilibiliMark) { transition: none; }
+.journey[data-reduced='true'] :is(.reticle, .bilibiliMark svg) { transition: none; }
 .journey[data-reduced='true'] .soundIndicator, .journey[data-reduced='true'] .soundIndicator::before { transition: none; }
 @media (prefers-reduced-motion: reduce) {
-  .canvas, .brand, .bilibiliMark, .soundIndicator, .soundIndicator::before { transition: none; }
+  .canvas, .reticle, .bilibiliMark svg, .soundIndicator, .soundIndicator::before { transition: none; }
   .journey[data-ready='true'] .instrument { animation: none; }
 }

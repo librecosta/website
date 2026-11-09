@@ -3,6 +3,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
+import { EncryptedLabel, useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
 
 // Hand-drawn centerlines. The short diagonal cuts are shared across the wordmark.
@@ -37,16 +38,24 @@ const pixelPath = pixelGlyphs.map((glyph, i) => glyph.map((row, y) =>
     `M${i * 6 + (i >= 5 ? 1 : 0) + index} ${y + 1}h${run.length}v1h-${run.length}Z`).join(' '),
 ).join(' ')).join(' ');
 
-function Wordmark({ pixel = false }: { pixel?: boolean }) {
+function Wordmark({ pixel = false, noise }: { pixel?: boolean; noise?: string[] | null }) {
   return pixel ? <svg viewBox="0 0 61 9" aria-hidden="true" fill="currentColor">
     <path d={pixelPath} />
   </svg> : <svg viewBox="0 0 171 22" aria-hidden="true" fill="none" stroke="currentColor"
     strokeWidth="2.45" strokeLinejoin="bevel" strokeLinecap="square">
-    {techGlyphs.map(([x, path]) => <path key={x} d={path} transform={`translate(${x})`} />)}
+    {techGlyphs.map(([x, path], index) => noise?.[index]
+      ? <text key={x} x={x + 8} y="17" className={styles.wordmarkNoise}>{noise[index]}</text>
+      : <path key={x} d={path} transform={`translate(${x})`} />)}
   </svg>;
 }
 
 const corners = [styles.topLeft, styles.topRight, styles.bottomLeft, styles.bottomRight];
+
+function ReservedLabel({ text, reduced }: { text: string; reduced: boolean }) {
+  const { play, noise } = useEncryptedText(text, reduced);
+  return <EncryptedLabel text={text} noise={noise}
+    onPointerEnter={event => { if (event.pointerType === 'mouse') play(); }} />;
+}
 
 export function WordmarkStudy() {
   return <details className={styles.wordmarkStudy}>
@@ -103,23 +112,26 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
   cameraRef: RefObject<Camera | null>;
 }) {
   const { enabled, cue } = useSiteAudio();
+  const brand = useEncryptedText('LIBRECOSTA', reduced);
   return <div className={styles.instrument}>
-    {corners.map(corner => <svg key={corner} className={`${styles.corner} ${corner}`} viewBox="0 0 108 62"
-      aria-hidden="true" fill="none" stroke="currentColor">
-      <path d="M1 61V17L17 1H91" vectorEffect="non-scaling-stroke" />
-      <path className={styles.cornerInlay} d="M6 45V20L20 6H64M6 29L27 8H43M97 1H107"
-        vectorEffect="non-scaling-stroke" />
+    {corners.map(corner => <svg key={corner} className={`${styles.corner} ${corner}`} viewBox="0 0 103 57"
+      aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M8 50V18L19 7H81 M8 23L24 7" />
+      <path className={styles.cornerInlay} d="M16 43V25L26 15H51" />
     </svg>)}
     <header className={styles.instrumentHeader}>
       <div className={styles.brandCluster}>
         <Link href="/" className={styles.brand} aria-label="LibreCosta 首页"
-          onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}
-          onClick={() => cue('click')}><Wordmark /></Link>
+          onPointerEnter={event => { if (event.pointerType === 'mouse') { cue('hover'); brand.play(); } }}
+          onFocus={event => { if (event.currentTarget.matches(':focus-visible')) brand.play(); }}
+          onClick={() => cue('click')}><Wordmark noise={brand.noise} /></Link>
         <span className={styles.soundIndicator} role="img" aria-label={enabled ? '声音开启' : '声音关闭'} data-enabled={enabled} />
       </div>
       <div className={styles.instrumentRight}>
-        <ExpanseSoundToggle stage={stage} showPrompt={ready && !reduced && !unavailable} />
-        <div className={styles.reservedNav} lang="en" aria-hidden="true"><span>Works</span><span>About</span></div>
+        <ExpanseSoundToggle stage={stage} showPrompt={ready && !reduced && !unavailable} reduced={reduced} />
+        <div className={styles.reservedNav} lang="en" aria-hidden="true" data-audio-ui>
+          <ReservedLabel text="WORKS" reduced={reduced} /><ReservedLabel text="ABOUT" reduced={reduced} />
+        </div>
         <div className={styles.chapterGauge}>
           <svg viewBox="0 0 65 16" aria-hidden="true" fill="none" stroke="currentColor">
             <path d="M1.5 4 4.5 1h54l2 2v10l-2 2h-54l-3-3Z M61 5h3v6h-3" />
@@ -138,16 +150,20 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
       <path d="M10.3 10.3h1.4v1.4h-1.4z" fill="currentColor" />
     </svg>}
     {!unavailable && <ObservationReadout cameraRef={cameraRef} />}
-    <span className={styles.bilibiliMark} role="img" aria-label="Bilibili"
-      onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
+    <a className={styles.bilibiliMark} href="https://space.bilibili.com/37124259" target="_blank" rel="noopener noreferrer"
+      aria-label="Bilibili（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}
+      onClick={() => cue('click')}>
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5"
         strokeLinecap="round" strokeLinejoin="round">
         <path d="m7.5 3.5 3.4 4m5.6-4-3.4 4M5 7.5h14l2 2v9.5l-2 2H5l-2-2V9.5Z M7 13.5l3-1m4 0 3 1" />
       </svg>
-    </span>
+    </a>
     {!unavailable && <div className={styles.readout}>
       {reduced ? <p className={styles.staticNote}>静态观览 · 已减少动态效果</p> : <>
-        <p ref={hint} className={styles.hint}>开始探索</p>
+        <p ref={hint} className={styles.hint} lang="en">
+          <svg viewBox="0 0 10 12" aria-hidden="true" fill="currentColor"><path d="M1 2h8L5 6zm0 5h8l-4 4z" /></svg>
+          Scroll to explore
+        </p>
         <div className={styles.trackLabel} lang="en"><span>01</span><span>The Expanse</span></div>
         <div ref={progressBar} className={styles.progress} role="progressbar" aria-label="旅程进度"
           aria-valuemin={0} aria-valuemax={100} aria-valuenow={0}>

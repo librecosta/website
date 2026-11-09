@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
+import { Box3, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Triangle, Vector3 } from 'three';
 import { EXPANSE } from '../src/components/expanse/parameters.ts';
 import { buildAeolianTerrain, duneRelief, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, localVertices, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { createSandTransport, renderedGround, stormExposure } from '../src/components/expanse/sand-transport.ts';
 import { addRuinDeposits } from '../src/components/expanse/dressing-terrain.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
-import { buildSkyline } from '../src/components/expanse/skyline.ts';
+import { buildSkyline, buildTrafficRoutes, buildVehicleGeometry, poseSkylineOrbit, poseSkylineRing } from '../src/components/expanse/skyline.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const rendered = {};
@@ -252,7 +252,8 @@ for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
   }
 }
 assert(chapterPose(.01).position[2] < chapterPose(0).position[2]-10, 'First scroll produces travel, no dead segment');
-assert.equal(EXPANSE.journey.screens - 1, 2.5);
+assert.equal(EXPANSE.journey.introScreens, .25);
+assert.equal(EXPANSE.journey.screens - 1, 5);
 assert.deepEqual([mapped(0), mapped(1), EXPANSE.journey.reducedProgress], [.356, 1, .356]);
 const epsilon = 1e-7;
 for (const [i, node] of timing.entries()) {
@@ -374,24 +375,109 @@ const cityWorld = point => {
 const skyline = buildSkyline(futureCity, EXPANSE.seed, false);
 const positions = skyline.civic.getAttribute('position');
 const destination = Array.from({ length: positions.count }, (_, i) => cityWorld(new Vector3().fromBufferAttribute(positions, i)));
+const buildingBounds = [], buildingTransform = new Object3D();
 let buildings = 0;
 for (const batch of skyline.batches) {
   buildings += batch.buildings.length;
-  for (const { position, size, yaw } of batch.buildings) for (const vertex of localVertices('box', EXPANSE)) {
-    vertex.y += .5;
-    destination.push(cityWorld(vertex.multiply(new Vector3(...size)).applyAxisAngle(cityAxis, yaw).add(new Vector3(...position))));
+  batch.geometry.computeBoundingBox();
+  for (const { position, size, yaw } of batch.buildings) {
+    buildingTransform.position.set(...position);
+    buildingTransform.scale.set(...size);
+    buildingTransform.rotation.y = yaw;
+    buildingTransform.updateMatrix();
+    buildingBounds.push(batch.geometry.boundingBox.clone().applyMatrix4(buildingTransform.matrix));
+    for (const vertex of localVertices('box', EXPANSE)) {
+      vertex.y += .5;
+      destination.push(cityWorld(vertex.multiply(new Vector3(...size)).applyAxisAngle(cityAxis, yaw).add(new Vector3(...position))));
+    }
   }
   batch.geometry.dispose();
+}
+const civicFaces = [];
+for (let i = 0; i < positions.count; i += 3) {
+  const corners = [i, i+1, i+2].map(j => new Vector3().fromBufferAttribute(positions,j));
+  civicFaces.push({ triangle:new Triangle(...corners), bounds:new Box3().setFromPoints(corners) });
 }
 skyline.civic.dispose();
 assert(buildings >= 300 && buildings <= 500, 'The districts supply hundreds of reusable skyline silhouettes');
 assert((futureCity.ring.radius - futureCity.ring.guideOffset) * 2 > futureCity.coreWidth * 5.8, 'Open space separates the axis from the rails');
-assert(destination.every(point => point.z < terrainEnd), 'Every district stands beyond the valley mesh');
-const arrivalBounds=destination.map(v=>v.project(arrivalCamera));
-assert(arrivalBounds.every(p => Math.abs(p.x)<.93 && Math.abs(p.y)<.93 && p.z>-1 && p.z<1),'Whole destination fits with breathing room at arrival');
+const minimum = new Vector3(Infinity, Infinity, Infinity), maximum = new Vector3(-Infinity, -Infinity, -Infinity);
+const checkArrival = point => {
+  assert(point.z < terrainEnd, 'The skyline stands beyond the valley mesh');
+  point.project(arrivalCamera);
+  minimum.min(point);
+  maximum.max(point);
+};
+destination.forEach(checkArrival);
+const ringPivot = new Object3D(), ringTrack = new Object3D(), orbit = new Object3D();
+ringPivot.add(ringTrack);
+const ringPositions = skyline.ring.getAttribute('position');
+const satellitePositions = skyline.satellites.getAttribute('position');
+const trafficRadii = {};
+for (const [kind, size] of Object.entries(futureCity.traffic.vehicles)) {
+  const geometry = buildVehicleGeometry(kind,size), vertices = geometry.getAttribute('position');
+  let reach = 0;
+  for (let i=0; i<vertices.count; i++) reach = Math.max(reach,Math.hypot(vertices.getX(i),vertices.getY(i),vertices.getZ(i)));
+  trafficRadii[kind] = reach;
+  geometry.dispose();
+}
+const trafficSample = new Vector3(), closestFace = new Vector3();
+const flightLanes = buildTrafficRoutes(futureCity.traffic).map(({id,curve,length,fleet}) => {
+  const samples = Math.ceil(length / 18), step = length / samples;
+  const reach = Math.max(...fleet.map(kind => trafficRadii[kind]));
+  const points = Array.from({length:samples},(_,i) => curve.getPointAt(i / samples));
+  let architecture = Infinity, following = Infinity, inFrame = 0;
+  for (const [i,point] of points.entries()) {
+    const u = i / samples;
+    for (const bounds of buildingBounds) architecture = Math.min(architecture,bounds.distanceToPoint(point));
+    for (const {triangle,bounds} of civicFaces) if (bounds.distanceToPoint(point) < architecture) {
+      architecture = Math.min(architecture,point.distanceTo(triangle.closestPointToPoint(point,closestFace)));
+    }
+    for (let j=1; j<=fleet.length/2; j++) {
+      following = Math.min(following,point.distanceTo(curve.getPointAt((u + j / fleet.length) % 1,trafficSample)));
+    }
+    const tangent = curve.getTangentAt(u);
+    assert(Math.abs(tangent.y) < Math.sin(Math.PI/7),`${id}: no abrupt climb or dive`);
+    assert(tangent.angleTo(curve.getTangentAt((i+1) % samples / samples)) < .2,`${id}: no abrupt turn`);
+    const projected = cityWorld(point.clone()).project(arrivalCamera);
+    if (Math.abs(projected.x) < .95 && Math.abs(projected.y) < .95 && Math.abs(projected.z) < 1) inFrame++;
+  }
+  assert(architecture > reach + step,`${id}: hulls clear skyline structures`);
+  assert(following > 2 * (reach + step),`${id}: fleet spacing holds around turns`);
+  assert(inFrame / samples > .6,`${id}: most of the lane passes through the arrival frame`);
+  return { id, points, reach, step, vehicles:fleet.length, buildingClearance:architecture - reach };
+});
+let betweenLanes = Infinity;
+for (const [index,a] of flightLanes.entries()) for (const b of flightLanes.slice(index+1)) {
+  let squared = Infinity;
+  for (const p of a.points) for (const q of b.points) squared = Math.min(squared,p.distanceToSquared(q));
+  const clearance = Math.sqrt(squared) - a.reach - b.reach;
+  assert(clearance > a.step + b.step,`${a.id} / ${b.id}: independent lanes have clearance at any sampled phase`);
+  betweenLanes = Math.min(betweenLanes,clearance);
+}
+const trafficValidation = {
+  lanes:flightLanes.map(({id,vehicles,points,buildingClearance}) => ({id,vehicles,samples:points.length,buildingClearance})),
+  minimumBetweenLanes:betweenLanes,
+};
+const animatedPoint = new Vector3();
+for (let step = 0; step < 24; step++) {
+  const fraction = step / 24;
+  poseSkylineRing(ringPivot, ringTrack, futureCity.ring, futureCity.ring.revolutionSeconds * fraction);
+  poseSkylineOrbit(orbit, futureCity.satellites, futureCity.satellites.revolutionSeconds * fraction);
+  ringPivot.updateMatrixWorld(true);
+  orbit.updateMatrixWorld(true);
+  for (const [positions, transform] of [[ringPositions, ringTrack.matrixWorld], [satellitePositions, orbit.matrixWorld]]) {
+    for (let i = 0; i < positions.count; i++) {
+      checkArrival(cityWorld(animatedPoint.fromBufferAttribute(positions, i).applyMatrix4(transform)));
+    }
+  }
+}
+skyline.ring.dispose();
+skyline.satellites.dispose();
+assert(minimum.x > -.93 && maximum.x < .93 && minimum.y > -.93 && maximum.y < .93 && minimum.z > -1 && maximum.z < 1,
+  'Whole destination and sampled ring and satellite motion fit with breathing room at arrival');
 assert(arrival.target[1]>arrival.position[1]+500,'Arrival looks upward from the low valley');
-const arrivalFraming={horizontalRange:[Math.min(...arrivalBounds.map(p=>p.x)),Math.max(...arrivalBounds.map(p=>p.x))],
- verticalRange:[Math.min(...arrivalBounds.map(p=>p.y)),Math.max(...arrivalBounds.map(p=>p.y))],
+const arrivalFraming={horizontalRange:[minimum.x,maximum.x], verticalRange:[minimum.y,maximum.y],
  centerDistance:new Vector3(...arrival.position).distanceTo(cityCenter)};
 function solidVolume(data) {
  const edges = new Map(); let volume=0;
@@ -429,4 +515,4 @@ assert(Math.abs(frontHit(distantGroove.center,.45)-.5*(1-(1-tz)*.95))<1e-6,'The 
 probeGeometry.dispose(); probeMaterial.dispose();
 console.log(JSON.stringify({ pass: true, seed: EXPANSE.seed, aeolian, sandTransport,
   instances: monuments.length, cityBuildings: buildings, minimumLeftSaddleRelief, comparedLandmarks, burial, pathValidation,
-  wedgeVolume, distantSteleVolume, arrivalFraming }, null, 2));
+  wedgeVolume, distantSteleVolume, arrivalFraming, trafficValidation }, null, 2));

@@ -1,11 +1,12 @@
-import { useLoader, useThree } from '@react-three/fiber';
+import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Color, MeshStandardMaterial, Object3D, Vector4, type BufferGeometry, type InstancedMesh, type Mesh } from 'three';
+import { Color, MeshStandardMaterial, Object3D, Vector4, type BufferGeometry, type Group, type InstancedMesh, type Mesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyAerialPerspective, type Atmosphere } from './atmosphere';
+import { CityTraffic } from './CityTraffic';
 import { EXPANSE } from './parameters';
 import type { SandstormUniforms } from './sandstorm';
-import { buildSkyline } from './skyline';
+import { buildSkyline, poseSkylineOrbit, poseSkylineRing } from './skyline';
 import type { Monument } from './world';
 
 const city = EXPANSE.futureCity;
@@ -14,11 +15,15 @@ type District = ReturnType<typeof buildSkyline>['batches'][number];
 const skylineEmission = /* glsl */ `
   varying vec3 vCityMark;
   vec3 skylineLight(vec3 mark) {
+    if (mark.z > 5.5) {
+      return mark.z < 6.5 ? vec3(0.44, 0.77, 1.0) * 2.1 : vec3(1.0, 0.50, 0.16) * 1.9;
+    }
     bool window = mark.z > 2.5 && mark.z < 3.5;
+    bool equator = mark.z > 4.5;
     float across = window ? mark.y : mark.x;
     float along = window ? mark.x : mark.y;
     float axis = mark.z < 1.5 ? 0.27 : 0.5;
-    float width = mark.z < 1.5 ? 0.041 : (mark.z > 3.5 ? 0.052 : 0.15);
+    float width = equator ? 0.018 : (mark.z < 1.5 ? 0.041 : (mark.z > 3.5 ? 0.052 : 0.15));
     float footprint = max(fwidth(across), 0.0001);
     float distanceToLine = abs(across - axis);
     // Retain a soft, energy-limited trace even when the core is smaller than a pixel.
@@ -26,8 +31,8 @@ const skylineEmission = /* glsl */ `
       * min(1.0, width * 2.0 / footprint);
     float glow = 1.0 - smoothstep(width, width * 2.8, distanceToLine);
     float inset = mark.z > 3.5 ? 0.24 : 0.018;
-    float endFade = smoothstep(inset, inset + 0.03, min(along, 1.0 - along));
-    float strength = mark.z < 1.5 ? 2.05 : (mark.z < 2.5 ? 2.25 : 1.3);
+    float endFade = equator ? 1.0 : smoothstep(inset, inset + 0.03, min(along, 1.0 - along));
+    float strength = equator ? 1.05 : (mark.z < 1.5 ? 2.05 : (mark.z < 2.5 ? 2.25 : 1.3));
     vec3 color = mark.z < 1.5 ? vec3(0.50, 0.84, 1.0) : vec3(0.20, 0.61, 1.0);
     return color * (core + glow * 0.10) * strength * endFade * step(0.5, mark.z);
   }
@@ -75,9 +80,13 @@ export function EntranceRuin({ ruin, atmosphere, storm, mobile }: {
     quaternion={ruin.quaternion} scale={ruin.scale} castShadow receiveShadow dispose={null} />;
 }
 
-export function FutureCity({ atmosphere, storm, mobile }: {
-  atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean;
+export function FutureCity({ atmosphere, storm, mobile, visible, reduced }: {
+  atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean; visible: boolean; reduced: boolean;
 }) {
+  const pivot = useRef<Group>(null);
+  const track = useRef<Mesh>(null);
+  const orbit = useRef<Mesh>(null);
+  const elapsed = useRef(0);
   const skyline = useMemo(() => buildSkyline(city, EXPANSE.seed, mobile), [mobile]);
   const material = useMemo(() => {
     const alloy = new MeshStandardMaterial({ vertexColors: true, roughness: .55, metalness: .26 });
@@ -100,11 +109,26 @@ export function FutureCity({ atmosphere, storm, mobile }: {
   }, [atmosphere, storm, mobile]);
   useEffect(() => () => {
     skyline.civic.dispose();
+    skyline.ring.dispose();
+    skyline.satellites.dispose();
     skyline.batches.forEach(batch => batch.geometry.dispose());
   }, [skyline]);
   useEffect(() => () => material.dispose(), [material]);
+  useFrame((_, delta) => {
+    if (!visible) return;
+    // A demand-rendered frame can include time spent in a hidden tab.
+    if (!reduced) elapsed.current += Math.min(delta, 0.08);
+    const time = reduced ? 0 : elapsed.current;
+    poseSkylineRing(pivot.current!, track.current!, city.ring, time);
+    poseSkylineOrbit(orbit.current!, city.satellites, time);
+  }, -0.5);
   return <group position={[...city.center]} scale={city.scale} dispose={null}>
     <mesh geometry={skyline.civic} material={material} />
+    <group ref={pivot}>
+      <mesh ref={track} geometry={skyline.ring} material={material} />
+    </group>
+    <mesh ref={orbit} geometry={skyline.satellites} material={material} />
+    <CityTraffic material={material} elapsed={elapsed} reduced={reduced} />
     {skyline.batches.map((batch, index) => <DistrictInstances key={index} {...batch} material={material} />)}
   </group>;
 }

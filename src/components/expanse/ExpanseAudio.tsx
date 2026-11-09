@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { gsap } from 'gsap';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
 import type { AudioBus } from '@/components/audio/site-audio';
+import { EncryptedLabel, useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
 
 function AudioStartPrompt({ stage, onEnable }: { stage: RefObject<HTMLElement | null>; onEnable: () => void }) {
@@ -17,7 +18,7 @@ function AudioStartPrompt({ stage, onEnable }: { stage: RefObject<HTMLElement | 
       let width = 0, height = 0;
       const hide = () => { delete label.dataset.visible; };
       const overControl = (target: EventTarget | null) =>
-        target instanceof Element && !!target.closest('a, button, aside, [role="img"]');
+        target instanceof Element && !!target.closest('a, button, aside, [data-audio-ui]');
       const move = (event: PointerEvent) => {
         if (event.pointerType !== 'mouse' || !finePointer.matches || overControl(event.target)) {
           hide();
@@ -60,8 +61,12 @@ function AudioStartPrompt({ stage, onEnable }: { stage: RefObject<HTMLElement | 
   </div>;
 }
 
-export function ExpanseSoundToggle({ stage, showPrompt }: { stage: RefObject<HTMLElement | null>; showPrompt: boolean }) {
+export function ExpanseSoundToggle({ stage, showPrompt, reduced }: {
+  stage: RefObject<HTMLElement | null>; showPrompt: boolean; reduced: boolean;
+}) {
   const { enabled, enable, cue, windStatus, setWindActive } = useSiteAudio();
+  const label = enabled ? 'SOUND ON' : 'SOUND OFF';
+  const { play, noise } = useEncryptedText(label, reduced);
   const [failed, setFailed] = useState(false);
   const [started, setStarted] = useState(enabled);
   useEffect(() => {
@@ -83,14 +88,15 @@ export function ExpanseSoundToggle({ stage, showPrompt }: { stage: RefObject<HTM
   return <>
     <button type="button" className={styles.soundToggle} lang="en" aria-label="Scene sound" aria-pressed={enabled}
       title={failed ? 'Audio could not start' : windStatus === 'missing' ? 'Local wind audio is unavailable' : undefined}
-      onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}
+      onPointerEnter={event => { if (event.pointerType === 'mouse') { cue('hover'); play(); } }}
+      onFocus={event => { if (event.currentTarget.matches(':focus-visible')) play(); }}
       onClick={() => void setSound(!enabled)}>
       <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor"
         strokeWidth="1.3" strokeLinejoin="round" strokeLinecap="round">
         <path d="M2 8h3l4-3v10l-4-3H2z" />
         {enabled ? <path d="M12 7c2 1.5 2 4.5 0 6m2-8c3.5 2.5 3.5 7.5 0 10" /> : <path d="m12.5 8 4 4m0-4-4 4" />}
       </svg>
-      <span aria-hidden="true">{enabled ? 'Sound On' : 'Sound Off'}</span>
+      <EncryptedLabel text={label} noise={noise} />
     </button>
     {showPrompt && !started && !enabled && <AudioStartPrompt stage={stage} onEnable={start} />}
   </>;
