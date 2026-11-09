@@ -1,6 +1,5 @@
-export const defaultLevels = { wind: .42, music: .55, ui: .32 };
+export const defaultLevels = { wind: .42 * 2 / 3, music: .64 * 2 / 3, ui: .68 * 4 / 3 };
 export type AudioBus = keyof typeof defaultLevels;
-export type MusicStudy = 'warm-atmosphere' | 'ethereal-machinery';
 export type AudioCue = 'hover' | 'click' | 'confirm';
 
 const masterLevel = .8;
@@ -8,9 +7,9 @@ const fadeSeconds = .24;
 const musicFade = .65;
 const codecGuardSeconds = .25; // Matches the circular padding in prepare-audio.py.
 const cues = {
-  hover: [[510, 486, .047, .036, 0]],
-  click: [[390, 276, .085, .087, 0]],
-  confirm: [[392, 398, .13, .066, 0], [587, 581, .16, .041, .036]],
+  hover: [[760, 712, .098, .14, 0], [1320, 1210, .052, .045, .007]],
+  click: [[585, 388, .11, .22, 0], [1040, 820, .058, .060, .006]],
+  confirm: [[528, 516, .17, .17, 0], [785, 773, .23, .12, .049]],
 } as const;
 
 type Loop = { source: AudioBufferSourceNode; gain: GainNode };
@@ -27,8 +26,7 @@ export class SiteAudio {
   private enabled = false;
   private windActive = false;
   private wind?: Loop;
-  private music?: Loop & { track: MusicStudy };
-  private musicRequest = 0;
+  private music?: Loop;
   private suspendTimer?: number;
   private hoverAt = -Infinity;
 
@@ -75,6 +73,7 @@ export class SiteAudio {
       await this.context.resume();
       if (!this.audible) return;
       this.fade(this.master.gain, masterLevel);
+      void this.startMusic();
       if (this.windActive) void this.startWind();
     }
   }
@@ -90,7 +89,7 @@ export class SiteAudio {
 
   setWindActive(active: boolean) {
     this.windActive = active;
-    if (this.wind) this.fade(this.wind.gain.gain, Number(active));
+    if (this.wind) this.fade(this.wind.gain.gain, active ? 1 : 0, musicFade);
     else if (active && this.audible) void this.startWind();
   }
 
@@ -98,7 +97,7 @@ export class SiteAudio {
     const cached = this.buffers.get(stem);
     if (cached) return cached;
     const decode = async (extension: string) => {
-      const response = await fetch(`/audio/local/${stem}.${extension}`, { signal: this.abort.signal });
+      const response = await fetch(`/audio/${stem}.${extension}`, { signal: this.abort.signal });
       if (!response.ok) throw new Error('Audio asset unavailable');
       const buffer = await this.context.decodeAudioData(await response.arrayBuffer());
       // Both margins contain wrapped samples. Match the end to the samples
@@ -142,27 +141,26 @@ export class SiteAudio {
   private async startWind() {
     if (this.wind) return;
     try {
-      const buffer = await this.load('expanse-wind');
+      const buffer = await this.load('local/expanse-wind');
       if (!this.audible || !this.windActive || this.wind) return;
       this.wind = this.loop(buffer, 'wind');
-      this.fade(this.wind.gain.gain, 1);
+      this.fade(this.wind.gain.gain, 1, musicFade);
       this.reportWind('ready');
     } catch {
       if (!this.abort.signal.aborted) this.reportWind('missing');
     }
   }
 
-  async chooseMusic(track: MusicStudy | null) {
-    const request = ++this.musicRequest;
-    if (track === this.music?.track) return;
-    const buffer = track ? await this.load(track) : null;
-    if (request !== this.musicRequest || this.abort.signal.aborted) return;
-    if (this.music) {
-      this.fade(this.music.gain.gain, 0, musicFade);
-      this.music.source.stop(this.context.currentTime + musicFade);
+  private async startMusic() {
+    if (this.music) return;
+    try {
+      const buffer = await this.load('warm-atmosphere');
+      if (!this.audible || this.music) return;
+      this.music = this.loop(buffer, 'music');
+      this.fade(this.music.gain.gain, 1, musicFade);
+    } catch {
+      // Keep wind and UI cues available if the music file cannot load.
     }
-    this.music = track && buffer ? { ...this.loop(buffer, 'music'), track } : undefined;
-    if (this.music) this.fade(this.music.gain.gain, 1, musicFade);
   }
 
   cue(kind: AudioCue) {

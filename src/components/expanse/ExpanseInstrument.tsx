@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { RefObject } from 'react';
+import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
 import styles from './expanse.module.css';
 
@@ -62,6 +63,7 @@ export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressB
   progressBar: RefObject<HTMLDivElement | null>;
   progressFill: RefObject<HTMLSpanElement | null>;
 }) {
+  const { cue } = useSiteAudio();
   return <div className={styles.instrument}>
     {corners.map(corner => <svg key={corner} className={`${styles.corner} ${corner}`} viewBox="0 0 108 62"
       aria-hidden="true" fill="none" stroke="currentColor">
@@ -70,7 +72,9 @@ export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressB
         vectorEffect="non-scaling-stroke" />
     </svg>)}
     <header className={styles.instrumentHeader}>
-      <Link href="/" className={styles.brand} aria-label="LibreCosta 首页"><Wordmark /></Link>
+      <Link href="/" className={styles.brand} aria-label="LibreCosta 首页"
+        onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}
+        onClick={() => cue('click')}><Wordmark /></Link>
       <div className={styles.instrumentRight}>
         <ExpanseSoundToggle />
         <div className={styles.reservedNav} lang="en" aria-hidden="true"><span>Works</span><span>About</span></div>

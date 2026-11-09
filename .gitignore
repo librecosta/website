@@ -33,4 +33,6 @@ __pycache__/
 
 # Approved production assets require a documented, exact-path exception here.
 # Do not use `git add -f` to bypass the review.
+!/public/audio/warm-atmosphere.opus
+!/public/audio/warm-atmosphere.mp3
 !/public/expanse/entrance-ruin.glb

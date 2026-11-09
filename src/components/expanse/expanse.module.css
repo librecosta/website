@@ -176,8 +176,6 @@
 .debug label { display: flex; gap: 7px; align-items: center; }
 .wordmarkStudy { margin-top: 8px; padding-top: 6px; border-top: 1px solid #a6ad9e; }
 .wordmarkStudy summary { cursor: pointer; }
-.audioStudies { display: grid; justify-items: start; margin-top: 4px; }
-.audioStudies button[aria-pressed='true'] { font-weight: 700; }
 .wordmarkSamples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 8px 0 0; }
 .wordmarkSamples dt { margin-bottom: 6px; font-size: 10px; }
 .wordmarkSamples dd { display: grid; align-items: center; width: clamp(82px, 12vw, 120px); min-height: 20px; margin: 0; color: var(--instrument-ink); }

@@ -10,63 +10,78 @@ import wave
 
 
 RATE = 48000
+MUSIC_RATE = 24000
 SECONDS = 52
-CODEC_GUARD = RATE // 4
 OUTPUT = Path(__file__).resolve().parents[1] / 'public' / 'audio' / 'local'
 
-# Each voice has a pitch, gain, stereo position, and harmonic strengths.
+# Beds: start, duration, MIDI voicing, level. Replies: start, duration, note, level, pan.
 STUDIES = {
-    'warm-atmosphere': (
-        (73.416, .70, -.10, (1, .31, .10, .03)),
-        (110.000, .43, .25, (1, .27, .07)),
-        (146.832, .58, -.46, (1, .35, .15, .06)),
-        (220.000, .38, .48, (1, .17, .08)),
-        (293.665, .24, -.17, (1, .24, .09)),
-        (329.628, .19, .31, (1, .14)),
-        (369.994, .14, -.36, (1, .12, .04)),
-    ),
-    'ethereal-machinery': (
-        (87.307, .55, .10, (1, .16, .10)),
-        (130.813, .30, -.21, (1, .12, .15)),
-        (174.614, .40, -.55, (1, .23, .05)),
-        (261.626, .25, .49, (1, .07, .10)),
-        (392.219, .14, .64, (1, .24, .07)),
-        (527.400, .07, -.67, (1, .06)),
-        (789.600, .031, .49, (1, .12)),
-    ),
+    'warm-atmosphere': {
+        'beds': [(-3.4, 15.2, (50, 57, 61, 64), .66), (8.6, 16.8, (47, 54, 57, 62, 64), .91),
+                 (22.1, 15.7, (43, 55, 59, 62, 66), .70), (34.6, 16.6, (45, 52, 57, 62, 64), .51)],
+        'replies': [(.65, 4.2, 69, .58, -.31), (3.2, 4.1, 76, .32, .46), (6.2, 5.5, 73, .42, .12),
+                    (11.7, 5.8, 66, .54, -.43), (14.6, 4.7, 74, .39, .38), (20.4, 5.4, 69, .42, -.13),
+                    (25.9, 6.0, 71, .49, .39), (28.3, 4.7, 78, .25, -.47), (33.7, 5.8, 74, .45, -.22),
+                    (39.8, 5.3, 76, .36, .30), (45.9, 6.5, 69, .37, -.35)],
+    },
+    'ethereal-machinery': {
+        'beds': [(-2.3, 14.9, (49, 56, 63, 66), .62), (9.2, 14.8, (52, 59, 66, 73), .72),
+                 (20.8, 17.0, (47, 54, 64, 68), .49), (34.4, 17.6, (44, 56, 61, 66), .73)],
+        'replies': [(1.1, 4.8, 73, .58, -.48), (2.9, 4.1, 80, .27, .57), (7.1, 5.4, 68, .46, .25),
+                    (11.0, 5.9, 71, .56, -.49), (14.1, 5.1, 78, .32, .61), (18.8, 4.9, 73, .41, -.21),
+                    (23.4, 6.6, 64, .50, .42), (29.8, 5.4, 71, .32, -.52), (32.5, 4.1, 80, .24, .50),
+                    (37.5, 5.7, 78, .55, -.46), (41.1, 4.7, 73, .44, .52), (46.6, 6.2, 68, .38, -.34)],
+    },
 }
 
 
-def render_pad(voices, mechanical):
-    # Integer phase turns over the whole buffer keep carriers and modulation periodic.
-    count = SECONDS * RATE
+def add_voice(left, right, start, duration, note, gain, pan, mechanical, reply=False):
+    rate = MUSIC_RATE
+    offset = round(start * rate)
+    omega = math.tau * 440 * 2 ** ((note - 69) / 12) / rate
+    attack = .31 if reply else 3.7
+    release = .82 if reply else 4.5
+    a = gain * math.sqrt((1 - pan) / 2)
+    b = gain * math.sqrt((1 + pan) / 2)
+    overtone = 2.76 if mechanical else 3
+    ring = 4.12 if mechanical else 2
+    sin, exp, cos = math.sin, math.exp, math.cos
+    for i in range(round(duration * rate)):
+        age = i / rate
+        edge = min(1., age / attack, (duration - age) / release)
+        envelope = edge * edge * (3 - 2 * edge)
+        phase = omega * i + .11 * sin(age * 1.17 + note)
+        if reply:
+            # A rounded attack, then the bright partials disappear before the body.
+            tone = (sin(phase) * exp(-age / 1.75)
+                    + .34 * sin(phase * overtone) * exp(-age / .91)
+                    + .15 * sin(phase * ring) * exp(-age / .62))
+        else:
+            breath = .66 + .34 * sin(math.pi * age / duration)
+            tone = breath * (sin(phase) + .14 * sin(phase * 2) + .054 * cos(phase * overtone))
+        value = envelope * tone
+        # Wrapping the events and the reflections preserves the seam across phrases.
+        j = (offset + i) % len(left)
+        left[j] += value * a
+        right[j] += value * b
+
+
+def render_study(score, mechanical):
+    count = SECONDS * MUSIC_RATE
     left, right = (array.array('f', [0]) * count for _ in range(2))
-    phase_step = math.tau / count
-    for i, (pitch, gain, pan, harmonics) in enumerate(voices):
-        voice = array.array('f', [0]) * count
-        turns = round(pitch * SECONDS)
-        phase = i * 2.399963
-        motion = .21 if mechanical else .09
-        for j in range(count):
-            t = j * phase_step
-            envelope = .80 + .14 * math.cos(t * (1 + i % 3) + phase) + .055 * math.sin(t * 4 - phase)
-            carrier = turns * t + phase + motion * math.sin((2 + i % 4) * t - phase)
-            voice[j] = gain * envelope * sum(a * math.sin(h * carrier) for h, a in enumerate(harmonics, 1))
-        # Diffuse, circular reflections give the stereo image depth without a tail at the seam.
-        taps = ((0, 1., pan), (.091 + i * .007, .20, -.73), (.173 + i * .009, .15, .75),
-                (.331 + i * .013, .075, -pan))
-        for seconds, level, position in taps:
-            delay = round(seconds * RATE)
-            a = level * math.sqrt((1 - position) / 2)
-            b = level * math.sqrt((1 + position) / 2)
-            for j in range(count):
-                value = voice[j - delay]
-                left[j] += value * a
-                right[j] += value * b
-    width = 1.65 if not mechanical else 2.2
-    for a, b in zip(left, right):
-        mid, side = (a + b) / 2, (a - b) / 2 * width
-        yield mid + side, mid - side
+    for start, duration, notes, gain in score['beds']:
+        for i, note in enumerate(notes):
+            level = (.53, .32, .25, .19, .11)[i] * gain
+            pan = (-.06, -.47, .44, -.29, .31)[i]
+            delay = i * .31
+            add_voice(left, right, start + delay, duration - delay, note, level, pan, mechanical)
+    for start, duration, note, gain, pan in score['replies']:
+        add_voice(left, right, start, duration, note, gain, pan, mechanical, reply=True)
+
+    short, long, late = (round(t * MUSIC_RATE) for t in ((.113, .267, .442) if mechanical else (.096, .213, .364)))
+    for i, (a, b) in enumerate(zip(left, right)):
+        yield (a + .21 * right[i - short] + .12 * left[i - long] + .063 * right[i - late],
+               b + .21 * left[i - short] + .12 * right[i - long] + .063 * left[i - late])
 
 
 def render_wind(ffmpeg, path):
@@ -89,26 +104,28 @@ def render_wind(ffmpeg, path):
         yield samples[tail] * a + samples[head] * b, samples[tail+1] * a + samples[head+1] * b
 
 
-def encode(ffmpeg, stem, frames, rms_db, opus_kbps):
+def encode(ffmpeg, stem, frames, rms_db, opus_kbps, rate=RATE):
     pcm = array.array('f', (sample for frame in frames for sample in frame))
     rms = math.sqrt(sum(sample * sample for sample in pcm) / len(pcm))
     gain = min(10 ** (rms_db / 20) / rms, .87 / max(map(abs, pcm)))
     quantized = array.array('h', (round(sample * gain * 32767) for sample in pcm))
     # Encode a little repeated signal on each end so the decoder is already
     # primed at the true loop point. The browser skips both margins.
-    padded = quantized[-CODEC_GUARD*2:] + quantized + quantized[:CODEC_GUARD*2]
+    guard_samples = rate // 4 * 2
+    padded = quantized[-guard_samples:] + quantized + quantized[:guard_samples]
     with tempfile.TemporaryDirectory() as temp:
         wav = Path(temp) / 'loop.wav'
         with wave.open(str(wav), 'wb') as output:
-            output.setparams((2, 2, RATE, 0, 'NONE', 'not compressed'))
+            output.setparams((2, 2, rate, 0, 'NONE', 'not compressed'))
             output.writeframes(padded.tobytes())
         for extension, options in (
             ('opus', ['-c:a', 'libopus', '-b:a', f'{opus_kbps}k', '-vbr', 'constrained']),
             ('mp3', ['-c:a', 'libmp3lame', '-b:a', '64k', '-write_xing', '1']),
         ):
-            target = OUTPUT / f'{stem}.{extension}'
+            folder = OUTPUT.parent if stem == 'warm-atmosphere' else OUTPUT
+            target = folder / f'{stem}.{extension}'
             subprocess.run([ffmpeg, '-v', 'error', '-y', '-i', str(wav), *options, str(target)], check=True)
-            print(f'{target.name}: {len(pcm) / (2 * RATE):.2f} s, {target.stat().st_size:,} bytes', flush=True)
+            print(f'{target.name}: {len(pcm) / (2 * rate):.2f} s, {target.stat().st_size:,} bytes', flush=True)
 
 
 def main():
@@ -123,8 +140,8 @@ def main():
     if args.wind:
         encode(args.ffmpeg, 'expanse-wind', render_wind(args.ffmpeg, args.wind), -23, 36)
     if args.studies:
-        for stem, voices in STUDIES.items():
-            encode(args.ffmpeg, stem, render_pad(voices, stem == 'ethereal-machinery'), -26, 40)
+        for stem, score in STUDIES.items():
+            encode(args.ffmpeg, stem, render_study(score, stem == 'ethereal-machinery'), -22.5, 40, MUSIC_RATE)
 
 
 if __name__ == '__main__':

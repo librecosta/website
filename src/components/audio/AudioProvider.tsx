@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { defaultLevels, SiteAudio, type AudioBus, type AudioCue, type MusicStudy } from './site-audio';
+import { defaultLevels, SiteAudio, type AudioBus, type AudioCue } from './site-audio';
 
 type AudioControls = {
   enabled: boolean;
@@ -10,7 +10,6 @@ type AudioControls = {
   enable: (value: boolean) => Promise<boolean>;
   setLevel: (bus: AudioBus, level: number) => void;
   setWindActive: (active: boolean) => void;
-  chooseMusic: (track: MusicStudy | null) => Promise<void>;
   cue: (kind: AudioCue) => void;
 };
 
@@ -53,18 +52,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     engine.current?.setWindActive(active);
   }, []);
 
-  const chooseMusic = useCallback(async (track: MusicStudy | null) => {
-    if (track && !requested.current && !(await enable(true))) throw new Error('Audio could not start');
-    await engine.current?.chooseMusic(track);
-  }, [enable]);
-
   return <AudioContext.Provider value={{ enabled, levels, windStatus, enable, setWindActive,
     setLevel: (bus, level) => {
       currentLevels.current = { ...currentLevels.current, [bus]: level };
       setLevels(currentLevels.current);
       engine.current?.setLevel(bus, level);
     },
-    chooseMusic,
     cue: kind => engine.current?.cue(kind),
   }}>{children}</AudioContext.Provider>;
 }
