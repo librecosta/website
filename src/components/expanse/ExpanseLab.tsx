@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { Component, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import type { Camera } from 'three';
 import { EXPANSE, SKY_VIEWS, WIND_VIEWS, type JourneySignal, type SkyView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
 import { ExpanseInstrument, WordmarkStudy } from './ExpanseInstrument';
@@ -38,6 +39,7 @@ export default function ExpanseLab() {
   const stage = useRef<HTMLElement>(null);
   const debugOutput = useRef<HTMLOutputElement>(null);
   const progressBar = useRef<HTMLDivElement>(null), progressFill = useRef<HTMLSpanElement>(null);
+  const cameraRef = useRef<Camera>(null);
   const signal = useRef<JourneySignal>({ value: 0, raw: 0, invalidate: () => {} });
   const [mobile, setMobile] = useState(false), [mediaReduced, setMediaReduced] = useState(false);
   const [debug, setDebug] = useState(false), [forceReduced, setForceReduced] = useState(false);
@@ -75,17 +77,23 @@ export default function ExpanseLab() {
       signal.current.invalidate();
       const progress = Math.max(0, Math.min(1, signal.current.raw));
       if (hint.current) hint.current.style.opacity = String(1 - Math.min(1, progress / .02));
-      if (progressFill.current) progressFill.current.style.transform = `scaleX(${progress})`;
       progressBar.current?.setAttribute('aria-valuenow', String(Math.round(progress * 100)));
       if (debugOutput.current) debugOutput.current.value = progressText(signal.current, reduced || contextLost);
     };
     const context = gsap.context(() => {
-      if (!reduced && !contextLost) gsap.to(signal.current, {
+      if (reduced || contextLost) return;
+      const fill = progressFill.current;
+      const follow = fill && gsap.quickTo(fill, 'scaleX', { duration: .55, ease: 'power2.out' });
+      const updateScroll = (trigger: ScrollTrigger) => {
+        signal.current.raw = trigger.progress;
+        paint();
+        follow?.(trigger.progress);
+      };
+      gsap.to(signal.current, {
         value: 1, ease: 'none', onUpdate: paint,
         scrollTrigger: { trigger: root.current, start: 'top top', end: 'bottom bottom',
           scrub: EXPANSE.journey.scrubSeconds,
-          onUpdate: self => { signal.current.raw = self.progress; paint(); },
-          onRefresh: self => { signal.current.raw = self.progress; paint(); } },
+          onUpdate: updateScroll, onRefresh: updateScroll },
       });
     }, root);
     paint(); ScrollTrigger.refresh();
@@ -100,12 +108,12 @@ export default function ExpanseLab() {
     <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
-          debug={debug} skyView={skyView} windView={windView}
+          debug={debug} skyView={skyView} windView={windView} cameraRef={cameraRef}
           onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
       <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost}
-        hint={hint} progressBar={progressBar} progressFill={progressFill} />
+        hint={hint} progressBar={progressBar} progressFill={progressFill} cameraRef={cameraRef} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} aria-label="场景调试">

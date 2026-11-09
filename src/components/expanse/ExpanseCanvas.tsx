@@ -5,7 +5,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type R
 import {
   ACESFilmicToneMapping, BufferAttribute, BufferGeometry, InstancedMesh, MathUtils,
   MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, Quaternion, SRGBColorSpace, WebGLRenderer,
-  type Material,
+  type Camera, type Material,
 } from 'three';
 import { EXPANSE, type JourneySignal, type SkyView, type WindView } from './parameters';
 import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, fingerprint, fitVerticalFov, sampleJourney, windSurfaceAbove, type Monument } from './world';
@@ -24,7 +24,7 @@ import { EntranceRuin, FutureCity } from './FutureCity';
 import styles from './expanse.module.css';
 
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
-  skyView: SkyView;
+  skyView: SkyView; cameraRef: RefObject<Camera | null>;
   windView: WindView; onReady: () => void; onContextLost: () => void };
 
 function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array; normals?: Float32Array }) {
@@ -130,9 +130,13 @@ function World({ mobile, windView, skyView, visible, debug, atmosphere }:
   </group>;
 }
 
-function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, windView, visible }:
+function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, windView, cameraRef, visible }:
   Props & { visible: boolean }) {
   const { camera, invalidate, gl, size } = useThree();
+  useEffect(() => {
+    cameraRef.current = camera;
+    return () => { cameraRef.current = null; };
+  }, [camera, cameraRef]);
   const ready = useRef(false), frames = useRef(0), readback = useRef(false);
   const lastPose = useRef({ smoothed: -1, aspect: 0, camera, reduced, rotation: new Quaternion(), x: 0, y: 0 });
   const pointer = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, sampledAt: null as number | null });

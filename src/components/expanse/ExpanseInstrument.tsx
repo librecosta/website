@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import type { RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
+import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
 import styles from './expanse.module.css';
@@ -57,13 +58,50 @@ export function WordmarkStudy() {
   </details>;
 }
 
-export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressBar, progressFill }: {
+const coordinateFormat = new Intl.NumberFormat('en', {
+  minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'exceptZero', useGrouping: false,
+});
+
+function ObservationReadout({ cameraRef }: { cameraRef: RefObject<Camera | null> }) {
+  const time = useRef<HTMLElement>(null);
+  const position = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const started = performance.now();
+    const update = () => {
+      if (document.hidden) return;
+      const elapsed = Math.floor((performance.now() - started) / 1000);
+      const clock = [Math.floor(elapsed / 3600), Math.floor(elapsed / 60) % 60, elapsed % 60]
+        .map(part => String(part).padStart(2, '0')).join(':');
+      if (time.current && time.current.textContent !== clock) time.current.textContent = clock;
+      // Read the translation of the last rendered camera's world matrix.
+      const world = cameraRef.current?.matrixWorld.elements;
+      const coords = world
+        ? [world[12], world[13], world[14]].map(value => coordinateFormat.format(value)).join(' / ')
+        : '— / — / —';
+      if (position.current && position.current.textContent !== coords) position.current.textContent = coords;
+    };
+    const timer = window.setInterval(update, 250);
+    return () => window.clearInterval(timer);
+  }, [cameraRef]);
+
+  return <div className={styles.observationData} lang="en">
+    <p className={styles.observationSite}>SITE / EX-01</p>
+    <p>PALE BASIN <span aria-hidden="true">·</span> SECTOR 07</p>
+    <dl>
+      <div><dt>OBS T+</dt><dd ref={time}>00:00:00</dd></div>
+      <div><dt>POS X / Y / Z</dt><dd ref={position}>— / — / —</dd></div>
+    </dl>
+  </div>;
+}
+
+export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressBar, progressFill, cameraRef }: {
   ready: boolean; reduced: boolean; unavailable: boolean;
   hint: RefObject<HTMLParagraphElement | null>;
   progressBar: RefObject<HTMLDivElement | null>;
   progressFill: RefObject<HTMLSpanElement | null>;
+  cameraRef: RefObject<Camera | null>;
 }) {
-  const { cue } = useSiteAudio();
+  const { enabled, cue } = useSiteAudio();
   return <div className={styles.instrument}>
     {corners.map(corner => <svg key={corner} className={`${styles.corner} ${corner}`} viewBox="0 0 108 62"
       aria-hidden="true" fill="none" stroke="currentColor">
@@ -72,9 +110,12 @@ export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressB
         vectorEffect="non-scaling-stroke" />
     </svg>)}
     <header className={styles.instrumentHeader}>
-      <Link href="/" className={styles.brand} aria-label="LibreCosta 首页"
-        onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}
-        onClick={() => cue('click')}><Wordmark /></Link>
+      <div className={styles.brandCluster}>
+        <Link href="/" className={styles.brand} aria-label="LibreCosta 首页"
+          onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}
+          onClick={() => cue('click')}><Wordmark /></Link>
+        <span className={styles.soundIndicator} role="img" aria-label={enabled ? '声音开启' : '声音关闭'} data-enabled={enabled} />
+      </div>
       <div className={styles.instrumentRight}>
         <ExpanseSoundToggle />
         <div className={styles.reservedNav} lang="en" aria-hidden="true"><span>Works</span><span>About</span></div>
@@ -94,6 +135,14 @@ export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressB
       <path d="M11 1v6m0 8v6M1 11h6m8 0h6" stroke="var(--instrument-glint)" strokeWidth="2.4" />
       <path d="M11 1v6m0 8v6M1 11h6m8 0h6" stroke="currentColor" strokeWidth="1" />
       <path d="M10.3 10.3h1.4v1.4h-1.4z" fill="currentColor" />
+    {!unavailable && <ObservationReadout cameraRef={cameraRef} />}
+    <span className={styles.bilibiliMark} role="img" aria-label="Bilibili"
+      onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5"
+        strokeLinecap="round" strokeLinejoin="round">
+        <path d="m7.5 3.5 3.4 4m5.6-4-3.4 4M5 7.5h14l2 2v9.5l-2 2H5l-2-2V9.5Z M7 13.5l3-1m4 0 3 1" />
+      </svg>
+    </span>
     </svg>}
     {!unavailable && <div className={styles.readout}>
       {reduced ? <p className={styles.staticNote}>静态观览 · 已减少动态效果</p> : <>

@@ -67,6 +67,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+.brandCluster {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.1vw, 14px);
+}
 }
 .brand {
   width: clamp(122px, 13vw, 174px);
@@ -78,6 +83,25 @@
   transition: color 180ms ease;
 }
 .brand svg, .wordmarkSamples svg { display: block; width: 100%; height: auto; }
+.soundIndicator {
+  display: grid;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: #626964;
+}
+.soundIndicator[data-enabled='true'] { color: #af3933; }
+.soundIndicator[data-enabled='true']::before {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+}
 .brand svg { filter: drop-shadow(0 0 1.5px var(--instrument-glint)); }
 @media (hover: hover) { .brand:hover { color: #4c6960; } }
 .brand:focus-visible, .debug :focus-visible { outline: 2px solid #476254; outline-offset: 4px; }
@@ -149,6 +173,39 @@
 }
 .progress::before { left: -1px; }
 .progress::after { right: -1px; opacity: .62; }
+.observationData {
+  position: absolute;
+  bottom: calc(var(--edge-bottom) + var(--rail) - 4px);
+  left: calc(var(--edge-left) + var(--rail));
+  display: grid;
+  gap: 4px;
+  color: var(--instrument-muted);
+  font: 600 10px/1.2 var(--instrument-type);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .09em;
+  text-shadow: 0 0 3px var(--instrument-glint);
+}
+.observationData :is(p, dl, dd) { margin: 0; }
+.observationSite { color: var(--instrument-ink); }
+.observationData dl { display: grid; gap: 3px; }
+.observationData dl div { display: grid; grid-template-columns: 12ch auto; gap: 8px; white-space: nowrap; }
+.observationData dd { color: var(--instrument-ink); }
+.bilibiliMark {
+  position: absolute;
+  right: calc(var(--edge-right) + var(--rail));
+  bottom: calc(var(--edge-bottom) + var(--rail) - 4px);
+  display: grid;
+  width: 30px;
+  height: 28px;
+  place-items: center;
+  color: var(--instrument-muted);
+  pointer-events: auto;
+  transition: color 180ms ease;
+}
+.bilibiliMark svg { width: 21px; height: 21px; }
+@media (hover: hover) {
+  .bilibiliMark:hover { color: var(--instrument-ink); filter: drop-shadow(0 0 2px var(--instrument-glint)); }
+}
 .progress span { display: block; height: 100%; background: linear-gradient(90deg, #476458, #263a32); transform: scaleX(0); transform-origin: left center; }
 .journey[data-ready='true'] .instrument { animation: instrument-reveal 460ms ease-out both; }
 @keyframes instrument-reveal { from { opacity: .72; } to { opacity: 1; } }
@@ -178,9 +235,17 @@
 .wordmarkStudy summary { cursor: pointer; }
 .wordmarkSamples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 8px 0 0; }
 .wordmarkSamples dt { margin-bottom: 6px; font-size: 10px; }
+@media (max-width: 940px) {
+  .readout { bottom: calc(var(--edge-bottom) + var(--rail) + 66px); }
+  .debug {
+    bottom: calc(var(--edge-bottom) + var(--rail) + 118px);
+    max-height: max(80px, calc(100dvh - var(--edge-bottom) - var(--edge-top) - var(--rail) - 205px));
+  }
+}
 .wordmarkSamples dd { display: grid; align-items: center; width: clamp(82px, 12vw, 120px); min-height: 20px; margin: 0; color: var(--instrument-ink); }
 @media (max-width: 700px) {
   .readout { width: min(390px, 63%); }
+  .observationData { font-size: 9px; }
   .hint, .staticNote { font-size: 10px; }
   .debug { max-width: calc(100% - var(--edge-left) - var(--edge-right) - 2 * var(--rail) - 26px); }
 }
@@ -196,8 +261,8 @@
   .soundToggle span { display: none; }
 }
 .journey[data-reduced='true'] .instrument { animation: none; }
-.journey[data-reduced='true'] .brand { transition: none; }
+.journey[data-reduced='true'] :is(.brand, .bilibiliMark) { transition: none; }
 @media (prefers-reduced-motion: reduce) {
-  .canvas, .brand { transition: none; }
+  .canvas, .brand, .bilibiliMark { transition: none; }
   .journey[data-ready='true'] .instrument { animation: none; }
 }
