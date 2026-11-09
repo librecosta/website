@@ -125,6 +125,7 @@ function location(center: readonly [number, number], yaw: number, length: number
 export function buildDressingRemains(ground: Ground, mobile: boolean) {
   const data: MeshData = { positions: [], colors: [], indices: [] };
   const bone = new Color('#ddcfb3');
+  let anchor: Vector3 | undefined;
   EXPANSE.dressing.bones.forEach(({ center, length, yaw, ribs }, group) => {
     const point = location(center, yaw, length, ground);
     const count = mobile ? ribs - 1 : ribs;
@@ -136,10 +137,15 @@ export function buildDressingRemains(ground: Ground, mobile: boolean) {
         [x,-.037,0], [x-.02,exposure*.64,side*.10], [x+.028,exposure,side*.22],
         [x+.095,exposure*.70,side*reach], [x+.18,-.034,side*(reach+.026)],
       ];
+      if (group === 0 && i === 1) {
+        // Sit just above the second rib's crown, outside the tube.
+        anchor = point(points[2]);
+        anchor.y += .034 * length;
+      }
       tube(data, points.map(point), [.035,.032,.025,.018,.012].map(v => v * length), bone, mobile ? 7 : 11, .72);
     }
     const shaft: Point[] = [[-.40,.018,.17],[-.23,.046,.23],[-.04,.055,.28],[.12,.013,.35],[.18,-.032,.38]];
     tube(data, shaft.map(point), [.051,.057,.030,.028,.046].map(v => v * length), bone, 9, .83);
   });
-  return geometry(data);
+  return { geometry: geometry(data), anchor };
 }

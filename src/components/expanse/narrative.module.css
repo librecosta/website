@@ -88,6 +88,27 @@
   letter-spacing: .12em;
 }
 .logHeader span:last-child { font-variant-numeric: tabular-nums; }
+.observer[data-optional] .logHeader { gap: 6px; }
+.observer[data-optional] .logHeader span:nth-child(2) { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+:global([data-reduced='true']) .observer[data-optional] { animation: none; }
+.closeLog {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-block: -7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: 18px/1 sans-serif;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.closeLog:focus-visible { outline: 1px solid currentColor; }
+.transcriptSignals summary { cursor: pointer; }
+.transcriptSignals details + details { margin-block-start: .45rem; }
+.transcriptSignals details p { margin-inline-start: 1em; }
 
 .brandReveal {
   position: absolute;

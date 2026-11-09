@@ -218,6 +218,7 @@ export function buildSkyline(city: City, seed: number, compact: boolean) {
   // Two rails share one plane; seams and paired transfer nodes reveal the track construction.
   const { radius, guideOffset } = city.ring;
   const track: BufferGeometry[] = [];
+  let ringAnchor: Vec3 | undefined;
   for (const [start, end] of [[2, 38], [42, 82], [86, 121], [125, 174],
     [178, 220], [224, 267], [271, 309], [313, 358]]) {
     const segments = compact ? 7 : 12;
@@ -230,12 +231,17 @@ export function buildSkyline(city: City, seed: number, compact: boolean) {
       const azimuth = MathUtils.degToRad(MathUtils.lerp(start, end, fraction));
       const r = radius - guideOffset / 2;
       const dock = fraction === .5;
-      track.push(pier([0, dock ? -195 : -88, 0], [guideOffset + 185, dock ? 246 : 125, dock ? 250 : 93],
+      const bottom = dock ? -195 : -88;
+      if (start === 42 && dock) {
+        // Lower face of the transfer node visible from the valley.
+        ringAnchor = [Math.cos(azimuth) * r, bottom - .4, Math.sin(azimuth) * r];
+      }
+      track.push(pier([0, bottom, 0], [guideOffset + 185, dock ? 246 : 125, dock ? 250 : 93],
         .87, dock ? alloy.silver : alloy.web, .24).rotateY(-azimuth)
         .translate(Math.cos(azimuth) * r, 0, Math.sin(azimuth) * r));
     }
   }
-  return { civic: merge(parts), ring: merge(track), satellites: buildSatellites(city.satellites, compact), batches };
+  return { civic: merge(parts), ring: merge(track), ringAnchor, satellites: buildSatellites(city.satellites, compact), batches };
 }
 
 export function poseSkylineRing(pivot: Object3D, track: Object3D, ring: City['ring'], seconds: number) {

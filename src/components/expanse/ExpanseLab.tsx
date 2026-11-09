@@ -5,15 +5,20 @@ import { Component, useCallback, useEffect, useRef, useState, type CSSProperties
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import type { Camera } from 'three';
+import { useSiteAudio } from '@/components/audio/AudioProvider';
+import type { AudioCue } from '@/components/audio/site-audio';
 import { EXPANSE, SKY_VIEWS, WIND_VIEWS, type JourneySignal, type SkyView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
 import { ExpanseInstrument, WordmarkStudy } from './ExpanseInstrument';
 import { ExpanseAudioLevels } from './ExpanseAudio';
 import { ExpanseNarrative, ExpanseTranscript } from './ExpanseNarrative';
-import { narrativeTiming, type NarrativeBeat, type NarrativeCue } from './narrative';
+import { narrativeTiming, type NarrativeBeat, type NarrativeCue, type ObservationId } from './narrative';
+import { ExpanseSignals, SignalReadouts } from './ExpanseSignals';
+import type { ObservationElements } from './ObservationProjection';
 import styles from './expanse.module.css';
 
 const ExpanseCanvas = dynamic(() => import('./ExpanseCanvas'), { ssr: false });
+const scanCue = { bones: 'scanBones', ruin: 'scanRuin', ring: 'scanRing' } satisfies Record<ObservationId, AudioCue>;
 
 function progressText({ raw, value }: Pick<JourneySignal, 'raw' | 'value'>, staticView: boolean) {
   const journey = staticView ? EXPANSE.journey.reducedProgress : mapJourneyProgress(value, EXPANSE.journey.timing);
@@ -47,6 +52,11 @@ export default function ExpanseLab() {
   const seen = useRef(new Set<NarrativeBeat>());
   const shown = useRef<NarrativeBeat | null>(null);
   const [narrative, setNarrative] = useState<NarrativeCue>(null);
+  const observationElements = useRef<ObservationElements>({ buttons: {}, readouts: {} });
+  const [observation, setObservation] = useState<ObservationId | null>(null);
+  const [read, setRead] = useState<ReadonlySet<ObservationId>>(() => new Set());
+  const [signalsAllowed, setSignalsAllowed] = useState(true);
+  const { cue } = useSiteAudio();
   const cameraRef = useRef<Camera>(null);
   const signal = useRef<JourneySignal>({ value: 0, raw: 0, invalidate: () => {} });
   const [mobile, setMobile] = useState(false), [mediaReduced, setMediaReduced] = useState(false);
@@ -56,7 +66,23 @@ export default function ExpanseLab() {
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
   const reduced = mediaReduced || forceReduced;
   const onReady = useCallback(() => setReady(true), []);
-  const onContextLost = useCallback(() => { setContextLost(true); setReady(false); }, []);
+  const onContextLost = useCallback(() => { setContextLost(true); setReady(false); setObservation(null); }, []);
+  const markRead = useCallback(() => {
+    if (observation) setRead(previous => previous.has(observation) ? previous : new Set([...previous, observation]));
+  }, [observation]);
+  useEffect(() => { if (reduced) markRead(); }, [reduced, markRead]);
+  const closeObservation = useCallback(() => {
+    if (!observation) return;
+    const marker = observationElements.current.buttons[observation];
+    if (marker?.dataset.state === 'visible') marker.focus({ preventScroll: true });
+    setObservation(null);
+    setNarrative(current => current?.animate ? { ...current, animate: false } : current);
+  }, [observation]);
+  const selectObservation = (id: ObservationId) => {
+    if (id === observation || !signalsAllowed) return;
+    cue(scanCue[id]);
+    setObservation(id);
+  };
   useEffect(() => {
     if (debugOutput.current) debugOutput.current.value = progressText(signal.current, reduced || contextLost);
   }, [debug, reduced, contextLost]);
@@ -99,6 +125,7 @@ export default function ExpanseLab() {
       if (reduced || contextLost) {
         shown.current = null;
         setNarrative(null);
+        setSignalsAllowed(true);
         return;
       }
       const entranceEnd = `top+=${intro} top`;
@@ -120,6 +147,8 @@ export default function ExpanseLab() {
         .to(parts[3], { duration: .16 }, .84);
       let previousOffset: number | undefined, forward = false;
       let openingOpacity = 1, logOpacity = 1, revealTime = 0;
+      let lastSignalsAllowed = true;
+      setSignalsAllowed(true);
       let routeStart = element.offsetTop;
       const clamp = gsap.utils.clamp(0, 1);
       const easeFade = gsap.parseEase('sine.inOut');
@@ -130,6 +159,12 @@ export default function ExpanseLab() {
         const raw = mapJourneyProgress((offset - intro) / travel, EXPANSE.journey.timing);
         const path = mapJourneyProgress(signal.current.value, EXPANSE.journey.timing);
         const tail = clamp((offset - intro - travel) / hold);
+        const allowSignals = tail < logFadeOut;
+        if (allowSignals !== lastSignalsAllowed) {
+          lastSignalsAllowed = allowSignals;
+          setSignalsAllowed(allowSignals);
+          if (!allowSignals) setObservation(null);
+        }
         if (offset !== previousOffset) {
           forward = previousOffset !== undefined && offset > previousOffset;
           previousOffset = offset;
@@ -196,16 +231,21 @@ export default function ExpanseLab() {
   return <main ref={root} className={styles.journey} data-reduced={reduced || contextLost} data-ready={ready}
     style={{ '--journey-screens': EXPANSE.journey.screens, '--journey-intro': EXPANSE.journey.introScreens,
       '--journey-hold': EXPANSE.journey.holdScreens } as CSSProperties}>
-    <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
+    <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。"
+      onKeyDown={event => { if (event.key === 'Escape') closeObservation(); }}>
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
-          debug={debug} skyView={skyView} windView={windView} cameraRef={cameraRef}
+          debug={debug} skyView={skyView} windView={windView} cameraRef={cameraRef} observationElements={observationElements}
           onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
       <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost} stage={stage}
         hint={hint} progressBar={progressBar} progressFill={progressFill} cameraRef={cameraRef} />
-      <ExpanseNarrative layer={narrativeLayer} active={narrative} enabled={ready && !reduced && !contextLost} />
+      <ExpanseSignals elements={observationElements} enabled={ready && !contextLost && signalsAllowed}
+        active={observation} read={read} onSelect={selectObservation} />
+      <ExpanseNarrative layer={narrativeLayer} active={narrative} enabled={ready && !reduced && !contextLost}
+        observation={observation && signalsAllowed ? { id: observation, animate: !reduced && !read.has(observation) } : null}
+        onRead={markRead} onClose={closeObservation} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} aria-label="场景调试">
@@ -223,6 +263,7 @@ export default function ExpanseLab() {
           {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
         </select></label>
         <WordmarkStudy />
+        <SignalReadouts elements={observationElements} />
         <ExpanseAudioLevels />
       </aside>}
       <figcaption className={styles.srOnly}>以页面滚动走近遗落巨构。随时停止，向上滚动可以原路返回。</figcaption>

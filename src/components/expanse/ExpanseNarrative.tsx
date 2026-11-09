@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { gsap } from 'gsap';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { expanseBrand, witnessRecords, type NarrativeCue, type WitnessRecord } from './narrative';
+import { expanseBrand, observationIds, observationRecords, witnessRecords, type NarrativeCue, type ObservationId,
+  type WitnessRecord } from './narrative';
 import ui from './expanse.module.css';
 import styles from './narrative.module.css';
 
 const charactersPerSecond = 14;
 
-function TypewrittenRecord({ record, animate }: { record: WitnessRecord; animate: boolean }) {
+function TypewrittenRecord({ record, animate, onComplete }: {
+  record: WitnessRecord; animate: boolean; onComplete?: () => void;
+}) {
   const { cue, stopTextCue } = useSiteAudio();
   const [visible, setVisible] = useState(0);
   const timeline = useRef<gsap.core.Timeline | null>(null);
@@ -28,6 +31,7 @@ function TypewrittenRecord({ record, animate }: { record: WitnessRecord; animate
         sequence.call(() => {
           setVisible(next);
           if (!/[.…！？。]/u.test(character)) cue('text');
+          if (next === total) onComplete?.();
         }, [], at);
         previous = character;
         at += 1 / charactersPerSecond;
@@ -40,7 +44,7 @@ function TypewrittenRecord({ record, animate }: { record: WitnessRecord; animate
       timeline.current = null;
       stopTextCue();
     };
-  }, [animate, record, cue, stopTextCue]);
+  }, [animate, record, cue, stopTextCue, total, onComplete]);
 
   let remaining = animate ? visible : total;
   let cursorPlaced = false;
@@ -64,17 +68,22 @@ function TypewrittenRecord({ record, animate }: { record: WitnessRecord; animate
         timeline.current?.kill();
         stopTextCue();
         setVisible(total);
+        onComplete?.();
       }} />}
   </div>;
 }
 
-export function ObserverLog({ record, animate }: { record: WitnessRecord; animate: boolean }) {
-  return <section className={styles.observer} aria-label="观察日志" data-observer-log={record.id}>
+export function ObserverLog({ record, animate, onComplete, onClose }: {
+  record: WitnessRecord; animate: boolean; onComplete?: () => void; onClose?: () => void;
+}) {
+  return <section className={styles.observer} aria-label="观察日志" data-observer-log={record.id}
+    id={onClose ? 'expanse-signal-log' : undefined} data-optional={onClose ? '' : undefined}>
     <header className={styles.logHeader}>
       <span lang="en">WITNESS / OBSERVATION LOG</span>
       <span>{record.id}</span>
+      {onClose && <button className={styles.closeLog} type="button" aria-label="关闭观测记录" onClick={onClose}>×</button>}
     </header>
-    <TypewrittenRecord key={record.id} record={record} animate={animate} />
+    <TypewrittenRecord key={record.id} record={record} animate={animate} onComplete={onComplete} />
   </section>;
 }
 
@@ -90,16 +99,22 @@ function BrandReveal({ cinematic = false, active = true }: { cinematic?: boolean
   </section>;
 }
 
-export function ExpanseNarrative({ layer, active, enabled }: {
+export function ExpanseNarrative({ layer, active, enabled, observation, onRead, onClose }: {
   layer: RefObject<HTMLDivElement | null>; active: NarrativeCue; enabled: boolean;
+  observation: { id: ObservationId; animate: boolean } | null;
+  onRead: () => void;
+  onClose: () => void;
 }) {
   const beat = enabled ? active?.beat : null;
   const animate = active?.animate ?? false;
   return <div className={styles.layer} ref={layer} lang="zh-CN" data-narrative-beat={beat ?? 'quiet'}>
-    {beat === 'opening' && <section className={styles.opening} aria-label="苏醒" data-opening>
+    {observation && beat !== 'brand' && <ObserverLog key={observation.id} record={observationRecords[observation.id]}
+      animate={observation.animate} onComplete={onRead} onClose={onClose} />}
+    {!observation && beat === 'opening' && <section className={styles.opening} aria-label="苏醒" data-opening>
       <TypewrittenRecord record={witnessRecords.opening} animate={animate} />
     </section>}
-    {(beat === 'passage' || beat === 'arrival') && <ObserverLog key={beat} record={witnessRecords[beat]} animate={animate} />}
+    {!observation && (beat === 'passage' || beat === 'arrival') &&
+      <ObserverLog key={beat} record={witnessRecords[beat]} animate={animate} />}
     <BrandReveal cinematic active={beat === 'brand'} />
   </div>;
 }
@@ -110,6 +125,13 @@ export function ExpanseTranscript() {
     {Object.values(witnessRecords).map(record => <section key={record.id} aria-label={`独白 ${record.id}`}>
       {record.lines.map((line, index) => <p key={index}>{line}</p>)}
     </section>)}
+    <section className={styles.transcriptSignals} aria-labelledby="expanse-transcript-signals">
+      <h3 id="expanse-transcript-signals">观测记录</h3>
+      {observationIds.map(id => <details key={id}>
+        <summary>{observationRecords[id].id} · {observationRecords[id].name}</summary>
+        {observationRecords[id].lines.map(line => <p key={line}>{line}</p>)}
+      </details>)}
+    </section>
     <BrandReveal />
   </article>;
 }

@@ -1,6 +1,6 @@
 export const defaultLevels = { wind: .42 * 2 / 3, music: .64 * 2 / 3, ui: .68 * 4 / 3 };
 export type AudioBus = keyof typeof defaultLevels;
-export type AudioCue = 'hover' | 'click' | 'confirm' | 'text';
+export type AudioCue = 'hover' | 'click' | 'confirm' | 'text' | 'scanBones' | 'scanRuin' | 'scanRing';
 
 const masterLevel = .8;
 const fadeSeconds = .24;
@@ -11,7 +11,15 @@ const cues = {
   click: [[585, 388, .11, .22, 0], [1040, 820, .058, .060, .006]],
   confirm: [[528, 516, .17, .17, 0], [785, 773, .23, .12, .049]],
   text: [[1420, 1130, .055, .018, 0]],
+  scanBones: [[1175, 1090, .14, .052, 0], [1760, 1620, .11, .016, .028]],
+  scanRuin: [[670, 1130, .094, .042, 0], [1520, 810, .118, .041, .092]],
+  scanRing: [[185, 176, .264, .055, 0], [370, 352, .22, .030, .012], [554, 530, .15, .012, .029]],
 } as const;
+const scanFilters: Partial<Record<AudioCue, readonly [BiquadFilterType, number, number]>> = {
+  scanBones: ['lowpass', 2550, .7],
+  scanRuin: ['bandpass', 1050, 2.1],
+  scanRing: ['lowpass', 950, .8],
+};
 
 type Loop = { source: AudioBufferSourceNode; gain: GainNode };
 
@@ -31,6 +39,7 @@ export class SiteAudio {
   private suspendTimer?: number;
   private hoverAt = -Infinity;
   private textAt = -Infinity;
+  private scanAt = -Infinity;
   private textPulse?: { voice: OscillatorNode; envelope: GainNode };
 
   constructor(levels: typeof defaultLevels, private readonly reportWind: (status: 'ready' | 'missing') => void) {
@@ -170,6 +179,11 @@ export class SiteAudio {
       if (now - this.textAt < .16) return;
       this.textAt = now;
     }
+    const scan = scanFilters[kind];
+    if (scan) {
+      if (now - this.scanAt < .29) return;
+      this.scanAt = now;
+    }
     for (const [from, to, length, peak, delay] of cues[kind]) {
       const start = now + delay, end = start + length;
       const voice = this.context.createOscillator();
@@ -180,11 +194,16 @@ export class SiteAudio {
       envelope.gain.setValueAtTime(.0001, start);
       envelope.gain.linearRampToValueAtTime(peak, start + .012);
       envelope.gain.exponentialRampToValueAtTime(.0001, end);
-      voice.connect(envelope).connect(this.buses.ui);
+      const filter = scan ? this.context.createBiquadFilter() : null;
+      if (filter && scan) {
+        [filter.type, filter.frequency.value, filter.Q.value] = scan;
+        voice.connect(filter).connect(envelope);
+      } else voice.connect(envelope);
+      envelope.connect(this.buses.ui);
       if (kind === 'text') this.textPulse = { voice, envelope };
       voice.onended = () => {
         if (this.textPulse?.voice === voice) this.textPulse = undefined;
-        voice.disconnect(); envelope.disconnect();
+        voice.disconnect(); filter?.disconnect(); envelope.disconnect();
       };
       voice.start(start);
       voice.stop(end);

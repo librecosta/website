@@ -1,6 +1,6 @@
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Color, MeshStandardMaterial, Object3D, Vector4, type BufferGeometry, type Group, type InstancedMesh, type Mesh } from 'three';
+import { Color, Mesh, MeshStandardMaterial, Object3D, Raycaster, Vector3, Vector4, type BufferGeometry, type Group, type InstancedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyAerialPerspective, type Atmosphere } from './atmosphere';
 import { CityTraffic } from './CityTraffic';
@@ -54,6 +54,7 @@ function DistrictInstances({ geometry, buildings, material }: District & { mater
     });
     batch.instanceMatrix.needsUpdate = true;
     batch.instanceColor!.needsUpdate = true;
+    batch.computeBoundingBox();
     batch.computeBoundingSphere();
     invalidate();
     return () => batch.dispose();
@@ -61,10 +62,19 @@ function DistrictInstances({ geometry, buildings, material }: District & { mater
   return <instancedMesh ref={mesh} args={[geometry, material, buildings.length]} />;
 }
 
-export function EntranceRuin({ ruin, atmosphere, storm, mobile }: {
+export function EntranceRuin({ ruin, atmosphere, storm, mobile, onAnchor }: {
   ruin: Monument; atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean;
+  onAnchor: (object: Object3D | null) => void;
 }) {
   const { nodes } = useLoader(GLTFLoader, '/expanse/entrance-ruin.glb');
+  const geometry = (nodes.Tower as Mesh<BufferGeometry>).geometry;
+  const anchor = useMemo(() => {
+    // Intersect the solid equipment housing below the antenna in GLB-local space.
+    const probe = new Raycaster(new Vector3(0, .22, 1), new Vector3(0, 0, -1));
+    const target = new Mesh(geometry, (nodes.Tower as Mesh).material);
+    const hit = probe.intersectObject(target)[0];
+    return hit?.point.addScaledVector(hit.normal ?? new Vector3(0, 0, 1), .002);
+  }, [geometry, nodes]);
   const { gl, invalidate } = useThree();
   const material = useMemo(() => {
     const stone = new MeshStandardMaterial({ color: '#aa9a84', roughness: .91 });
@@ -76,12 +86,15 @@ export function EntranceRuin({ ruin, atmosphere, storm, mobile }: {
     invalidate();
   }, [gl, invalidate]);
   useEffect(() => () => material.dispose(), [material]);
-  return <mesh geometry={(nodes.Tower as Mesh<BufferGeometry>).geometry} material={material} position={ruin.position}
-    quaternion={ruin.quaternion} scale={ruin.scale} castShadow receiveShadow dispose={null} />;
+  return <mesh geometry={geometry} material={material} position={ruin.position}
+    quaternion={ruin.quaternion} scale={ruin.scale} castShadow receiveShadow dispose={null}>
+    {anchor && <object3D ref={onAnchor} position={anchor} />}
+  </mesh>;
 }
 
-export function FutureCity({ atmosphere, storm, mobile, visible, reduced }: {
+export function FutureCity({ atmosphere, storm, mobile, visible, reduced, onAnchor }: {
   atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean; visible: boolean; reduced: boolean;
+  onAnchor: (object: Object3D | null) => void;
 }) {
   const pivot = useRef<Group>(null);
   const track = useRef<Mesh>(null);
@@ -125,7 +138,9 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced }: {
   return <group position={[...city.center]} scale={city.scale} dispose={null}>
     <mesh geometry={skyline.civic} material={material} />
     <group ref={pivot}>
-      <mesh ref={track} geometry={skyline.ring} material={material} />
+      <mesh ref={track} geometry={skyline.ring} material={material}>
+        {skyline.ringAnchor && <object3D ref={onAnchor} position={[...skyline.ringAnchor]} />}
+      </mesh>
     </group>
     <mesh ref={orbit} geometry={skyline.satellites} material={material} />
     <CityTraffic material={material} elapsed={elapsed} reduced={reduced} />

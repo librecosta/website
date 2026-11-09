@@ -5,7 +5,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type R
 import {
   ACESFilmicToneMapping, BufferAttribute, BufferGeometry, InstancedMesh, MathUtils,
   MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, Quaternion, SRGBColorSpace, WebGLRenderer,
-  type Camera, type Material,
+  type Camera, type Group, type Material,
 } from 'three';
 import { EXPANSE, type JourneySignal, type SkyView, type WindView } from './parameters';
 import { buildAeolianTerrain, buildMonuments, buildSlottedMonolithData, fingerprint, fitVerticalFov, sampleJourney, windSurfaceAbove, type Monument } from './world';
@@ -21,10 +21,12 @@ import { addRuinDeposits } from './dressing-terrain';
 import { createDistantSteleMaterial } from './ensemble-material';
 import { EnvironmentalDressing } from './EnvironmentalDressing';
 import { EntranceRuin, FutureCity } from './FutureCity';
+import { ObservationProjection, type ObservationElements } from './ObservationProjection';
+import { observationIds, type ObservationId } from './narrative';
 import styles from './expanse.module.css';
 
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
-  skyView: SkyView; cameraRef: RefObject<Camera | null>;
+  skyView: SkyView; cameraRef: RefObject<Camera | null>; observationElements: RefObject<ObservationElements>;
   windView: WindView; onReady: () => void; onContextLost: () => void };
 
 function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array; normals?: Float32Array }) {
@@ -57,9 +59,15 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant} dispose={null} />;
 }
 
-function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere }:
-  Pick<Props, 'mobile' | 'windView' | 'skyView' | 'reduced' | 'debug'> & { visible: boolean; atmosphere: Atmosphere }) {
+function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere, observationElements }:
+  Pick<Props, 'mobile' | 'windView' | 'skyView' | 'reduced' | 'debug' | 'observationElements'> & { visible: boolean; atmosphere: Atmosphere }) {
   const { invalidate, gl } = useThree();
+  const opaque = useRef<Group>(null);
+  const anchors = useRef<Partial<Record<ObservationId, Object3D | null>>>({});
+  const attach = useMemo(() => Object.fromEntries(observationIds.map(id => [id, (object: Object3D | null) => {
+    anchors.current[id] = object;
+    invalidate();
+  }])) as Record<ObservationId, (object: Object3D | null) => void>, [invalidate]);
   const monuments = useMemo(() => buildMonuments(EXPANSE), []);
   const entrance = monuments.find(item => item.id === EXPANSE.futureCity.ruin.id);
   const distantStelae = useMemo(() => monuments.filter(item => item.family === 'Distant Stelae'), [monuments]);
@@ -70,6 +78,7 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere 
     addRuinDeposits(data.positions, monuments, baseGround, EXPANSE);
     const geometry = indexedGeometry(data);
     geometry.computeBoundingSphere();
+    geometry.computeBoundingBox();
     return { geometry, fingerprint: fingerprint(data.positions) };
   }, [mobile, monuments]);
   const groundHeight = useMemo(() => renderedGround(terrain.geometry.getAttribute('position').array,
@@ -118,12 +127,17 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere 
     <AtmosphericSky atmosphere={atmosphere} view={skyView}
       storm={storm ?? undefined} mobile={mobile} />
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
-    <FutureCity atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} visible={visible} reduced={reduced} />
-    {entrance && <Suspense fallback={null}>
-      <EntranceRuin ruin={entrance} atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} />
-    </Suspense>}
-    <EnvironmentalDressing ground={groundHeight} mobile={mobile} material={resources.dressing} />
-    <Instances items={distantStelae} geometry={stelaGeometry} material={resources.distant} distant />
+    <group ref={opaque}>
+      <FutureCity atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} visible={visible} reduced={reduced}
+        onAnchor={attach.ring} />
+      {entrance && <Suspense fallback={null}>
+        <EntranceRuin ruin={entrance} atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} onAnchor={attach.ruin} />
+      </Suspense>}
+      <EnvironmentalDressing ground={groundHeight} mobile={mobile} material={resources.dressing} onAnchor={attach.bones} />
+      <Instances items={distantStelae} geometry={stelaGeometry} material={resources.distant} distant />
+    </group>
+    <ObservationProjection anchors={anchors.current} elements={observationElements} opaque={opaque} mobile={mobile}
+      terrain={terrain.geometry.boundingBox!} ground={groundHeight} />
     {storm && windView !== 'static' && <SandDust terrain={terrain.geometry} ground={groundHeight} windSurface={windSurface}
       storm={storm} mobile={mobile} mode={windView} visible={visible} debug={debug} />}
     {storm && windView === 'transport' && <StormGrit uniforms={storm} mobile={mobile} />}
@@ -335,7 +349,7 @@ export default function ExpanseCanvas(props: Props) {
       <orthographicCamera attach="shadow-camera" args={[...daylight.shadowBounds]} />
     </directionalLight>
     <World mobile={props.mobile} windView={windView} skyView={props.skyView} reduced={props.reduced}
-      visible={visible} debug={props.debug} atmosphere={atmosphere} />
+      visible={visible} debug={props.debug} atmosphere={atmosphere} observationElements={props.observationElements} />
     <Observation {...props} visible={visible} />
   </Canvas>;
 }
