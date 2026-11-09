@@ -1,3 +1,4 @@
+import { MathUtils } from 'three';
 import type { WorldParameters } from './parameters';
 
 type WindMotion = WorldParameters['windMotion'];
@@ -16,8 +17,12 @@ type TransportOptions = {
   sediment: Ground;
   window?: WindMotion['window'];
   background?: { feed: number; inlet: number };
-  sanctuary?: { influence: Ground; crosswind: Ground; turn: number; settling: number };
+  shelter?: { exposure: (z: number) => number; settling: number };
 };
+
+export function stormExposure(z: number, [start, clear]: readonly [number, number]) {
+  return 1 - MathUtils.smoothstep(-z, -start, -clear);
+}
 
 export function saltationThreshold({ grainDiameter, grainDensity, airDensity, gravity, bagnoldFactor }: Transport['threshold']) {
   return bagnoldFactor * Math.sqrt((grainDensity - airDensity) / airDensity * gravity * grainDiameter);
@@ -116,17 +121,15 @@ export function createSandTransport(config: Transport, axis: readonly [number, n
     }
     const shadow = clamp01((horizon - lowShadow) / (fullShadow - lowShadow));
     shelter[i] = shadow * shadow * (3 - 2 * shadow);
-    const sanctuary = options?.sanctuary;
-    const refuge = sanctuary?.influence(x, z) ?? 0;
-    const remaining = 1 - refuge;
+    const remaining = options?.shelter?.exposure(z) ?? 1;
+    const refuge = 1 - remaining;
     liftRetention[i] = remaining ** 3;
     windRetention[i] = 1 - 0.62 * refuge;
-    settlingRate[i] = config.settling * (1 + shelter[i] + (sanctuary?.settling ?? 0) * refuge);
+    settlingRate[i] = config.settling * (1 + shelter[i] + (options?.shelter?.settling ?? 0) * refuge);
     settledFraction[i] = -Math.expm1(-settlingRate[i] * step);
     exposure[i] = (1 - 0.74 * shelter[i]) * (0.89 + 0.26 * clamp01(0.5 + slopeX * windX + slopeZ * windZ));
     const crossSlope = -slopeX * windZ + slopeZ * windX;
-    const turn = sanctuary ? sanctuary.turn * 4 * refuge * remaining * sanctuary.crosswind(x, z) : 0;
-    const bearing = windAngle - Math.max(-0.23, Math.min(0.23, crossSlope * 0.43)) + turn;
+    const bearing = windAngle - Math.max(-0.23, Math.min(0.23, crossSlope * 0.43));
     bearingX[i] = Math.cos(bearing);
     bearingZ[i] = Math.sin(bearing);
 

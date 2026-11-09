@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
 import { EXPANSE, monumentFaceHeight, monumentSplice } from '../src/components/expanse/parameters.ts';
 import { buildAeolianTerrain, duneRelief, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
-import { createSandTransport, renderedGround } from '../src/components/expanse/sand-transport.ts';
+import { createSandTransport, renderedGround, stormExposure } from '../src/components/expanse/sand-transport.ts';
 import { addRuinDeposits } from '../src/components/expanse/dressing-terrain.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
 import { unwrapMonument } from '../src/components/monument-surface/unwrap.ts';
@@ -74,25 +74,28 @@ for (let i = 0; i < 900; i++) impulse.advance();
 assert(impulse.balance.escaped > 0, 'The open downwind edge exports the plume');
 assert(Math.abs((sum(impulse.concentration) + sum(impulse.bed)) * impulse.cellArea + impulse.balance.escaped - 100 * impulse.cellArea) < 1e-9);
 
-// Check the imported background independently of local saltation. The same
-// field profile on a flat bed isolates wind deflection and accelerated settling.
-const feedConfig = { ...transportImpulseConfig, bounds: [-600, 600, -400, 400], resolution: [48, 32], baseShear: 0.12 };
+// A flat bed isolates the longitudinal shelter from ordinary terrain wind shadows.
+const feedConfig = { ...transportImpulseConfig, bounds: [-600, 600, -4400, -660], resolution: [48, 32], baseShear: 0.12 };
 const feedOptions = { sediment: () => 1, background: EXPANSE.sandstorm.background };
 const openWind = createSandTransport(feedConfig, [1, 0], flat, flat, feedOptions);
+const exposureAt = z => stormExposure(z, EXPANSE.sandstorm.shelter.approach);
 const lee = createSandTransport(feedConfig, [1, 0], flat, flat, {
   ...feedOptions,
-  sanctuary: { ...EXPANSE.sandstorm.refuge, influence: (x, z) => Math.max(0, 1 - (x * x + z * z) / 270 ** 2) ** 2,
-    crosswind: (_x, z) => Math.tanh(z / 60) },
+  shelter: { exposure: exposureAt, settling: EXPANSE.sandstorm.shelter.settling },
 });
-const centerCell = 16 * 48 + 24, flankCell = 21 * 48 + 24;
+const shelteredCell = 4 * 48 + 24, openCell = 31 * 48 + 24;
 let minimumOpenDensity = Infinity;
 for (let i = 0; i < 640; i++) {
   openWind.advance(); lee.advance();
-  minimumOpenDensity = Math.min(minimumOpenDensity, openWind.concentration[centerCell]);
+  minimumOpenDensity = Math.min(minimumOpenDensity, openWind.concentration[openCell]);
 }
 assert(minimumOpenDensity > 0 && openWind.balance.fed > 0 && openWind.balance.entered > 0);
-assert(lee.concentration[centerCell] < 0.05 * openWind.concentration[centerCell]);
-assert(lee.velocityZ[flankCell] > 0 && openWind.velocityZ[flankCell] === 0);
+assert(lee.concentration[shelteredCell] < 1e-8, 'Sheltered air has no lift or inlet on the flat bed');
+assert(lee.concentration[openCell] > .99 * openWind.concentration[openCell], 'The exposed inlet remains active');
+const exposureSamples = [0, .25, .5, .75, 1].map(s => exposureAt(chapterPose(s).position[2]));
+assert(exposureSamples[0] > .97 && exposureSamples.every((value, i) => i === 0 || value <= exposureSamples[i - 1]));
+assert.equal(exposureSamples.at(-1), 0);
+assert.equal(exposureAt(EXPANSE.hero.center[1]), 0);
 for (const layer of [openWind, lee]) {
   const budget = layer.measureBudget();
   assert(Math.abs(budget.residual) < 1e-6 && Math.abs(budget.totalResidual) < 1e-6);

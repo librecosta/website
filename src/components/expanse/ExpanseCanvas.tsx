@@ -19,6 +19,7 @@ import { SanctuaryMotes } from './Sanctuary';
 import { createSanctuaryField, sanctuaryUniforms, type SanctuaryPointer } from './sanctuary-field';
 import { renderedGround } from './sand-transport';
 import { createSandstorm } from './sandstorm';
+import { StormGrit } from './StormGrit';
 import { addRuinDeposits, ruinGroundContact } from './dressing-terrain';
 import { createDistantSteleMaterial, createRuinMaterial, createRuinPattern } from './ensemble-material';
 import { EnvironmentalDressing } from './EnvironmentalDressing';
@@ -85,9 +86,8 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
   const scatter = useMemo(() => field ? sanctuaryUniforms(field) : undefined, [field]);
   const windSurface = useMemo(() => windSurfaceAbove(groundHeight, monuments), [groundHeight, monuments]);
   const windActive = windView !== 'static';
-  const storm = useMemo(() => windActive ? createSandstorm(groundHeight, windSurface, field, mobile) : null,
-    [windActive, groundHeight, windSurface, field, mobile]);
-  useEffect(() => () => storm?.uniforms.stormField.value.dispose(), [storm]);
+  const storm = useMemo(() => windActive ? createSandstorm() : null, [windActive]);
+  useEffect(() => () => storm?.stormNoise.value.dispose(), [storm]);
   const geometries = useMemo(() => {
     const box = new RoundedBoxGeometry(1, 1, 1, 1, 0.014);
     const ground = batches.box.flatMap(item => {
@@ -106,7 +106,7 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
   const atlas = useMonumentAtlas(gl, invalidate);
   const heroStone = useMemo(() => {
     const material = createMonumentMaterial(atlas, hero.position);
-    applyAerialPerspective(material, atmosphere, false, scatter, storm?.uniforms, mobile);
+    applyAerialPerspective(material, atmosphere, false, scatter, storm ?? undefined, mobile);
     return material;
   }, [atlas, atmosphere, hero, scatter, storm, mobile]);
   useEffect(() => () => heroStone.dispose(), [heroStone]);
@@ -117,19 +117,20 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
     const wedge = geometries.wedge ? new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1 }) : null;
     const distant = createDistantSteleMaterial();
     for (const material of [ground, stone, dressing, wedge]) {
-      if (material) applyAerialPerspective(material, atmosphere, false, scatter, storm?.uniforms, mobile);
+      if (material) applyAerialPerspective(material, atmosphere, false, scatter, storm ?? undefined, mobile);
     }
-    applyAerialPerspective(distant, atmosphere, true, scatter, storm?.uniforms, mobile);
+    applyAerialPerspective(distant, atmosphere, true, scatter, storm ?? undefined, mobile);
     return { ground, stone, distant, dressing, wedge };
   }, [atmosphere, geometries.wedge, ruinPattern, scatter, storm, mobile]);
   useLayoutEffect(() => {
     gl.domElement.dataset.windView = windView;
-    if (storm) storm.uniforms.stormDebug.value = windView === 'concentration';
+    if (storm) storm.stormDebug.value = windView === 'concentration';
     if (windView === 'static') {
       delete gl.domElement.dataset.windTime;
       delete gl.domElement.dataset.sandPeak;
       delete gl.domElement.dataset.sandWindow;
       delete gl.domElement.dataset.sandBudget;
+      delete gl.domElement.dataset.sandExposure;
     }
     invalidate();
   }, [gl, invalidate, windView, storm]);
@@ -150,7 +151,7 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
   }, [resources]);
   return <group dispose={null}>
     <AtmosphericSky atmosphere={atmosphere} view={skyView} sanctuary={scatter}
-      storm={storm?.uniforms} stormDebug={windView === 'concentration'} mobile={mobile} />
+      storm={storm ?? undefined} mobile={mobile} />
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
     <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />
     {geometries.wedge && resources.wedge && <Instances items={batches.wedge} geometry={geometries.wedge} material={resources.wedge} />}
@@ -158,8 +159,9 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
     <Instances items={batches.hero} geometry={geometries.core} material={heroStone} />
     <Instances items={batches.distant} geometry={geometries.slotted} material={resources.distant} distant />
     {storm && windView !== 'static' && <SandDust terrain={terrain.geometry} ground={groundHeight} windSurface={windSurface}
-      field={field} storm={storm} mobile={mobile} mode={windView} visible={visible} debug={debug} />}
-    {field && <SanctuaryMotes hero={hero} field={field} ground={groundHeight} mobile={mobile} storm={storm?.uniforms}
+      storm={storm} mobile={mobile} mode={windView} visible={visible} debug={debug} />}
+    {storm && windView === 'transport' && <StormGrit uniforms={storm} mobile={mobile} />}
+    {field && <SanctuaryMotes hero={hero} field={field} ground={groundHeight} mobile={mobile} storm={storm ?? undefined}
       visible={visible} reduced={reduced} pointer={sanctuaryPointer} debug={debug} />}
   </group>;
 }

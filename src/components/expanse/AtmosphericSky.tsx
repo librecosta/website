@@ -1,7 +1,8 @@
 'use client';
 
 import { useThree } from '@react-three/fiber';
-import { useLayoutEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo } from 'react';
+import { ShaderMaterial } from 'three';
 import { bakeSkyRadiance, sampleSky, type Atmosphere } from './atmosphere';
 import { EXPANSE, type SkyView } from './parameters';
 import { createSkyField } from './sky-field';
@@ -32,23 +33,27 @@ const fragment = /* glsl */ `
   }
 `;
 
-export function AtmosphericSky({ atmosphere, view, sanctuary, storm, stormDebug, mobile }: {
+export function AtmosphericSky({ atmosphere, view, sanctuary, storm, mobile }: {
   atmosphere: Atmosphere; view: SkyView; sanctuary?: SanctuaryUniforms; storm?: SandstormUniforms;
-  stormDebug: boolean; mobile: boolean;
+  mobile: boolean;
 }) {
   const invalidate = useThree(state => state.invalidate);
   const canvas = useThree(state => state.gl.domElement);
   const field = useMemo(createSkyField, []);
   const useStorm = !!storm && view === 'color';
   const useSanctuary = !!sanctuary;
-  const skyFragment = useMemo(() => {
+  const material = useMemo(() => {
     const ray = `ray * ${EXPANSE.atmosphere.cameraFar.toFixed(1)}`;
     let color = 'skyRadiance(ray)';
     if (useSanctuary) color = `scatterSanctuary(${color}, ${ray})`;
     if (useStorm) color = `scatterSandstorm(${color}, ${ray})`;
-    return fragment.replace('void main()', `${useSanctuary ? sanctuaryAir : ''}\n${useStorm ? sandstormAir(mobile) : ''}\nvoid main()`)
+    const fragmentShader = fragment.replace('void main()', `${useSanctuary ? sanctuaryAir : ''}\n${useStorm ? sandstormAir(mobile) : ''}\nvoid main()`)
       .replace('skyRadiance(ray)', color);
-  }, [useSanctuary, useStorm, mobile]);
+    // Keep the same uniform entries as the opaque materials and motes, including live exposure.
+    return new ShaderMaterial({ uniforms: { ...atmosphere.uniforms, ...sanctuary, ...storm },
+      vertexShader: vertex, fragmentShader, toneMapped: false, depthWrite: false });
+  }, [atmosphere, sanctuary, storm, useSanctuary, useStorm, mobile]);
+  useEffect(() => () => material.dispose(), [material]);
   useLayoutEffect(() => {
     const bakeMs = bakeSkyRadiance(atmosphere, field.data, view);
     canvas.dataset.skyAnalyticMs = atmosphere.generationMs.toFixed(2);
@@ -57,11 +62,7 @@ export function AtmosphericSky({ atmosphere, view, sanctuary, storm, stormDebug,
     invalidate();
   }, [atmosphere, field, view, canvas, invalidate]);
   // Draw at far depth after the opaque world so foreground pixels reject the sky.
-  return <mesh frustumCulled={false} renderOrder={1}>
+  return <mesh material={material} frustumCulled={false} renderOrder={1}>
     <bufferGeometry><bufferAttribute attach="attributes-position" args={[triangle, 3]} /></bufferGeometry>
-    <shaderMaterial key={`${useSanctuary}:${useStorm}:${mobile}`}
-      uniforms={{ ...atmosphere.uniforms, ...sanctuary, ...storm, stormDebug: { value: stormDebug } }}
-      vertexShader={vertex} fragmentShader={skyFragment}
-      toneMapped={false} depthWrite={false} />
   </mesh>;
 }

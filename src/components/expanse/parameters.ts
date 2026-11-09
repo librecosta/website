@@ -157,20 +157,18 @@ export const EXPANSE = {
       extinction: 0.015, // m²/mg, tuned for this scene
       viewFade: [760, 1240], edgeFade: 85,
       // Height in metres and fraction of column mass at each level.
-      layers: [[0.095, 0.23], [0.27, 0.26], [0.53, 0.24], [0.96, 0.17], [1.58, 0.10]],
+      layers: [[0.11, 0.43], [0.33, 0.34], [0.70, 0.23]],
     },
   },
   sandstorm: {
-    background: { feed: 8.5, inlet: 11 }, // mg/m²/s and mg/m² from unresolved upwind dust
-    refuge: { turn: 0.94, settling: 10 },
-    suspended: {
-      bounds: [-4400, 4400, -13000, 800],
-      resolution: { desktop: [96, 128], mobile: [64, 88] },
-      transportPerShear: 48, baseShear: 0.31, liftRate: 3.7, diffusion: 6.8, settling: 0.105,
-      gusts: [[0.092, 136, 12.7], [0.064, 211, 18.2]],
-      background: { feed: 2.35, inlet: 22 },
-      airHeight: 525, topHeight: 1320, edgeFade: 1100, referenceDensity: 68,
-      extinction: 0.00075, tint: '#c4aa8d', samples: { desktop: 9, mobile: 7 },
+    background: { feed: 10.5, inlet: 13 }, // mg/m²/s and mg/m² from unresolved upwind dust
+    shelter: { approach: [-930, -3570], settling: 10 }, // World Z from Passage to the sheltered valley and its horizon.
+    veil: {
+      extinction: 0.0115, // per world unit, calibrated against the previous mid-journey look.
+      range: [89, 175],
+      tint: '#b19478', windSpeed: 218,
+      samples: { desktop: 5, mobile: 4 },
+      grains: { desktop: 5200, mobile: 1500 },
     },
   },
   // A shared 12-degree datum and 750-unit bays describe the original order.
