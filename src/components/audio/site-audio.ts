@@ -1,6 +1,6 @@
 export const defaultLevels = { wind: .42 * 2 / 3, music: .64 * 2 / 3, ui: .68 * 4 / 3 };
 export type AudioBus = keyof typeof defaultLevels;
-export type AudioCue = 'hover' | 'click' | 'confirm';
+export type AudioCue = 'hover' | 'click' | 'confirm' | 'text';
 
 const masterLevel = .8;
 const fadeSeconds = .24;
@@ -10,6 +10,7 @@ const cues = {
   hover: [[760, 712, .098, .14, 0], [1320, 1210, .052, .045, .007]],
   click: [[585, 388, .11, .22, 0], [1040, 820, .058, .060, .006]],
   confirm: [[528, 516, .17, .17, 0], [785, 773, .23, .12, .049]],
+  text: [[1420, 1130, .055, .018, 0]],
 } as const;
 
 type Loop = { source: AudioBufferSourceNode; gain: GainNode };
@@ -29,6 +30,8 @@ export class SiteAudio {
   private music?: Loop;
   private suspendTimer?: number;
   private hoverAt = -Infinity;
+  private textAt = -Infinity;
+  private textPulse?: { voice: OscillatorNode; envelope: GainNode };
 
   constructor(levels: typeof defaultLevels, private readonly reportWind: (status: 'ready' | 'missing') => void) {
     this.master.gain.value = 0;
@@ -72,6 +75,7 @@ export class SiteAudio {
 
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
+    if (!enabled) this.stopTextCue();
     return this.syncPlayback();
   }
 
@@ -162,6 +166,10 @@ export class SiteAudio {
       if (now - this.hoverAt < .12) return;
       this.hoverAt = now;
     }
+    if (kind === 'text') {
+      if (now - this.textAt < .16) return;
+      this.textAt = now;
+    }
     for (const [from, to, length, peak, delay] of cues[kind]) {
       const start = now + delay, end = start + length;
       const voice = this.context.createOscillator();
@@ -173,10 +181,22 @@ export class SiteAudio {
       envelope.gain.linearRampToValueAtTime(peak, start + .012);
       envelope.gain.exponentialRampToValueAtTime(.0001, end);
       voice.connect(envelope).connect(this.buses.ui);
-      voice.onended = () => { voice.disconnect(); envelope.disconnect(); };
+      if (kind === 'text') this.textPulse = { voice, envelope };
+      voice.onended = () => {
+        if (this.textPulse?.voice === voice) this.textPulse = undefined;
+        voice.disconnect(); envelope.disconnect();
+      };
       voice.start(start);
       voice.stop(end);
     }
+  }
+
+  stopTextCue() {
+    const pulse = this.textPulse;
+    if (!pulse) return;
+    this.textPulse = undefined;
+    this.fade(pulse.envelope.gain, .0001, .012);
+    pulse.voice.stop(this.context.currentTime + .012);
   }
 
   close() {

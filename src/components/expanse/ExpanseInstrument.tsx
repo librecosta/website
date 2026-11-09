@@ -159,7 +159,7 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
       </svg>
     </a>
     {!unavailable && <div className={styles.readout}>
-      {reduced ? <p className={styles.staticNote}>静态观览 · 已减少动态效果</p> : <>
+      {reduced ? <p className={styles.staticNote}>静态观览 · <a href="#expanse-transcript">阅读本幕</a></p> : <>
         <p ref={hint} className={styles.hint} lang="en">
           <svg viewBox="0 0 10 12" aria-hidden="true" fill="currentColor"><path d="M1 2h8L5 6zm0 5h8l-4 4z" /></svg>
           Scroll to explore

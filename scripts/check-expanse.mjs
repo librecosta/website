@@ -252,8 +252,9 @@ for(const monument of monuments.filter(m => m.family!=='Distant Stelae')) {
   }
 }
 assert(chapterPose(.01).position[2] < chapterPose(0).position[2]-10, 'First scroll produces travel, no dead segment');
-assert.equal(EXPANSE.journey.introScreens, .25);
+assert.equal(EXPANSE.journey.introScreens, .4);
 assert.equal(EXPANSE.journey.screens - 1, 5);
+assert.equal(EXPANSE.journey.holdScreens, .65);
 assert.deepEqual([mapped(0), mapped(1), EXPANSE.journey.reducedProgress], [.356, 1, .356]);
 const epsilon = 1e-7;
 for (const [i, node] of timing.entries()) {

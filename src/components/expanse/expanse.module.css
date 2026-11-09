@@ -10,7 +10,7 @@
   max-width: none;
   margin: 0;
   padding: 0;
-  min-height: calc(var(--journey-distance, calc((var(--journey-screens) - 1 + var(--journey-intro)) * 100svh)) + 100dvh);
+  min-height: calc(var(--journey-distance, calc((var(--journey-screens) - 1 + var(--journey-intro) + var(--journey-hold)) * 100svh)) + 100dvh);
   color: #40463f;
   background: #dedfd9;
   font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
@@ -19,6 +19,7 @@
 :global(html):has(.journey) { scrollbar-width: none; }
 :global(html):has(.journey)::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .journey[data-reduced='true'] { min-height: 100dvh; }
+.journey[data-reduced='true'] .stage { position: relative; }
 .stage {
   --inset: clamp(12px, 2.7vw, 38px);
   --rail: clamp(14px, 1.6vw, 24px);
@@ -195,6 +196,7 @@
   transform: translateX(-50%);
 }
 .hint, .staticNote { margin: 0; color: var(--instrument-muted); font-size: 11px; letter-spacing: .12em; text-align: center; text-shadow: 0 0 3px var(--instrument-glint); }
+.staticNote a { color: inherit; pointer-events: auto; }
 .hint {
   display: flex;
   align-items: center;

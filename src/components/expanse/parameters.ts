@@ -331,7 +331,7 @@ export const EXPANSE = {
     exposure: 1.03,
   },
   journey: {
-    introScreens: .25, screens: 6,
+    introScreens: .4, screens: 6, holdScreens: .65,
     scrubSeconds: 0.85, cameraRadius: 12,
     reducedProgress: passage.path,
     framingAspect: 2,

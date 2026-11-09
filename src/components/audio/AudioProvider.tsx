@@ -11,6 +11,7 @@ type AudioControls = {
   setLevel: (bus: AudioBus, level: number) => void;
   setWindActive: (active: boolean) => void;
   cue: (kind: AudioCue) => void;
+  stopTextCue: () => void;
 };
 
 const AudioContext = createContext<AudioControls | null>(null);
@@ -51,6 +52,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     windActive.current = active;
     engine.current?.setWindActive(active);
   }, []);
+  const cue = useCallback((kind: AudioCue) => engine.current?.cue(kind), []);
+  const stopTextCue = useCallback(() => engine.current?.stopTextCue(), []);
 
   return <AudioContext.Provider value={{ enabled, levels, windStatus, enable, setWindActive,
     setLevel: (bus, level) => {
@@ -58,7 +61,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setLevels(currentLevels.current);
       engine.current?.setLevel(bus, level);
     },
-    cue: kind => engine.current?.cue(kind),
+    cue, stopTextCue,
   }}>{children}</AudioContext.Provider>;
 }
 
