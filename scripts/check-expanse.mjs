@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
+import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Euler, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
 import { EXPANSE, monumentFaceHeight, monumentSplice } from '../src/components/expanse/parameters.ts';
-import { buildAeolianTerrain, duneRelief, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
+import { buildAeolianTerrain, duneRelief, buildMonumentCoreData, buildMonuments, buildSlottedMonolithData, buildTerrainData, buildWedgeData, crestAt, fingerprint, fitVerticalFov, heightAt, localVertices, sampleJourney, sandBedSupply, valleyAt, worldVertices, structureDistance, windSurfaceAbove } from '../src/components/expanse/world.ts';
 import { createSandTransport, renderedGround, stormExposure } from '../src/components/expanse/sand-transport.ts';
 import { addRuinDeposits } from '../src/components/expanse/dressing-terrain.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
@@ -10,6 +10,7 @@ import { unwrapMonument } from '../src/components/monument-surface/unwrap.ts';
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const rendered = {};
 const monuments = buildMonuments(EXPANSE);
+const legacyMonuments = buildMonuments({ ...EXPANSE, futureCity: { ...EXPANSE.futureCity, enabled: false } });
 const timing = EXPANSE.journey.timing;
 const mapped = s => mapJourneyProgress(s, timing);
 const chapterPose = s => sampleJourney(mapped(s), EXPANSE);
@@ -199,19 +200,21 @@ for (const z of [1900,1100,200,-800,-2000,-3200]) {
   assert(heightAt(spine.x-500,z,EXPANSE)-floor > 30, 'Left bank wraps the channel');
   assert(heightAt(spine.x+500,z,EXPANSE)-floor > 30, 'Right bank wraps the channel');
 }
-const field=monuments.filter(m => m.family === 'Mid Monoliths');
-const hero=monuments.filter(m => m.family === 'Hero Structure');
+const field=legacyMonuments.filter(m => m.family === 'Mid Monoliths');
+const hero=legacyMonuments.filter(m => m.family === 'Hero Structure');
 assert(field.length > 0 && hero.length > 0, 'Field and destination remain represented');
 assert.equal(hero.length,1,'One distant destination');
 assert.equal(field.length,2,'Keep the outward pair; remove the central masking plate');
 assert(!monuments.some(m => m.id==='field-veil' || m.id==='basin-right-return'),'Remove the annotated intrusive pieces');
 const grove=monuments.filter(m => m.family==='Distant Stelae');
-assert(monuments.length-grove.length===3 && grove.length<=12,'The chapter keeps only the field and destination in front of the distant grove');
+const fieldCount = EXPANSE.futureCity.enabled ? 1 : 3;
+assert(monuments.length-grove.length===fieldCount && grove.length<=12,'Only the selected ruins and silhouettes are active');
+if (EXPANSE.futureCity.enabled) assert(monuments.some(m=>m.id===EXPANSE.futureCity.ruin.id));
 assert(grove.some(m => m.position[0]<0) && grove.some(m => m.position[0]>0),'Horizon stelae flank the destination');
 const terrainEnd=EXPANSE.terrain.centerZ-EXPANSE.terrain.depth/2;
 assert(grove.every(m => m.kind===hero[0].kind && m.position[2]<terrainEnd &&
   m.position[1]-m.scale[1]/2<0),'Horizon silhouettes share the stele geometry and extend below the sand line');
-assert(EXPANSE.hero.scale[1] > Math.max(...field.map(m => m.scale[1]))*2,'Hero has a distinct scale hierarchy');
+assert(EXPANSE.hero.scale[1] > Math.max(...EXPANSE.alignment.map(m => m.scale[1]))*2,'Legacy hero has a distinct scale hierarchy');
 const shadowReceiverFloor=-100;
 assert(rendered.desktop.every((v, i) => i%3!==1 || v>=shadowReceiverFloor) &&
        rendered.mobile.every((v, i) => i%3!==1 || v>=shadowReceiverFloor), 'Shadow receiver floor is below the terrain');
@@ -296,6 +299,8 @@ function meshHeight(x,z,quality) {
 let minimumTerrainClearance = Infinity, minimumStructureClearance = Infinity;
 let maxQuaternionStep = 0, previousPose, previousQuaternion;
 const poses = [], radius = EXPANSE.journey.cameraRadius;
+const { futureCity } = EXPANSE;
+const cameraFar = futureCity.enabled ? futureCity.cameraFar : EXPANSE.atmosphere.cameraFar;
 for (let i=0;i<=1000;i++) {
   const p=i/1000, pose=chapterPose(p);
   const {position,target,roll}=pose;
@@ -325,7 +330,7 @@ const pathValidation = { samples:1001, cameraRadius:radius, minimumTerrainCleara
 // A landmark visible in the authored film gate must remain inside a narrow one.
 let comparedLandmarks=0;
 for(const pose of poses) {
-  const reference=new PerspectiveCamera(pose.fov,EXPANSE.journey.framingAspect,3,EXPANSE.atmosphere.cameraFar);
+  const reference=new PerspectiveCamera(pose.fov,EXPANSE.journey.framingAspect,3,cameraFar);
   reference.position.set(...pose.position); reference.lookAt(...pose.target); reference.rotateZ(pose.roll); reference.updateMatrixWorld();
   for(const aspect of [1.5,1,390/844]) {
     const fitted=reference.clone(); fitted.aspect=aspect;
@@ -341,18 +346,32 @@ for(const pose of poses) {
   }
 }
 assert(comparedLandmarks>0);
-const arrival=sampleJourney(1,EXPANSE), arrivalCamera=new PerspectiveCamera(arrival.fov,EXPANSE.journey.framingAspect,3,EXPANSE.atmosphere.cameraFar);
+const arrival=sampleJourney(1,EXPANSE), arrivalCamera=new PerspectiveCamera(arrival.fov,EXPANSE.journey.framingAspect,3,cameraFar);
 arrivalCamera.position.set(...arrival.position); arrivalCamera.lookAt(...arrival.target); arrivalCamera.updateMatrixWorld();
-// Underground vertices do not belong to the visible silhouette. Clamp them to
-// the actual sand surface before testing the whole exposed destination.
-const arrivalBounds=worldVertices(hero[0],EXPANSE).map(v => {
- v.y=Math.max(v.y,meshHeight(v.x,v.z,'desktop')); return v.project(arrivalCamera);
-});
+const cityCenter = new Vector3(...futureCity.center);
+const [pitch,yaw,roll] = futureCity.ring.tilt.map(angle=>angle*Math.PI/180);
+const ringRotation = new Quaternion().setFromEuler(new Euler(pitch,yaw,roll,'YXZ'));
+const cityAxis = new Vector3(0,1,0);
+const cityWorld = point => {
+  point.y=Math.max(point.y,0); // Below the distant grade, behind the valley horizon.
+  return point.multiplyScalar(futureCity.scale).add(cityCenter);
+};
+const destination = futureCity.enabled ? [
+  ...Array.from({length:64}, (_,i)=>2*Math.PI*i/64).flatMap(angle=>[-.5,.5].map(z=>cityWorld(
+    new Vector3(.51*Math.cos(angle),.51*Math.sin(angle),z).multiply(new Vector3(...futureCity.ring.scale))
+      .applyQuaternion(ringRotation).add(new Vector3(0,futureCity.ring.height,0))))),
+  ...futureCity.skyline.flatMap(({center,size})=>localVertices('box',EXPANSE).map(vertex=>cityWorld(
+    vertex.multiply(new Vector3(...size)).add(new Vector3(...center)).applyAxisAngle(cityAxis,futureCity.skylineYaw)))),
+] : worldVertices(hero[0],EXPANSE).map(v => { v.y=Math.max(v.y,meshHeight(v.x,v.z,'desktop')); return v; });
+if (futureCity.enabled) {
+  assert(futureCity.center[2] < terrainEnd && futureCity.scale >= 15, 'The hub stands beyond the sand mesh at monumental scale');
+}
+const arrivalBounds=destination.map(v=>v.project(arrivalCamera));
 assert(arrivalBounds.every(p => Math.abs(p.x)<.93 && Math.abs(p.y)<.93 && p.z>-1 && p.z<1),'Whole destination fits with breathing room at arrival');
 assert(arrival.target[1]>arrival.position[1]+500,'Arrival looks upward from the low valley');
 const arrivalFraming={horizontalRange:[Math.min(...arrivalBounds.map(p=>p.x)),Math.max(...arrivalBounds.map(p=>p.x))],
  verticalRange:[Math.min(...arrivalBounds.map(p=>p.y)),Math.max(...arrivalBounds.map(p=>p.y))],
- centerDistance:new Vector3(...arrival.position).distanceTo(new Vector3(...hero[0].position))};
+ centerDistance:new Vector3(...arrival.position).distanceTo(futureCity.enabled ? cityCenter : new Vector3(...hero[0].position))};
 function solidVolume(data) {
  const edges = new Map(); let volume=0;
  for (let i = 0; i < data.indices.length; i += 3) {

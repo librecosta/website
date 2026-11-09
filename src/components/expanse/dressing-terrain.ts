@@ -22,8 +22,9 @@ export function addRuinDeposits(positions: Float32Array, monuments: Monument[], 
   const [wx, wz] = world.aeolian.wind;
   const wind = new Vector3(wx, 0, wz).normalize();
   const cross = new Vector3(-wind.z, 0, wind.x);
-  const deposits = world.dressing.deposits.map(({ id, height, tail }) => {
-    const item = monuments.find(monument => monument.id === id)!;
+  const deposits = world.dressing.deposits.flatMap(({ id, height, tail }) => {
+    const item = monuments.find(monument => monument.id === id);
+    if (!item) return [];
     const contact = ruinGroundContact(item, ground);
     const rotation = new Quaternion().fromArray(item.quaternion);
     const right = new Vector3(1, 0, 0).applyQuaternion(rotation);
@@ -32,8 +33,8 @@ export function addRuinDeposits(positions: Float32Array, monuments: Monument[], 
       (Math.abs(right.dot(axis)) * item.scale[0] + Math.abs(front.dot(axis)) * item.scale[2]) / 2;
     const gradient = (ground(contact.x + cross.x * 70, contact.z + cross.z * 70) -
       ground(contact.x - cross.x * 70, contact.z - cross.z * 70)) / 140;
-    return { contact, height, tail, length: span(wind), width: span(cross),
-      downslope: MathUtils.clamp(-gradient * 1.2, -0.42, 0.42) };
+    return [{ contact, height, tail, length: span(wind), width: span(cross),
+      downslope: MathUtils.clamp(-gradient * 1.2, -0.42, 0.42) }];
   });
 
   for (let i = 0; i < positions.length; i += 3) {

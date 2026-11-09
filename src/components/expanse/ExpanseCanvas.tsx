@@ -1,7 +1,7 @@
 'use client';
 
 import { addAfterEffect, Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   ACESFilmicToneMapping, BufferAttribute, BufferGeometry, InstancedBufferAttribute, InstancedMesh, MathUtils,
   MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, Quaternion, SRGBColorSpace, WebGLRenderer,
@@ -23,6 +23,7 @@ import { StormGrit } from './StormGrit';
 import { addRuinDeposits, ruinGroundContact } from './dressing-terrain';
 import { createDistantSteleMaterial, createRuinMaterial, createRuinPattern } from './ensemble-material';
 import { EnvironmentalDressing } from './EnvironmentalDressing';
+import { FutureCity } from './FutureCity';
 import { createMonumentGeometry, createMonumentMaterial, useMonumentAtlas } from '../monument-surface/atlas';
 import styles from './expanse.module.css';
 
@@ -61,13 +62,32 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant} dispose={null} />;
 }
 
+function StillMonument({ item, atmosphere, scatter, storm, mobile }: {
+  item: Monument; atmosphere: Atmosphere; scatter?: ReturnType<typeof sanctuaryUniforms>;
+  storm?: ReturnType<typeof createSandstorm>; mobile: boolean;
+}) {
+  const { gl, invalidate } = useThree();
+  const atlas = useMonumentAtlas(gl, invalidate);
+  const geometry = useMemo(createMonumentGeometry, []);
+  const material = useMemo(() => {
+    const stone = createMonumentMaterial(atlas, item.position);
+    applyAerialPerspective(stone, atmosphere, false, scatter, storm, mobile);
+    return stone;
+  }, [atlas, atmosphere, item, scatter, storm, mobile]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(() => () => material.dispose(), [material]);
+  return <mesh geometry={geometry} material={material} position={item.position}
+    quaternion={item.quaternion} scale={item.scale} castShadow receiveShadow />;
+}
+
 function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere, sanctuary, sanctuaryPointer }:
   Pick<Props, 'mobile' | 'windView' | 'skyView' | 'debug' | 'reduced'> & SanctuaryInput & { visible: boolean; atmosphere: Atmosphere }) {
   const { invalidate, gl } = useThree();
   const monuments = useMemo(() => buildMonuments(EXPANSE), []);
+  const futureCity = EXPANSE.futureCity.enabled;
   const batches = useMemo(() => {
     return { box: monuments.filter(x => x.kind === 'box'), wedge: monuments.filter(x => x.kind === 'wedge'),
-      hero: monuments.filter(x => x.id === EXPANSE.hero.id),
+      hero: monuments.find(x => x.id === EXPANSE.hero.id),
       distant: monuments.filter(x => x.family === 'Distant Stelae') };
   }, [monuments]);
   const terrain = useMemo(() => {
@@ -81,38 +101,32 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
   }, [mobile, monuments]);
   const groundHeight = useMemo(() => renderedGround(terrain.geometry.getAttribute('position').array,
     EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop'], EXPANSE.terrain), [terrain, mobile]);
-  const hero = batches.hero[0];
-  const field = useMemo(() => sanctuary ? createSanctuaryField(hero, terrain.baseGround) : null, [hero, terrain, sanctuary]);
+  const hero = batches.hero;
+  const field = useMemo(() => sanctuary && hero ? createSanctuaryField(hero, terrain.baseGround) : null, [hero, terrain, sanctuary]);
   const scatter = useMemo(() => field ? sanctuaryUniforms(field) : undefined, [field]);
   const windSurface = useMemo(() => windSurfaceAbove(groundHeight, monuments), [groundHeight, monuments]);
   const windActive = windView !== 'static';
   const storm = useMemo(() => windActive ? createSandstorm() : null, [windActive]);
   useEffect(() => () => storm?.stormNoise.value.dispose(), [storm]);
   const geometries = useMemo(() => {
-    const box = new RoundedBoxGeometry(1, 1, 1, 1, 0.014);
-    const ground = batches.box.flatMap(item => {
-      const { x, z } = ruinGroundContact(item, groundHeight);
-      const dx = (groundHeight(x + 50, z) - groundHeight(x - 50, z)) / 100;
-      const dz = (groundHeight(x, z + 50) - groundHeight(x, z - 50)) / 100;
-      return [groundHeight(x, z) + (item.position[0] - x) * dx + (item.position[2] - z) * dz, dx, dz];
-    });
-    box.setAttribute('ruinGround', new InstancedBufferAttribute(new Float32Array(ground), 3));
+    const box = futureCity ? null : new RoundedBoxGeometry(1, 1, 1, 1, 0.014);
+    if (box) {
+      const ground = batches.box.flatMap(item => {
+        const { x, z } = ruinGroundContact(item, groundHeight);
+        const dx = (groundHeight(x + 50, z) - groundHeight(x - 50, z)) / 100;
+        const dz = (groundHeight(x, z + 50) - groundHeight(x, z - 50)) / 100;
+        return [groundHeight(x, z) + (item.position[0] - x) * dx + (item.position[2] - z) * dz, dx, dz];
+      });
+      box.setAttribute('ruinGround', new InstancedBufferAttribute(new Float32Array(ground), 3));
+    }
     return { box, wedge: batches.wedge.length ? indexedGeometry(buildWedgeData()) : null,
-      slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.distantSteleGroove, EXPANSE.hero.topScale)),
-      core: createMonumentGeometry() };
-  }, [batches, groundHeight]);
-  const ruinPattern = useMemo(createRuinPattern, []);
-  useEffect(() => () => ruinPattern.dispose(), [ruinPattern]);
-  const atlas = useMonumentAtlas(gl, invalidate);
-  const heroStone = useMemo(() => {
-    const material = createMonumentMaterial(atlas, hero.position);
-    applyAerialPerspective(material, atmosphere, false, scatter, storm ?? undefined, mobile);
-    return material;
-  }, [atlas, atmosphere, hero, scatter, storm, mobile]);
-  useEffect(() => () => heroStone.dispose(), [heroStone]);
+      slotted: indexedGeometry(buildSlottedMonolithData(EXPANSE.distantSteleGroove, EXPANSE.hero.topScale)) };
+  }, [batches, futureCity, groundHeight]);
+  const ruinPattern = useMemo(() => futureCity ? null : createRuinPattern(), [futureCity]);
+  useEffect(() => () => ruinPattern?.dispose(), [ruinPattern]);
   const resources = useMemo(() => {
     const ground = createAeolianMaterial();
-    const stone = createRuinMaterial(ruinPattern);
+    const stone = ruinPattern ? createRuinMaterial(ruinPattern) : null;
     const dressing = new MeshStandardMaterial({ roughness: 0.94, vertexColors: true });
     const wedge = geometries.wedge ? new MeshStandardMaterial({ color: EXPANSE.atmosphere.monumentColor, roughness: 1 }) : null;
     const distant = createDistantSteleMaterial();
@@ -137,31 +151,33 @@ function World({ mobile, windView, skyView, visible, debug, reduced, atmosphere,
   useLayoutEffect(() => {
     gl.domElement.dataset.terrain = terrain.fingerprint;
     gl.domElement.dataset.quality = mobile ? 'mobile' : 'desktop';
-    gl.domElement.dataset.instances = String(batches.box.length + batches.wedge.length + batches.hero.length + batches.distant.length);
+    gl.domElement.dataset.instances = String(monuments.length);
     gl.shadowMap.needsUpdate = true; invalidate();
-  }, [terrain, gl, invalidate, mobile, batches]);
+  }, [terrain, gl, invalidate, mobile, monuments]);
   useEffect(() => () => terrain.geometry.dispose(), [terrain]);
   useEffect(() => () => {
-    geometries.box.dispose(); geometries.wedge?.dispose(); geometries.slotted.dispose();
-    geometries.core.dispose();
+    geometries.box?.dispose(); geometries.wedge?.dispose(); geometries.slotted.dispose();
   }, [geometries]);
   useEffect(() => () => {
-    resources.ground.dispose(); resources.stone.dispose();
+    resources.ground.dispose(); resources.stone?.dispose();
     resources.distant.dispose(); resources.dressing.dispose(); resources.wedge?.dispose();
   }, [resources]);
   return <group dispose={null}>
     <AtmosphericSky atmosphere={atmosphere} view={skyView} sanctuary={scatter}
       storm={storm ?? undefined} mobile={mobile} />
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
-    <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />
+    {futureCity && <Suspense fallback={null}>
+      <FutureCity ruin={batches.box[0]} atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} />
+    </Suspense>}
+    {geometries.box && resources.stone && <Instances items={batches.box} geometry={geometries.box} material={resources.stone} />}
     {geometries.wedge && resources.wedge && <Instances items={batches.wedge} geometry={geometries.wedge} material={resources.wedge} />}
     <EnvironmentalDressing ground={groundHeight} mobile={mobile} material={resources.dressing} />
-    <Instances items={batches.hero} geometry={geometries.core} material={heroStone} />
+    {hero && <StillMonument item={hero} atmosphere={atmosphere} scatter={scatter} storm={storm ?? undefined} mobile={mobile} />}
     <Instances items={batches.distant} geometry={geometries.slotted} material={resources.distant} distant />
     {storm && windView !== 'static' && <SandDust terrain={terrain.geometry} ground={groundHeight} windSurface={windSurface}
       storm={storm} mobile={mobile} mode={windView} visible={visible} debug={debug} />}
     {storm && windView === 'transport' && <StormGrit uniforms={storm} mobile={mobile} />}
-    {field && <SanctuaryMotes hero={hero} field={field} ground={groundHeight} mobile={mobile} storm={storm ?? undefined}
+    {hero && field && <SanctuaryMotes hero={hero} field={field} ground={groundHeight} mobile={mobile} storm={storm ?? undefined}
       visible={visible} reduced={reduced} pointer={sanctuaryPointer} debug={debug} />}
   </group>;
 }
@@ -339,7 +355,7 @@ export default function ExpanseCanvas(props: Props) {
   const [visible, setVisible] = useState(true);
   const windView = props.reduced ? 'static' : props.windView;
   const sanctuaryPointer = useRef<SanctuaryPointer>({ x: 0, y: 0, active: false });
-  const sanctuary = !props.debug || new URLSearchParams(window.location.search).get('sanctuary') !== 'off';
+  const sanctuary = !EXPANSE.futureCity.enabled && (!props.debug || new URLSearchParams(window.location.search).get('sanctuary') !== 'off');
   const atmosphere = useMemo(createAtmosphere, []);
   useEffect(() => () => atmosphere.uniforms.airSky.value.dispose(), [atmosphere]);
   useEffect(() => {
@@ -359,7 +375,8 @@ export default function ExpanseCanvas(props: Props) {
   return <Canvas className={styles.canvas} data-rendering={visible ? 'on-demand' : 'paused'}
     style={{ pointerEvents: 'none', touchAction: 'pan-y' }}
     frameloop={visible ? 'demand' : 'never'} dpr={[1, props.mobile ? 1.25 : 1.5]}
-    camera={{ near: 3, far: a.cameraFar, fov: 47 }} shadows={{ type: PCFShadowMap }}
+    camera={{ near: 3, far: EXPANSE.futureCity.enabled ? EXPANSE.futureCity.cameraFar : a.cameraFar, fov: 47 }}
+    shadows={{ type: PCFShadowMap }}
     gl={defaults => {
       const canvas = defaults.canvas as HTMLCanvasElement;
       const context = canvas.getContext('webgl2', { antialias: !props.mobile, alpha: false, powerPreference: 'high-performance' });

@@ -202,13 +202,19 @@ export function localVertices(kind: Monument['kind'], world: WorldParameters): V
 }
 
 export function buildMonuments(world: WorldParameters): Monument[] {
-  const field = world.alignment.map(part => ({
-    id: part.id, family: 'Mid Monoliths', kind: 'box' as const, scale: part.scale,
-    center: [part.ideal.center[0] + part.disturbed.offset[0], part.ideal.center[1] + part.disturbed.offset[1]],
-    orientation: [part.disturbed.orientation[0], part.ideal.yaw + part.disturbed.orientation[1], part.disturbed.orientation[2]],
-    burial: part.ideal.burial + part.disturbed.settlement,
-  }));
-  return [...field, ...world.distantStelae, world.hero].map(part => {
+  const ruin = world.futureCity.enabled ? world.futureCity.ruin : null;
+  const alignment = ruin ? world.alignment.filter(part => part.id === ruin.id) : world.alignment;
+  const field = alignment.map(part => {
+    const [pitch, yaw, roll] = part.disturbed.orientation;
+    const [shiftX, shiftZ] = ruin?.shift ?? [0, 0];
+    return {
+      id: part.id, family: 'Mid Monoliths', kind: 'box' as const, scale: ruin?.scale ?? part.scale,
+      center: [part.ideal.center[0] + part.disturbed.offset[0] + shiftX, part.ideal.center[1] + part.disturbed.offset[1] + shiftZ],
+      orientation: ruin?.orientation ?? [pitch, part.ideal.yaw + yaw, roll],
+      burial: ruin?.burial ?? part.ideal.burial + part.disturbed.settlement,
+    };
+  });
+  return [...field, ...world.distantStelae, ...(ruin ? [] : [world.hero])].map(part => {
     const radians = part.orientation.map(v => v * Math.PI / 180);
     const quaternion = new Quaternion().setFromEuler(new Euler(radians[0], radians[1], radians[2], 'YXZ'));
     const z=part.center[1], x=valleyAt(z,world).x+part.center[0];
@@ -485,9 +491,16 @@ export function sampleJourney(progress: number, world: WorldParameters) {
   const target = [0,1,2].map(axis => channel(world, progress, i => keys[i].target[axis])) as [number,number,number];
   target[0] += valleyAt(target[2],world).x;
   target[1] += valleyAt(target[2],world).floor;
+  if (world.futureCity.enabled) {
+    const { center, lookAtHeights, retarget } = world.futureCity;
+    const weight = smoothstep(...retarget, progress);
+    target[0] = center[0];
+    target[1] = center[1] + lerp(...lookAtHeights, weight);
+    target[2] = center[2];
+  }
   return { position, target: target as Vec3,
     roll: channel(world, progress, i => keys[i].roll),
-    fov: channel(world, progress, i => keys[i].fov) };
+    fov: world.futureCity.enabled ? world.futureCity.fov : channel(world, progress, i => keys[i].fov) };
 }
 
 // Contain the authored film gate: narrower windows reveal vertical space instead
