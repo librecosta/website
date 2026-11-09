@@ -94,8 +94,9 @@ function ObservationReadout({ cameraRef }: { cameraRef: RefObject<Camera | null>
   </div>;
 }
 
-export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressBar, progressFill, cameraRef }: {
+export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, progressBar, progressFill, cameraRef }: {
   ready: boolean; reduced: boolean; unavailable: boolean;
+  stage: RefObject<HTMLElement | null>;
   hint: RefObject<HTMLParagraphElement | null>;
   progressBar: RefObject<HTMLDivElement | null>;
   progressFill: RefObject<HTMLSpanElement | null>;
@@ -117,7 +118,7 @@ export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressB
         <span className={styles.soundIndicator} role="img" aria-label={enabled ? '声音开启' : '声音关闭'} data-enabled={enabled} />
       </div>
       <div className={styles.instrumentRight}>
-        <ExpanseSoundToggle />
+        <ExpanseSoundToggle stage={stage} showPrompt={ready && !reduced && !unavailable} />
         <div className={styles.reservedNav} lang="en" aria-hidden="true"><span>Works</span><span>About</span></div>
         <div className={styles.chapterGauge}>
           <svg viewBox="0 0 65 16" aria-hidden="true" fill="none" stroke="currentColor">
@@ -135,6 +136,7 @@ export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressB
       <path d="M11 1v6m0 8v6M1 11h6m8 0h6" stroke="var(--instrument-glint)" strokeWidth="2.4" />
       <path d="M11 1v6m0 8v6M1 11h6m8 0h6" stroke="currentColor" strokeWidth="1" />
       <path d="M10.3 10.3h1.4v1.4h-1.4z" fill="currentColor" />
+    </svg>}
     {!unavailable && <ObservationReadout cameraRef={cameraRef} />}
     <span className={styles.bilibiliMark} role="img" aria-label="Bilibili"
       onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
@@ -143,7 +145,6 @@ export function ExpanseInstrument({ ready, reduced, unavailable, hint, progressB
         <path d="m7.5 3.5 3.4 4m5.6-4-3.4 4M5 7.5h14l2 2v9.5l-2 2H5l-2-2V9.5Z M7 13.5l3-1m4 0 3 1" />
       </svg>
     </span>
-    </svg>}
     {!unavailable && <div className={styles.readout}>
       {reduced ? <p className={styles.staticNote}>静态观览 · 已减少动态效果</p> : <>
         <p ref={hint} className={styles.hint}>开始探索</p>

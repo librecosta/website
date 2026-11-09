@@ -112,7 +112,7 @@ export default function ExpanseLab() {
           onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
-      <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost}
+      <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost} stage={stage}
         hint={hint} progressBar={progressBar} progressFill={progressFill} cameraRef={cameraRef} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>

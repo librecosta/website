@@ -67,11 +67,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
 .brandCluster {
   display: flex;
   align-items: center;
   gap: clamp(8px, 1.1vw, 14px);
-}
 }
 .brand {
   width: clamp(122px, 13vw, 174px);
@@ -83,26 +83,32 @@
   transition: color 180ms ease;
 }
 .brand svg, .wordmarkSamples svg { display: block; width: 100%; height: auto; }
+.brand svg { filter: drop-shadow(0 0 1.5px var(--instrument-glint)); }
 .soundIndicator {
+  --indicator-transition: 420ms cubic-bezier(.2, .65, .25, 1);
   display: grid;
   flex: none;
-  width: 12px;
-  height: 12px;
+  width: 20px;
+  height: 20px;
   box-sizing: border-box;
   place-items: center;
-  border: 1px solid currentColor;
+  border: 2px solid currentColor;
   border-radius: 50%;
   color: #626964;
+  transition: color var(--indicator-transition);
 }
 .soundIndicator[data-enabled='true'] { color: #af3933; }
-.soundIndicator[data-enabled='true']::before {
-  width: 4px;
-  height: 4px;
+.soundIndicator::before {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentColor;
+  opacity: 0;
+  transform: scale(.45);
+  transition: opacity var(--indicator-transition), transform var(--indicator-transition);
   content: '';
 }
-.brand svg { filter: drop-shadow(0 0 1.5px var(--instrument-glint)); }
+.soundIndicator[data-enabled='true']::before { opacity: 1; transform: scale(1); }
 @media (hover: hover) { .brand:hover { color: #4c6960; } }
 .brand:focus-visible, .debug :focus-visible { outline: 2px solid #476254; outline-offset: 4px; }
 .instrumentRight, .reservedNav, .chapterGauge {
@@ -126,14 +132,36 @@
   border: 0;
   background: transparent;
   color: inherit;
-  font: inherit;
-  font-size: 11px;
+  font: 600 11px/1 var(--instrument-type);
+  letter-spacing: .08em;
+  text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
   pointer-events: auto;
 }
+.soundToggle span { inline-size: 60px; text-align: start; }
 .soundToggle:focus-visible { outline: 2px solid #476254; outline-offset: 4px; }
 .soundToggle[aria-pressed='false'] { color: var(--instrument-muted); }
+.audioStartPrompt {
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--instrument-ink);
+  font: 600 11px/1.14 var(--instrument-type);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  text-shadow: 0 0 3px var(--instrument-glint);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.audioStartPrompt::before { width: 5px; height: 5px; margin-top: 3px; background: currentColor; content: ''; }
+.audioStartPrompt[data-visible='true'] { opacity: 1; }
 .chapterGauge { gap: 8px; white-space: nowrap; }
 .chapterGauge svg { display: block; width: clamp(49px, 5.5vw, 64px); }
 .unlitCells { opacity: .24; }
@@ -173,6 +201,7 @@
 }
 .progress::before { left: -1px; }
 .progress::after { right: -1px; opacity: .62; }
+.progress span { display: block; height: 100%; background: linear-gradient(90deg, #476458, #263a32); transform: scaleX(0); transform-origin: left center; }
 .observationData {
   position: absolute;
   bottom: calc(var(--edge-bottom) + var(--rail) - 4px);
@@ -206,7 +235,6 @@
 @media (hover: hover) {
   .bilibiliMark:hover { color: var(--instrument-ink); filter: drop-shadow(0 0 2px var(--instrument-glint)); }
 }
-.progress span { display: block; height: 100%; background: linear-gradient(90deg, #476458, #263a32); transform: scaleX(0); transform-origin: left center; }
 .journey[data-ready='true'] .instrument { animation: instrument-reveal 460ms ease-out both; }
 @keyframes instrument-reveal { from { opacity: .72; } to { opacity: 1; } }
 .loading { position: absolute; top: 50%; left: 0; width: 100%; margin: 0; text-align: center; font-size: 12px; color: #656e61; }
@@ -235,6 +263,7 @@
 .wordmarkStudy summary { cursor: pointer; }
 .wordmarkSamples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 8px 0 0; }
 .wordmarkSamples dt { margin-bottom: 6px; font-size: 10px; }
+.wordmarkSamples dd { display: grid; align-items: center; width: clamp(82px, 12vw, 120px); min-height: 20px; margin: 0; color: var(--instrument-ink); }
 @media (max-width: 940px) {
   .readout { bottom: calc(var(--edge-bottom) + var(--rail) + 66px); }
   .debug {
@@ -242,27 +271,33 @@
     max-height: max(80px, calc(100dvh - var(--edge-bottom) - var(--edge-top) - var(--rail) - 205px));
   }
 }
-.wordmarkSamples dd { display: grid; align-items: center; width: clamp(82px, 12vw, 120px); min-height: 20px; margin: 0; color: var(--instrument-ink); }
 @media (max-width: 700px) {
   .readout { width: min(390px, 63%); }
-  .observationData { font-size: 9px; }
+  .soundIndicator { width: 17px; height: 17px; }
+  .soundIndicator::before { width: 7px; height: 7px; }
   .hint, .staticNote { font-size: 10px; }
+  .observationData { font-size: 9px; }
   .debug { max-width: calc(100% - var(--edge-left) - var(--edge-right) - 2 * var(--rail) - 26px); }
 }
 @media (max-width: 520px) {
   .instrumentRight { display: grid; grid-template-columns: auto auto; justify-items: end; gap: 4px 8px; padding-block: 5px 0; }
-  .soundToggle { grid-row: 1; min-height: 28px; }
+  .soundToggle { grid-row: 1; min-height: 28px; font-size: 10px; }
+  .soundToggle span { inline-size: 54px; }
   .reservedNav { grid-column: 1 / -1; grid-row: 2; }
   .reservedNav, .chapterGauge { font-size: 10px; }
 }
-@media (max-width: 360px) {
+@media (max-width: 400px) {
+  .instrumentHeader { gap: 8px; }
   .brand { width: 104px; }
+}
+@media (max-width: 369px) {
   .soundToggle { min-width: 28px; justify-content: center; }
   .soundToggle span { display: none; }
 }
 .journey[data-reduced='true'] .instrument { animation: none; }
 .journey[data-reduced='true'] :is(.brand, .bilibiliMark) { transition: none; }
+.journey[data-reduced='true'] .soundIndicator, .journey[data-reduced='true'] .soundIndicator::before { transition: none; }
 @media (prefers-reduced-motion: reduce) {
-  .canvas, .brand, .bilibiliMark { transition: none; }
+  .canvas, .brand, .bilibiliMark, .soundIndicator, .soundIndicator::before { transition: none; }
   .journey[data-ready='true'] .instrument { animation: none; }
 }
