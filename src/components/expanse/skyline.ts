@@ -5,6 +5,7 @@ import type { Vec3, WorldParameters } from './parameters.ts';
 type City = WorldParameters['futureCity'];
 type District = City['outerDistricts'][number] | City['middleDistricts'][number];
 type Building = { position: Vec3; size: Vec3; yaw: number; shade: number };
+type ShaftLevel = [x: number, y: number, z: number, width: number, depth: number];
 const alloy = {
   silver: '#8a9eaf', shell: '#a3afbb', inset: '#111c27', footing: '#3d4751',
   rail: '#5b6f85', web: '#273849', sand: '#aa9980',
@@ -42,7 +43,7 @@ function pier(at: Vec3, size: Vec3, taper: number, color: string, cut = .13, lit
   ], color, cut, lit);
 }
 
-function shaft(levels: [number, number, number, number, number][], color: string, cut: number,
+function shaft(levels: ShaftLevel[], color: string, cut: number,
   lit?: (level: number, side: number) => number) {
   const section = [[-.5 + cut, .5], [-.5, .5 - cut], [-.5, -.5 + cut], [-.5 + cut, -.5],
     [.5 - cut, -.5], [.5, -.5 + cut], [.5, .5 - cut], [.5 - cut, .5]];
@@ -157,6 +158,103 @@ function buildSatellites({ count, orbitRadius, sphereRadius }: City['satellites'
   return merge(members);
 }
 
+function buildSpireWing(side: -1 | 1, coreWidth: number) {
+  const z = side < 0 ? 10 : -245;
+  const top = side < 0 ? 8750 : 8370;
+  const profile: ShaftLevel[] = [
+    [side * (coreWidth / 2 - 320), 970, z, 640, 1160],
+    [side * 390, 4050, z - 16, 582, 1050],
+    [side * 390, 4500, z - 58, 532, 925],
+    [side * 390, 6570, z - 91, 447, 808],
+    [side * 370, 6800, z - 130, 368, 654],
+    [side * 340, top - 395, z - 169, 228, 317],
+    [side * 330, top, z - 188, 148, 190],
+  ];
+  const sectionAt = (y: number): ShaftLevel => {
+    const next = profile.findIndex(level => level[1] >= y);
+    if (next === 0) return profile[0];
+    const [x0, y0, z0, w0, d0] = profile[next - 1];
+    const [x1, y1, z1, w1, d1] = profile[next];
+    const t = (y - y0) / (y1 - y0);
+    return [MathUtils.lerp(x0, x1, t), y, MathUtils.lerp(z0, z1, t),
+      MathUtils.lerp(w0, w1, t), MathUtils.lerp(d0, d1, t)];
+  };
+
+  // Keep the rear line and taper. Recess the leading face behind the shell courses.
+  const wing = [[970, 0], [1500, 210], [4050, 230], [4500, 240], [6570, 165],
+    [6800, 0], [top - 395, 0], [top, 0]].map(([y, recess]): ShaftLevel => {
+    const [x, , z, w, d] = sectionAt(y);
+    return [x, y, z - recess / 2, w, d - recess];
+  });
+  const parts = [
+    shaft(wing, alloy.rail, .23),
+    // The flared shoe carries the wing into the stepped podium.
+    shaft([
+      [side * 487, 790, z - 80, 735, 1300],
+      [side * 466, 1170, z - 48, 665, 1110],
+      [side * 414, 1730, z - 100, 490, 750],
+    ], alloy.footing, .19),
+  ];
+  const offset = side > 0 ? 100 : 0;
+  const courses = [
+    { from: 1620, to: 2690 - offset, width: .77, shift: .035, thickness: 104, color: alloy.shell },
+    { from: 2870 - offset, to: 4310 - offset, width: .66, shift: .085, thickness: 114, color: alloy.shell },
+    { from: 4515, to: 6240 - offset, width: .72, shift: .025, thickness: 88, color: alloy.silver },
+  ];
+  for (const { from, to, width, shift, thickness, color } of courses) {
+    const stations = [from, from + 90, ...profile.map(level => level[1]).filter(y => y > from + 90 && y < to - 70), to - 70, to];
+    const casing = stations.map((y, i): ShaftLevel => {
+      const [x, , z, w, d] = sectionAt(y);
+      const rim = i === 0 || i === stations.length - 1;
+      return [x + side * w * shift, y, z + d / 2 - 15 - thickness / 2,
+        w * width * (rim ? .84 : 1), thickness - (rim ? 30 : 0)];
+    });
+    const [x, y, z, w, d] = sectionAt((from + to) / 2);
+    // A short bracket seats each shell against the wing and leaves the ends open.
+    parts.push(shaft(casing, color, .15),
+      pier([x + side * w * shift, y - 68, z + d / 2 - 177], [w * .34, 136, 188], 1, alloy.web, .16));
+  }
+  return parts;
+}
+
+function buildAxialSpire(coreWidth: number) {
+  const parts = [
+    pier([0, -180, 80], [3650, 405, 3270], .91, alloy.footing, .23),
+    pier([0, 205, 10], [2920, 420, 2720], .88, alloy.shell, .19),
+    pier([0, 595, -100], [2100, 375, 2040], .86, alloy.silver, .21),
+    pier([0, 950, -190], [1390, 575, 1390], .80, alloy.inset, .24),
+    // The wings form the side walls of the bay. This spine closes it from behind.
+    shaft([
+      [0, 1120, -385, 880, 730],
+      [0, 1640, -595, 760, 600],
+      [0, 3100, -650, 740, 530],
+      [0, 5000, -635, 675, 530],
+      [0, 6500, -595, 535, 480],
+      [0, 6870, -540, 455, 450],
+      [0, 7360, -460, 270.3, 300.9],
+    ], alloy.inset, .22),
+    ...buildSpireWing(-1, coreWidth),
+    ...buildSpireWing(1, coreWidth),
+  ];
+  for (const side of [-1, 1]) {
+    parts.push(shaft([
+      [side * 158, 1440, -280, 170, 270],
+      [side * 123, 2870, -341, 120, 170],
+      [side * 104, 4970, -326, 102, 170],
+      [side * 100, 6470, -341, 76, 146],
+    ], alloy.rail, .18, (level, face) => level === 1 && face === (side < 0 ? 6 : 0) ? 1 : 0));
+  }
+  for (const [y, span, front] of [[2680, 950, 176], [4740, 850, 123]]) {
+    // Two diaphragms tie both wings to the spine. The tall bays between them stay open.
+    const back = -520;
+    const depth = front - back;
+    const z = (front + back) / 2;
+    parts.push(pier([0, y, z], [span, 121, depth], 1, alloy.silver, .12),
+      pier([0, y - 142, z - 52], [span * .75, 144, depth - 92], 1.28, alloy.footing, .15));
+  }
+  return parts;
+}
+
 export function buildSkyline(city: City, seed: number, compact: boolean) {
   const parts: BufferGeometry[] = [];
   const outer = populate(city.outerDistricts, false, seed);
@@ -177,30 +275,9 @@ export function buildSkyline(city: City, seed: number, compact: boolean) {
     parts.push(...shelf.map(piece => piece.rotateY(yaw).translate(x, 0, z)));
   }
 
-  const civic = [
-    pier([0, -180, 80], [3650, 405, 3270], .91, alloy.footing, .23),
-    pier([0, 205, 10], [2920, 420, 2720], .88, alloy.shell, .19),
-    pier([0, 595, -100], [2100, 375, 2040], .86, alloy.silver, .21),
-    pier([0, 950, -190], [1390, 575, 1390], .80, alloy.inset, .24),
-    pier([0, 1375, -360], [770, 5470, 970], .64, alloy.inset, .23),
-    pier([0, 6010, -460], [530, 1350, 590], .51, alloy.silver, .28),
-  ];
-  parts.push(...civic);
+  parts.push(...buildAxialSpire(city.coreWidth));
   for (const sign of [-1, 1]) {
-    // Two tapering load-bearing blades frame a real sky opening above the recessed spine.
-    const z = sign < 0 ? 10 : -245;
-    const top = sign < 0 ? 8750 : 8370;
     parts.push(
-      shaft([
-        [sign * (city.coreWidth / 2 - 320), 970, z, 640, 1160],
-        [sign * 390, 4050, z - 16, 582, 1050],
-        [sign * 390, 4500, z - 58, 532, 925],
-        [sign * 390, 6570, z - 91, 447, 808],
-        [sign * 370, 6800, z - 130, 368, 654],
-        [sign * 340, top - 395, z - 169, 228, 317],
-        [sign * 330, top, z - 188, 148, 190],
-      ], alloy.silver, .23, (level, side) => level < 5 && (side === 7 || side === (sign < 0 ? 5 : 1)) ? 1 : 0),
-      pier([sign * 620, 900, z + 60], [145, 3720, 640], .49, alloy.inset),
       pier([sign * 1050, 800, -830], [535, 2870, 650], .61, alloy.silver, .23),
       pier([sign * 1445, 510, -1060], [460, 1880, 720], .65, alloy.shell, .21),
       pier([sign * 1700, 355, -1740], [410, 1990, 520], .50, alloy.silver),
