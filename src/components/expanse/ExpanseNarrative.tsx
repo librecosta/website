@@ -8,43 +8,40 @@ const charactersPerSecond = 14;
 
 const entryCharacters = witnessSequence.map(record => record.lines.map(line => Array.from(line)));
 
+function GlassCorner({ right = false }: { right?: boolean }) {
+  return <svg className={styles.glassCorner} data-right={right} viewBox="0 0 46 24" fill="none" aria-hidden="true">
+    <path className={styles.cornerBracket} d="M2 17 15 4h25v4H17L5 20Z" />
+    <path className={styles.cornerRim} d="M2 17 15 4h25M6 21 19 8h20" />
+    <path className={styles.cornerLight} d="M7 15 17 5h12" />
+    <path className={styles.cornerEtch} d="m16 15 5-5h12m2 0h4m2 0h3" />
+  </svg>;
+}
+
 function ObserverLog({ active, ready, reduced }: { active: NarrativeCue; ready: boolean; reduced: boolean }) {
   const { cue, stopTextCue } = useSiteAudio();
   const history = useRef<HTMLDivElement>(null);
   const following = useRef(true);
-  const [historyBounds, setHistoryBounds] = useState({ older: false, newer: false });
   const [draft, setDraft] = useState({ index: -1, count: 0 });
   const timeline = useRef<gsap.core.Timeline | null>(null);
   const { index, animate } = active;
-  const total = entryCharacters[index].reduce((sum, line) => sum + line.length, 0);
-  const write = ready && animate && !reduced;
+  const visible = ready && index >= 0;
+  const total = entryCharacters[index]?.reduce((sum, line) => sum + line.length, 0) ?? 0;
+  const write = visible && animate && !reduced;
   const count = draft.index === index ? draft.count : 0;
   const typing = write && count < total;
-  const last = reduced ? witnessSequence.length - 1 : index;
 
-  const updateBounds = useCallback(() => {
+  const refreshHistory = useCallback(() => {
     const view = history.current!;
-    const older = view.scrollTop > 1;
-    const newer = view.scrollHeight - view.clientHeight - view.scrollTop > 1;
-    setHistoryBounds(previous => previous.older === older && previous.newer === newer ? previous : { older, newer });
-    return newer;
+    if (following.current) view.scrollTop = view.scrollHeight;
+    view.toggleAttribute('data-overflow', view.scrollHeight - view.clientHeight > 1);
   }, []);
   useLayoutEffect(() => {
     const view = history.current!;
-    const refresh = () => {
-      if (following.current) view.scrollTop = view.scrollHeight;
-      updateBounds();
-    };
-    refresh();
-    const observer = new ResizeObserver(refresh);
+    const observer = new ResizeObserver(refreshHistory);
     observer.observe(view);
     return () => observer.disconnect();
-  }, [updateBounds]);
-  useLayoutEffect(() => {
-    const view = history.current!;
-    if (following.current) view.scrollTop = view.scrollHeight;
-    updateBounds();
-  }, [draft, last, ready, write, updateBounds]);
+  }, [refreshHistory]);
+  useLayoutEffect(refreshHistory, [draft, index, visible, write, refreshHistory]);
 
   useEffect(() => {
     if (!write) return;
@@ -79,29 +76,20 @@ function ObserverLog({ active, ready, reduced }: { active: NarrativeCue; ready: 
     stopTextCue();
     setDraft({ index, count: total });
   };
-  const move = (latest: boolean) => {
-    const view = history.current!;
-    following.current = latest;
-    view.scrollTop = latest ? view.scrollHeight : view.scrollTop - view.clientHeight / 2;
-    updateBounds();
-  };
   let remaining = count;
   let cursorPlaced = false;
-  return <section className={styles.observer} aria-label="观察日志" data-observer-log={witnessSequence[last].id}
-    data-writing={typing} data-history={historyBounds.newer}>
+  return <section className={styles.observer} aria-label="观察日志" data-observer-log={witnessSequence[index]?.id ?? ''}
+    data-writing={typing} data-reading={visible}>
     <span className={styles.glass} aria-hidden="true" />
-    <svg className={styles.guide} viewBox="0 0 352 92" preserveAspectRatio="none" fill="none" aria-hidden="true">
-      <path className={styles.trace} d="M0 91V29L16 10H226L238 1H351M12 41V32L25 18H45M294 9H351" />
-      <path className={styles.traceLight} d="M0 39V29L16 10H66M226 10L238 1H260" />
-    </svg>
-    <header className={styles.logHeader}>
-      <i key={index} className={styles.lamp} aria-hidden="true" />
-      <span lang="en">WITNESS / OBSERVATION LOG</span>
-      <span className={styles.recordNumber}>{witnessSequence[last].id}</span>
-    </header>
-    <div className={styles.history} ref={history} tabIndex={historyBounds.older || historyBounds.newer ? 0 : -1}
-      aria-label="独白历史" onClick={complete} onScroll={() => { following.current = !updateBounds(); }}>
-      {ready && witnessSequence.slice(0, last + 1).flatMap((record, entry) =>
+    <GlassCorner />
+    <GlassCorner right />
+    <div className={styles.history} ref={history} role="region" aria-label="独白历史"
+      aria-description={typing ? '按 Enter 显示完整独白' : undefined} tabIndex={visible ? 0 : -1}
+      onClick={complete} onKeyDown={event => { if (event.key === 'Enter') complete(); }}
+      onScroll={({ currentTarget: view }) => {
+        following.current = view.scrollHeight - view.clientHeight - view.scrollTop <= 1;
+      }}>
+      {visible && witnessSequence.slice(0, index + 1).flatMap((record, entry) =>
         entryCharacters[entry].map((line, lineIndex) => {
           const current = write && entry === index;
           const cursor = typing && current && !cursorPlaced && remaining < line.length && remaining >= 0;
@@ -112,17 +100,6 @@ function ObserverLog({ active, ready, reduced }: { active: NarrativeCue; ready: 
             {text}{cursor && <i className={styles.cursor} aria-hidden="true" />}
           </p> : null;
         }))}
-    </div>
-    <div className={styles.logControls}>
-      <button type="button" aria-label="立即显示完整独白" title="立即显示完整独白" disabled={!typing} onClick={complete}>
-        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="m2 4 3 3-3 3m5-6 3 3-3 3" /></svg>
-      </button>
-      <button type="button" aria-label="查看较早日志" title="查看较早日志" disabled={!historyBounds.older} onClick={() => move(false)}>
-        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="m3 8 4-4 4 4" /></svg>
-      </button>
-      <button type="button" aria-label="返回最新日志" title="返回最新日志" disabled={!historyBounds.newer} onClick={() => move(true)}>
-        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="m3 5 4 4 4-4" /></svg>
-      </button>
     </div>
   </section>;
 }

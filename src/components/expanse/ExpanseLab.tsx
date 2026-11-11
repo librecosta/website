@@ -50,7 +50,7 @@ export default function ExpanseLab() {
   const distances = useRef({ intro: 0, travel: 0, hold: 0 });
   const narrativeLayer = useRef<HTMLDivElement>(null);
   const reached = useRef(-1);
-  const [narrative, setNarrative] = useState<NarrativeCue>({ index: 0, animate: true });
+  const [narrative, setNarrative] = useState<NarrativeCue>({ index: -1, animate: false });
   const [brandActive, setBrandActive] = useState(false);
   const observationElements = useRef<ObservationElements>({ buttons: {}, readouts: {}, card: null });
   const [observation, setObservation] = useState<ObservationId | null>(null);
@@ -169,10 +169,11 @@ export default function ExpanseLab() {
           brand.time(revealTime);
         }
         const progress = Math.min(raw, path);
+        if (offset < intro) return;
         const index = progress >= narrativeTiming.arrival ? 2 : progress >= cityIn ? 1 : 0;
         if (index <= reached.current) return;
         const animate = index === reached.current + 1 &&
-          (index === 0 || (index === 1 ? raw < cityOut : tail < narrativeTiming.brandStart));
+          (index === 0 ? raw < cityIn : index === 1 ? raw < cityOut : tail < narrativeTiming.brandStart);
         reached.current = index;
         setNarrative({ index, animate });
       };

@@ -194,7 +194,7 @@ export class SiteAudio {
     filter.type = 'lowpass';
     filter.frequency.value = 2500;
     filter.Q.value = .5;
-    envelope.gain.value = .052;
+    envelope.gain.value = .156;
     voice.connect(filter).connect(envelope).connect(this.buses.ui);
     this.textPulse = { voice, envelope };
     voice.onended = () => {
