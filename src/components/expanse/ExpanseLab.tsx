@@ -12,7 +12,7 @@ import { mapJourneyProgress } from './journey-timing';
 import { ExpanseInstrument, WordmarkStudy } from './ExpanseInstrument';
 import { ExpanseAudioLevels } from './ExpanseAudio';
 import { ExpanseNarrative, ExpanseTranscript } from './ExpanseNarrative';
-import { narrativeTiming, type NarrativeCue, type ObservationId } from './narrative';
+import { narrativeTiming, type ObservationId } from './narrative';
 import { ExpanseSignals, SignalReadouts } from './ExpanseSignals';
 import type { ObservationElements } from './ObservationProjection';
 import styles from './expanse.module.css';
@@ -53,8 +53,10 @@ export default function ExpanseLab() {
   const progressBar = useRef<HTMLDivElement>(null), progressFill = useRef<HTMLSpanElement>(null);
   const distances = useRef({ intro: 0, travel: 0, hold: 0 });
   const narrativeLayer = useRef<HTMLDivElement>(null);
-  const reached = useRef(-1);
-  const [narrative, setNarrative] = useState<NarrativeCue>({ index: -1, animate: false });
+  const reachedSubtitle = useRef(-1);
+  const sceneReady = useRef(false);
+  const syncNarrative = useRef<(() => void) | null>(null);
+  const [subtitle, setSubtitle] = useState<number | null>(null);
   const [brandActive, setBrandActive] = useState(false);
   const observationElements = useRef<ObservationElements>({ buttons: {}, readouts: {}, card: null });
   const [observation, setObservation] = useState<ObservationId | null>(null);
@@ -74,8 +76,17 @@ export default function ExpanseLab() {
     if (editorStarted && !editorOpen) editorToggle.current?.focus({ preventScroll: true });
   }, [editorOpen, editorStarted]);
   const reduced = mediaReduced || forceReduced;
-  const onReady = useCallback(() => setReady(true), []);
-  const onContextLost = useCallback(() => { setContextLost(true); setReady(false); setObservation(null); }, []);
+  const onReady = useCallback(() => {
+    sceneReady.current = true;
+    setReady(true);
+    syncNarrative.current?.();
+  }, []);
+  const onContextLost = useCallback(() => {
+    sceneReady.current = false;
+    setContextLost(true);
+    setReady(false);
+    setObservation(null);
+  }, []);
   const closeObservation = useCallback(() => {
     if (!observation) return;
     const marker = observationElements.current.buttons[observation];
@@ -135,7 +146,7 @@ export default function ExpanseLab() {
     const context = gsap.context(() => {
       if (reduced || contextLost) {
         setBrandActive(false);
-        setNarrative(current => current.animate ? { ...current, animate: false } : current);
+        setSubtitle(null);
         return;
       }
       const entranceEnd = `top+=${intro} top`;
@@ -156,6 +167,7 @@ export default function ExpanseLab() {
         .to(parts[2], { duration: .18 }, .77);
       let revealTime = 0;
       let brandShown = false;
+      let activeSubtitle: number | null = null;
       let routeStart = element.offsetTop;
       const clamp = gsap.utils.clamp(0, 1);
       const [cityIn, cityOut] = narrativeTiming.city;
@@ -174,14 +186,18 @@ export default function ExpanseLab() {
           revealTime = nextRevealTime;
           brand.time(revealTime);
         }
+        if (!sceneReady.current) return;
+        // Start on the camera's smoothed position. Expire on native scroll so
+        // a fast jump cannot queue captions for shots already left behind.
         const progress = Math.min(raw, path);
-        if (offset < intro) return;
         const index = progress >= narrativeTiming.arrival ? 2 : progress >= cityIn ? 1 : 0;
-        if (index <= reached.current) return;
-        const animate = index === reached.current + 1 &&
-          (index === 0 ? raw < cityIn : index === 1 ? raw < cityOut : tail < narrativeTiming.brandStart);
-        reached.current = index;
-        setNarrative({ index, animate });
+        const earliest = tail >= narrativeTiming.brandStart ? 3 : raw >= cityOut ? 2 : raw >= cityIn ? 1 : 0;
+        reachedSubtitle.current = Math.max(reachedSubtitle.current, earliest - 1);
+        const next = index >= earliest && (index === activeSubtitle || index > reachedSubtitle.current) ? index : null;
+        if (next === activeSubtitle) return;
+        activeSubtitle = next;
+        if (next !== null) reachedSubtitle.current = next;
+        setSubtitle(next);
       };
       ScrollTrigger.create({
         trigger: element, start: 'top top', end: 'bottom bottom',
@@ -202,8 +218,10 @@ export default function ExpanseLab() {
           onUpdate: updateScroll, onRefresh: updateScroll },
       });
     }, root);
+    syncNarrative.current = updateNarrative;
     paint(); ScrollTrigger.refresh();
     return () => {
+      syncNarrative.current = null;
       context.revert();
       element.removeAttribute('data-exploring');
     };
@@ -230,13 +248,13 @@ export default function ExpanseLab() {
       <ExpanseSignals elements={observationElements} enabled={ready && !contextLost}
         active={observation} read={read} onSelect={selectObservation}
         invalidate={invalidateScene} />
-      <ExpanseNarrative layer={narrativeLayer} active={narrative} brandActive={brandActive}
+      <ExpanseNarrative layer={narrativeLayer} subtitle={subtitle} brandActive={brandActive}
         ready={ready} reduced={reduced} unavailable={contextLost} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} data-editor-open={editorOpen && !contextLost} aria-label="场景调试">
         <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
-        <div>主线 {narrative.index + 1} / 3 · 全息卡 {observation ?? '关闭'}</div>
+        <div>主线 {reachedSubtitle.current + 1} / 3 · 全息卡 {observation ?? '关闭'}</div>
         <div>{([['起点 · Passage', 0], ['50%', .5], ['终点', 1]] as const)
           .map(([label, progress]) => <button key={label} type="button" disabled={reduced || contextLost} onClick={() => seek(progress)}>{label}</button>)}
           <button type="button" disabled={reduced || contextLost} onClick={() => seek(1, true)}>品牌</button>

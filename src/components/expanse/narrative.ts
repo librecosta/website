@@ -24,7 +24,6 @@ export const expanseBrand = {
 } as const;
 
 export const witnessSequence = [witnessRecords.opening, witnessRecords.passage, witnessRecords.arrival] as const;
-export type NarrativeCue = { index: number; animate: boolean };
 
 export const narrativeTiming = {
   // Path coordinates. The left ruin clears before the city entry, and the
