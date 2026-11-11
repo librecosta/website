@@ -1,67 +1,43 @@
-# R1-C3 · High-Poly Surface Language
+# Witness Core · R1-C3 High-Poly Surface Language
 
-> P1-A 归档：本目录仅为资产研究历史，不是选定的正式资产。`.blend`、模型导出、纹理和预览已移出 Git 当前索引，原文件完整保留本地；克隆仓库后按本文命令重建。上游灰模先运行 `art/witness-core/r1-b/build.py -- --previews`，R1-C 工程再由 `r1-c/study.py` 生成。文中的图像／视频／工程路径都是本地输出，不是仓库下载链接。
+> Historical asset research. The study uses one L-shaped ring corner and supersedes the R1-C2 dimpled surface. Rebuild R1-C first. R1-C2 is optional and only provides a comparison fingerprint when its project is present. [Upstream rebuild](../r1-c/README.md)
 
-R1-C3 建模只读取上游 R1-C。若本地有 R1-C2，会额外保存其未修改摘要；新克隆不需为这个摘要重建已否决的 R1-C2 样板。旧验证报告是对应历史文件的快照，重建会更新报告与摘要。
+## Surface studies
 
-仅验证一段 **L 形环体截角**，停止发展 R1-C2 的坑洞／损伤方向。旧成果保留作历史对照；R1-B2、R1-C、R1-C2 原工程均未覆盖。未修改整机、关节、动画、内核或网站。
+| Variant | High-poly surface | Color and roughness |
+| --- | --- | --- |
+| A · Forged Plain | Broad shallow undulations across the main faces, with weaker relief on the inner walls. | Blackened metal, roughness 0.44–0.49, very subtle large-scale variation. |
+| B · Forged + Precision Machined | Forged body and refined inner wall, inner top, and top cut. Parallel machining lines are modeled into the refined faces. | Same body as A. Refined faces are slightly brighter with roughness 0.30–0.37. Bevels retain their continuous highlights. |
+| C · Aged Precision | Shares B's exact high-poly geometry. | Roughness 0.45–0.55 on the body, uneven low-contrast oxidation, and locally brighter bevels with roughness 0.31–0.35. |
 
-## 三个样板
+B was the study's preferred candidate for weight, machining, and geometric order. C was retained as a subtle aging variant. All three remained samples.
 
-| 方案 | 真实高模形体 | 颜色／粗糙度细节 | 判断 |
-| --- | --- | --- | --- |
-| A · Forged Plain | 大面宽缓、连续的浅锻造起伏；内壁也保留较弱起伏。 | 黑化金属，主体 Roughness 0.44–0.49，极轻的大尺度变化。 | 最安静，但中景中主体与内缘的制造差异较弱。 |
-| B · Forged + Precision Machined | 与 A 相同的锻造主体；内壁、内侧顶面与顶部切面换为精修平面，真实塑造平行加工细纹。 | 主体与 A 一致；精修面略亮，Roughness 0.30–0.37；倒角保留完整接光。 | **优先推荐**：重量、精修与几何秩序的关系最清楚。 |
-| C · Aged Precision | **与 B 共享完全相同的高模网格**，不增加凹坑或损伤。 | 主体 Roughness 0.45–0.55；低对比、不均匀的灰色微氧化，倒角局部略亮、Roughness 0.31–0.35。 | 可作为 B 的轻微年代变体；不是另一套雕刻。 |
+## Geometry and baking
 
-本轮是**参数化高模塑形**，不是笔刷手工雕刻。表面形体由少量确定性的宽缓控制函数直接修改密集网格顶点；没有 Noise、Voronoi、Bump 或 Shader Displacement 节点伪装高模，也没有坑洞、蜂窝、裂纹、腐蚀或碎裂。
+- The sample is 2.60 long and 1.80 high, with a 0.72 × 0.72 beam and a 0.012 BU three-segment bevel. The physical scale remains open.
+- A and B each have 280,008 high-poly vertices and 560,012 triangles. C shares B's mesh. All three low-poly samples share one 144-vertex, 284-triangle mesh and UV layout.
+- Deterministic control functions directly shape the dense mesh. The maximum forged displacement is 0.004600 BU, about 0.64% of beam width. Broad variation spans about 0.5–1.6 BU. Machining lines are 0.012 BU apart with 0.00014 BU nominal peak-to-valley depth and a mesh step of at most 0.002 BU along the detailed direction.
+- The bevel vertices remain fixed. High-poly face relief slightly expands the local envelope. The `nominal_position` attribute preserves the original coordinates. The low-poly silhouette stays fixed, with relief transferred through tangent normals. [Control functions](surface_study.py) · [Parameters](parameters.json)
+- Each variant produces 2048² base color, roughness, tangent normal, and AO maps in local `textures/`. The normal bake uses OpenGL +Y, the AO distance is 0.22 BU, and the data maps are 16-bit. Base color is 8-bit sRGB and excludes lighting. The preview keeps AO separate from base color. Roughness bakes the authored material response. Metallic is 0.96 on the body and 1.0 on refined faces and bevels.
+- Baking uses Selected to Active with 16 px padding, a cage extrusion of 0.015 BU, and maximum ray distance of 0.04 BU. Low-poly previews read the saved maps. C's oxidation and polishing are carried by color and roughness.
 
-## 高模与低模
+## Review and verification
 
-- 研究件：长 2.60、高 1.80，梁宽／深度均为 0.72 BU；倒角 0.012 BU / 3 段。物理世界尺度尚未冻结。
-- A、B 高模各 **280,008 顶点 / 560,012 三角面**。C 复用 B；三个低模共享 **144 顶点 / 284 三角面**及同一 UV。
-- 宽缓锻造起伏的实际最大顶点偏移 **0.004600 BU**，约为梁宽的 0.64%。以约 0.5–1.6 BU 的宽缓变化建立反光起伏，不用密集随机颗粒建立体量。
-- 精修面的实体加工纹：间距 **0.012 BU**，名义峰谷差 **0.00014 BU**；深度方向网格步长上限 0.002 BU，足以塑造连续浅纹。
-- 所有倒角顶点锁定，验证最大偏移为 **0**。内部大面有正负浅起伏，因此高模局部包围范围略扩展，详见报告；没有将这些高模位移应用到整机。低模保持原研究件外形，Normal 不产生实体位移。
-- 高模保留 `nominal_position` 点属性，可与当前顶点直接比较；控制函数见 `surface_study.py`，尺寸、幅度、加工间距与烘焙参数见 `parameters.json`。
+| Local output in `previews/` | Contents |
+| --- | --- |
+| `overview.png` | Low-poly medium and close views |
+| `high-low-comparison.png` | Matched camera comparison |
+| `geometry-proof.png` | Nominal low-poly and A and B/C high-poly surfaces under a shared grazing light and uniform material |
+| `surface-sections.png` | Actual saved mesh sections, with vertical exaggeration confined to the chart |
+| `texture-overview.png` | Thumbnails of the baked maps |
 
-## 确实完成的烘焙
+The per-variant medium, close, and clay frames are generated alongside the boards. Material frames use the same studio, camera, 1440 × 1080 resolution, 96 samples, and AgX. The geometry board uses a separate grazing-light setup.
 
-每个方案各有一套 **2048² Base Color / Roughness / Tangent Normal / AO**，共 12 张实际 PNG，位于 `textures/`。
+An independent reopen verified closed, positive-volume meshes, fixed bevels, unchanged upstream project checksums, shared low-poly UVs, identical B/C high-poly geometry, and all 12 texture files. Each sample was also checked at 420 deterministic low-poly sample points. B/C had a median normal error of about 0.009° and a 95th percentile near 0.20°. Those values describe sampled bake fidelity. Web compression, channel packing, runtime evaluation, and full-assembly application remained open. [Verification report](verification.json)
 
-- Normal：**从实际高模投射到低模**，OpenGL +Y 切线法线，16 位数据图。
-- AO：从实际几何烘焙，距离 0.22 BU，16 位数据图。单独交付，预览中不乘入 Base Color，避免与 Cycles 遮蔽重复叠加。
-- Roughness：将表面角色、规则加工方向与 C 的克制年代变化从高模材质烘焙到低模 UV，16 位数据图。它不是从雕刻自动推导的物理测量值。
-- Base Color：8 位 sRGB，无灯光、高光与阴影。材质配色是研究值，不是测量材质。
-- 烘焙留边 16 px，Selected to Active，Cage extrusion 0.015 / Max ray distance 0.04。最终低模渲染实际使用磁盘上的烘焙图，非程序节点替身。
+## Rebuild
 
-低模的宽缓反光变化和加工细纹来自**真实高模的法线烘焙**；C 的氧化与磨亮来自颜色／粗糙度图。没有额外给主体叠加随机微坑或噪声法线。Metallic 为角色常量：主体 0.96，精修／倒角 1.0，不称其为金属度纹理。
-
-## 查看与验证
-
-- `previews/overview.png`（总览：低模中景与近景，仅本地生成物）
-- `previews/high-low-comparison.png`（同相机高模／低模对照，仅本地生成物）
-- `previews/geometry-proof.png`（无贴图形体对照，仅本地生成物）：名义低模、A 高模、B/C 高模使用同一掠射灯、相机及均匀材质，无形体夸张。
-- `previews/surface-sections.png`（实测高模截面，仅本地生成物）：来自保存网格的真实坐标；图表纵轴放大，渲染图不放大形体。
-- `previews/texture-overview.png`（实际纹理缩略图，仅本地生成物）
-
-每个方案的 `*-high-medium.png`、`*-high-close.png`、`*-high-clay.png` 与 `*-low-medium.png`、`*-low-close.png` 均保留独立原图。材质图使用统一摄影棚、相机、1440×1080、96 samples、AgX；无贴图形体图另用一套**所有方案一致**的掠射光，便于观察浅起伏。不能将它与材质图当作同灯光比较。
-
-`verification.json` 独立重开源文件核实：高低模闭合、有正体积、无孤立点；倒角顶点不动；早期三个源工程 SHA256 不变；三份低模共用几何／UV；B/C 高模相同；12 张磁盘纹理尺寸、位深与有效 UV 内数值变化正确。
-
-另对每方案 **420 个确定性低模采样点**投射到实际高模，将高模插值法线与低模贴图解码法线比较。B/C 中位误差约 0.009°、95% 约 0.20°；该结果是采样烘焙精度核对，不是全表面逐点证明，也不代表轮廓完全一致。完整数值及方法保留在报告中。
-
-## 下一步
-
-**B 适合作为整机应用的候选基线**，本轮不冻结最终材质。建议确认这一表面语言后，先在外环一段做 UV／纹素密度与实际镜头距离验证，再扩展到三个环。C 作为可选的轻微年代层，不默认叠加。
-
-当前仍是材质语言研究：加工纹在极远镜头可能需要纹理过滤与尺度收敛；宽缓锻造在中景刻意很弱。16 位研究图尚未做网页压缩、通道打包或运行时验证。未来应烘焙到正式动画低模，保留其尺寸／旋转轴；若采用实体位移或改倒角，须重新验证碰撞约束。Cycles 灯光、AgX 与掠射光只是 Blender 观察条件，不会自动随 GLB 迁移。本轮未导出或接入网页。
-
-## 重建
-
-本机 Steam Blender **5.2.3 LTS**，RTX 3070 Laptop / Cycles OptiX。MCP 不可达，全部使用独立后台进程，未操作用户打开的 Blender 文件，未升级或修改全局配置。
-
-在仓库根目录执行：
+The study used Steam Blender 5.2.3 LTS in a separate background process and an RTX 3070 Laptop GPU with Cycles OptiX. From the repository root, substitute the actual Blender path.
 
 ```powershell
 $blenderExe = 'E:/SteamLibrary/steamapps/common/Blender/blender.exe'
@@ -70,6 +46,4 @@ $blenderExe = 'E:/SteamLibrary/steamapps/common/Blender/blender.exe'
 python art/witness-core/r1-b/r1-c3/compose.py
 ```
 
-可单独运行 `--render` 重新渲染，或 `--bake` 重新烘焙现有研究件。修改参数应先 `--build`。拼版只需已有 Pillow。`surface-language.blend` 为可编辑源工程，默认显示 B 低模；A/B/C High 与 Low 可分别切换，B/C 的高模网格共享。只打开一份重叠研究件，避免把重叠显示误当表面问题。
-
-Git：本轮开始时 `develop` 工作区干净，远端核实仍为 `218e3dd`；此前三个本地提交完整保留。本轮不改写历史，不执行远端写入。
+Re-run `--render` or `--bake` on an existing sample. After editing parameters, start with `--build`. The local `surface-language.blend` opens with B Low displayed. Show one high- or low-poly collection at a time. Board composition requires Pillow.

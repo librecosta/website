@@ -1,70 +1,39 @@
-# R1-C2 · Surface Character Samples
+# Witness Core · R1-C2 Surface Character Samples
 
-> P1-A 归档：本目录仅为资产研究历史，不是选定的正式资产。`.blend`、模型导出、纹理和预览已移出 Git 当前索引，原文件完整保留本地；克隆仓库后按本文命令重建。上游灰模先运行 `art/witness-core/r1-b/build.py -- --previews`，R1-C 工程再由 `r1-c/study.py` 生成。文中的图像／视频／工程路径都是本地输出，不是仓库下载链接。
+> Historical asset research. This study used one L-shaped ring sample. The full assembly, joints, core, and animation remained untouched. Rebuild the upstream gray and material projects before using these scripts. [R1-B2 rebuild](../README.md) · [R1-C rebuild](../r1-c/README.md)
 
-本轮只制作 **一块 L 形方环表面样板**。原 R1-B2 / R1-C 源工程、三环几何、旋转关节、内核与整套动画均未修改。没有把新纹理应用到正式观测核。
+At the start of this study on 2026-11-06, the fetched `develop` was at `218e3dd`. The two local commits `a93e7bd` (nested joints) and `ff79571` (R1-C materials) had yet to be pushed. This records the state at that date.
 
-## Git 核实
+## Upstream material audit
 
-2026-11-06 执行 `git fetch origin develop` 成功。远端仍为 **218e3dd（R1-B）**；本轮开始时本地为 **ff79571**，领先远端两个提交：
+The audit examined the actual R1-C Blender file, material assignments, nodes, and UVs and produced a temporary unbaked GLB. [Audit script](audit_r1c.py) · [Audit report](r1-c-audit.json)
 
-- **a93e7bd**：R1-B2 嵌套单轴结构。
-- **ff79571**：R1-C 材质研究。
-
-这两个提交此前**没有执行 push**，并非一次推送成功后远端未显示，也没有证据表明发生了网络推送失败。前两轮交付已写明“未推送”。本轮核实期间未重置、改写历史或丢弃修改；没有执行远端写入。
-
-## R1-C 实际源工程审计
-
-检查实际 `../r1-c/witness-core-materials.blend`、节点连接、材质槽、UV 和脚本，并执行了一次**临时未烘焙 GLB 导出**。完整事实见 [r1-c-audit.json](r1-c-audit.json)，可用 [audit_r1c.py](audit_r1c.py) 复验。
-
-| 问题 | 实际结论 |
+| Check | Result |
 | --- | --- |
-| 1. 两套金属是否创建 | 是。Outer Monument Metal 和 Inner Precision Metal 是两个独立 Principled 材质；另有 Core Light Material。 |
-| 2. 分配位置 | Ring A/B/C 每环均有 104 个面使用 Outer、96 个面使用 Inner。Outer 覆盖主体／外表面，Inner 覆盖朝向方孔的内壁及相关倒角。Core 的 98 个面使用 Core Light。 |
-| 3. Roughness 是否有纹理变化 | 是程序纹理，非仅常量。Outer：Object Noise(340) → ColorRamp(0.48–0.61) → Roughness；Inner：Object Wave(220) → ColorRamp(0.29–0.36) → Roughness。**没有 Roughness 位图或烘焙图。** |
-| 4. Normal / Bump | Outer 有两级 Noise → Bump，Distance 0.0015 / 0.00025，Strength 0.22 / 0.17；Inner 有 Wave → Bump，Distance 0.00018、Strength 0.12。均为着色法线，未改变实体表面。 |
-| 5. UV / 烘焙 / 雕刻 | 三个方环均无 UV；Core 只有立方体原始默认 UVMap。没有图像纹理节点、贴图烘焙、独立高模或高模雕刻。 |
-| 6. Blender 专用效果 | Object Noise / Wave、ColorRamp 和 Bump 网络，以及 Cycles 间接光、摄影棚、AgX 与去噪。原材质中程序颜色、Roughness 与 Bump 不能自动等价变成网页纹理。 |
-| 7. 实际 GLB 结果 | 临时 GLB 为 53,068 字节，**0 images / 0 textures**。有倒角实体、法线、材质分区、3 条动画及部分常量／扩展数据；没有程序化表面细节。Outer 程序底色也未导出为图像或对应颜色因子，不能据此宣称视觉一致。Core 的颜色、粗糙度、自发光、Transmission / IOR 数据与 Inner 的常量颜色／Anisotropy 数据可见于导出 JSON。 |
+| Materials and assignment | The rings used two independent Principled metals. Each ring had 104 Outer faces and 96 Inner faces. Inner covered the square opening walls and their bevels. The core's 98 faces used Core Light. |
+| Roughness | Outer used object-space Noise at scale 340 mapped to 0.48–0.61. Inner used object-space Wave at scale 220 mapped to 0.29–0.36. Both were procedural. |
+| Normal detail | Outer used two Noise-to-Bump stages, distances 0.0015 and 0.00025, strengths 0.22 and 0.17. Inner used Wave-to-Bump at distance 0.00018 and strength 0.12. These stages affected shading only. |
+| UVs and baking | Only the core retained its default cube UV map. R1-C used procedural nodes and had no baked maps or high-poly mesh. |
+| Blender-specific effects | Object Noise and Wave, ColorRamp, Bump, Cycles indirect light, studio lighting, AgX, and denoising. |
+| GLB export | 53,068 bytes, zero images and zero textures. It retained bevels, normals, assignments, three animations, and some constant material data. Core color, roughness, emission, transmission, and IOR and Inner constant color and anisotropy were present. The procedural Outer base color was absent. |
 
-因此，R1-C 是**程序材质与光照研究**，不是已经完成 UV、烘焙与雕刻的最终纹理资产。
+## Controlled samples
 
-## 三个受控样板
+The three samples shared one mesh, UV layout, placement, and lighting. Each distance used the same camera, exposure, seed, and sampling. The section measures 0.72 × 0.72 Blender units with a 0.012 three-segment bevel. The dimensions below describe the procedural height field. All surface detail was expressed in shading.
 
-`previews/overview.png`（仅本地生成物） 上排为中景，下排为近景；六张独立原图保留在 `previews/`。三个样板共享**同一个网格数据块、同一个 UV、同一位置**，每种景别使用完全相同的相机、五块摄影棚面光、曝光、种子和采样参数。没有为单个方案改灯或后期增锐。
-
-| 方向 | 表面差异 | 尺度与深度参数 |
+| Variant | Surface treatment | Scale |
 | --- | --- | --- |
-| A · R1-C baseline | 原 R1-C 着色器；大面平整，微纹理在中景较弱。 | 原始 Noise / Wave / Bump 参数。 |
-| B · Fine forged | 局部成簇的细浅锻坑、细粒起伏；坑内更粗糙偏暗，平整部位略有磨亮；内壁有细密方向加工纹。 | 名义单元间距约 1/22 = 0.045 BU；Bump Distance 0.0022、Strength 0.65。 |
-| C · Stylized shallow tooling | 更宽疏的圆角方形锤击／浅凿痕，保留大片平面；尺寸更可读，适合进一步讨论动画化表面语言。 | 名义单元间距约 1/7.5 = 0.133 BU；Bump Distance 0.004、Strength 0.65。 |
+| A · R1-C baseline | Original shader with flat broad faces and subtle microtexture at medium distance. | Original Noise, Wave, and Bump |
+| B · Fine forged | Clusters of shallow forged dimples, grain, darker rough depressions, and fine directional machining on the inner wall. | Cell spacing about 0.045 BU, bump distance 0.0022, strength 0.65 |
+| C · Stylized shallow tooling | Wider, sparser rounded-square tooling marks with larger areas of smooth metal. | Cell spacing about 0.133 BU, bump distance 0.004, strength 0.65 |
 
-BU 为 Blender 单位。梁截面 **0.72 × 0.72**、倒角 **0.012 / 3 段**沿用 Ring C 比例；物理世界尺度仍未冻结。上表是高度场的参数尺度，**不是实测雕刻深度**。凹凸通过法线表达，没有实体位移；轮廓保持完整。
+The generated B and C samples used Smart UV atlases and six baked 2048² PNGs in local `textures/`. Base color is sRGB. Roughness and tangent normals are non-color data. Bake padding is 16 pixels. The saved preview materials use the baked images. The low-contrast oxidation and polishing appear in color and roughness. The procedural heights added no physical displacement.
 
-新样板只在平整主体／内壁研究表面变化，倒角区域沿用基线材质烘焙，避免粗糙细节吞没精密亮边。微氧化用非均匀暗灰色与粗糙度共同表达，没有橙红重锈、掉漆或裂纹。
+The local B and C GLBs embed base color, metallic-roughness, and normal images, with UVs, normals, and explicit tangents. Reimported vertex positions agreed at 1e-5 quantization and were checked by rendering. `previews/overview.png` compares medium and close views. `previews/texture-overview.png` shows the baked maps. The study used Steam Blender 5.2.3 LTS, RTX 3070 Laptop GPU / OptiX, 1440 × 1080, 96 samples, and fixed AgX. The dimpled direction was superseded in R1-C3. [Sample verification](sample-verification.json) · [Follow-on study](../r1-c3/README.md)
 
-**C 的“雕刻感”是程序高度场模拟，不是手工高模雕刻。** 本轮没有制作高模；不将它包装为已完成雕刻制作。
+## Rebuild
 
-## 本轮确实新增的纹理资产
-
-B / C 样板均有一套新的 Smart UV atlas，已经实际烘焙 **2048² Base Color、Roughness、切线 Normal**，共六张 PNG，位于 `textures/`。Base Color 为 sRGB；Roughness 和 Normal 为 Non-Color。留边 16 px。正式样板渲染使用这些图像材质，非只展示程序节点或调整常量。
-
-`previews/texture-overview.png`（仅本地生成物） 排列实际烘焙图；[sample-verification.json](sample-verification.json) 记录图像尺寸、有效 UV 区间的数值变化、文件摘要与 GLB 验证。源程序材质保留于 Blender 工程，可通过脚本重建；当前观测核整体仍没有新增 UV 或贴图。
-
-- `exports/B-fine-forged.glb`（B 样板 GLB，仅本地生成物）
-- `exports/C-stylized-tooling.glb`（C 样板 GLB，仅本地生成物）
-
-两个 GLB 均检查嵌入 Base Color、Metallic-Roughness、Normal 图像及 UV、法线、显式切线；重新导入后的顶点位置集合在 1e-5 量化精度下与样板一致，并实际重渲染查看。只在导出副本上固化材质分配和三角化，不修改共享样板或正式观测核。
-
-## 结果与边界
-
-中景已能读到 B 的细密局部锻痕与 C 的宽疏凿痕；近景可区分黑化主体和加工内壁。C 的痕迹仍偏柔和，是风格化方向样板；最终痕迹尺度、密度与氧化对比由用户选择后再收敛。**没有选定最终方向，也没有覆盖三个正式方环。**
-
-渲染：本机 Steam Blender 5.2.3 LTS，RTX 3070 Laptop GPU / OptiX，1440×1080、96 samples、固定 AgX；全部为实际渲染与程序拼版。本轮没有重做内核、动画、概念图或官网。
-
-## 重建
-
-在仓库根目录执行，按本机路径调整 Blender。只使用新的独立后台进程，不操作正在打开的用户工程。
+From the repository root, substitute the actual Blender path and run each stage in a fresh background process.
 
 ```powershell
 $blenderExe = 'E:/SteamLibrary/steamapps/common/Blender/blender.exe'
@@ -74,4 +43,4 @@ $blenderExe = 'E:/SteamLibrary/steamapps/common/Blender/blender.exe'
 python art/witness-core/r1-b/r1-c2/compose_overview.py
 ```
 
-源工程为 `surface-samples.blend`（仅本地生成物），参数为 [sample-parameters.json](sample-parameters.json)。Blender 自带组件完成建模与烘焙；拼版只需已有 Python + Pillow。临时审计 GLB、试渲染及 GLB 回读画面留在系统临时目录。未提交缓存、自动备份或无用高分辨率中间帧。
+The local project is `surface-samples.blend`. Blender handles modeling and baking. Board composition uses Python and Pillow. [Sample parameters](sample-parameters.json)
