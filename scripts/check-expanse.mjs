@@ -416,6 +416,12 @@ secondaryTrack.position.y = futureCity.secondaryRing.height - futureCity.ring.he
 const ringPositions = skyline.ring.getAttribute('position');
 const secondaryPositions = skyline.secondaryRing.getAttribute('position');
 const satellitePositions = skyline.satellites.getAttribute('position');
+// In the shared pivot frame both tracks spin about Y, so their vertical ranges
+// prove separation even between the sampled poses used for framing below.
+const mainRingBounds = new Box3().setFromBufferAttribute(ringPositions);
+const secondaryRingBounds = new Box3().setFromBufferAttribute(secondaryPositions);
+assert(mainRingBounds.max.y < secondaryTrack.position.y + secondaryRingBounds.min.y,
+  'The two rings clear each other throughout their rotations');
 const trafficRadii = {};
 for (const [kind, size] of Object.entries(futureCity.traffic.vehicles)) {
   const geometry = buildVehicleGeometry(kind,size), vertices = geometry.getAttribute('position');

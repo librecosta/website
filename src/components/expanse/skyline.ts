@@ -1,4 +1,4 @@
-import { BufferGeometry, CatmullRomCurve3, Color, Float32BufferAttribute, MathUtils, SphereGeometry, Vector3, type Object3D } from 'three';
+import { BufferGeometry, CatmullRomCurve3, Color, Float32BufferAttribute, MathUtils, ShapeUtils, SphereGeometry, Vector2, Vector3, type Object3D } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Vec3, WorldParameters } from './parameters.ts';
 
@@ -140,6 +140,120 @@ function trackArc(radius: number, y: number, width: number, depth: number,
   }
   faces.push([3, 2, 1, 0], [segments * 4, segments * 4 + 1, segments * 4 + 2, segments * 4 + 3]);
   return solid(vertices, faces, color, marks);
+}
+
+// Radial offset and height in the main beam's cross-section. The city-facing web
+// sits behind the two flanges, with a continuous hollow cell behind the web.
+const beamSection = {
+  outline: [[-63.5, -46.5], [63.5, -46.5], [63.5, 46.5], [-63.5, 46.5],
+    [-63.5, 24], [-4, 24], [-4, -24], [-63.5, -24]],
+  cell: [[12, -27], [45, -27], [45, 27], [12, 27]],
+};
+const terminalSection = {
+  outline: [[-63.5, -46.5], [63.5, -46.5], [63.5, 46.5], [-63.5, 46.5],
+    [-63.5, 16], [-37, 16], [-37, -16], [-63.5, -16]],
+  cell: [[17, -19], [39, -19], [39, 19], [17, 19]],
+};
+const terminalCap = ShapeUtils.triangulateShape(
+  terminalSection.outline.map(([x, y]) => new Vector2(x, y)),
+  [terminalSection.cell.map(([x, y]) => new Vector2(x, y))],
+);
+
+function mainRingBeam(radius: number, start: number, end: number, segments: number) {
+  // Short integral terminal collars taper into the normal cross-section. The
+  // annular caps close the steel around the cell without closing the cell itself.
+  const terminalSpan = MathUtils.radToDeg(50 / radius);
+  const stations = [start, ...Array.from({ length: segments + 1 }, (_, i) =>
+    MathUtils.lerp(start + terminalSpan, end - terminalSpan, i / segments)), end];
+  const { outline, cell } = beamSection;
+  const stride = outline.length + cell.length;
+  const last = stations.length - 1;
+  const vertices = stations.flatMap((degrees, i) => {
+    const angle = MathUtils.degToRad(degrees);
+    const c = Math.cos(angle), s = Math.sin(angle);
+    const section = i === 0 || i === last ? terminalSection : beamSection;
+    return [...section.outline, ...section.cell].map(([x, y]): Vec3 => [(radius + x) * c, y, (radius + x) * s]);
+  });
+  const faces: number[][] = [];
+  const finishes: string[] = [];
+  const sideFinish = [alloy.rail, alloy.silver, alloy.silver, alloy.shell,
+    alloy.rail, alloy.web, alloy.rail, alloy.shell];
+  for (let i = 0; i < last; i++) {
+    const first = i * stride;
+    const terminal = i === 0 || i === last - 1;
+    for (let side = 0; side < outline.length; side++) {
+      const a = first + side, b = first + (side + 1) % outline.length;
+      faces.push([a, b, b + stride, a + stride]);
+      finishes.push(terminal && side === 5 ? alloy.rail : sideFinish[side]);
+    }
+    for (let side = 0; side < cell.length; side++) {
+      const a = first + outline.length + side;
+      const b = first + outline.length + (side + 1) % cell.length;
+      faces.push([b, a, a + stride, b + stride]);
+      finishes.push(alloy.inset);
+    }
+  }
+  for (const face of terminalCap) {
+    faces.push([...face].reverse(), face.map(i => i + last * stride));
+    finishes.push(alloy.silver, alloy.silver);
+  }
+  const geometry = solid(vertices, faces, alloy.rail);
+  const colors = geometry.getAttribute('color');
+  const tint = new Color();
+  let vertex = 0;
+  for (const [i, face] of faces.entries()) {
+    tint.set(finishes[i]);
+    const count = (face.length - 2) * 3;
+    for (let j = 0; j < count; j++) colors.setXYZ(vertex++, tint.r, tint.g, tint.b);
+  }
+  return geometry;
+}
+
+function ringSupport(guideOffset: number, tangent: number, width: number) {
+  // The sloping transverse member seats below the flange and cradles the guide.
+  const section = [[-guideOffset - 33, -106], [43, -70], [43, -38], [-guideOffset - 33, -64]];
+  const vertices = [-width / 2, width / 2].flatMap(side =>
+    section.map(([x, y]): Vec3 => [x, y, tangent + side]));
+  const beam = solid(vertices, [[3, 2, 1, 0], [4, 5, 6, 7],
+    [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]], alloy.rail);
+  return [beam, pier([-guideOffset, -91, tangent], [91, 49, width + 12], .94, alloy.web, .16)];
+}
+
+const transferBottom = -195;
+function transferNode(guideOffset: number) {
+  const middle = -guideOffset / 2;
+  return [
+    ...ringSupport(guideOffset, -72, 52), ...ringSupport(guideOffset, 72, 52),
+    pier([middle - 2, -112, 0], [guideOffset + 109, 23, 224], 1, alloy.silver, .15),
+    pier([middle, transferBottom, 0], [97, 87, 118], 1.52, alloy.web, .24),
+    pier([-guideOffset - 31, -129, 0], [63, 19, 190], .98, alloy.rail, .18),
+  ];
+}
+
+function buildPrimaryRing({ radius, guideOffset }: City['ring'], segments: number) {
+  const track: BufferGeometry[] = [];
+  const anchorDegrees = 62;
+  const transferNodes = [anchorDegrees, 245.5];
+  const place = (degrees: number, parts: BufferGeometry[]) => {
+    const angle = MathUtils.degToRad(degrees);
+    track.push(...parts.map(part => part.rotateY(-angle)
+      .translate(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)));
+  };
+  for (const [start, end] of ringSegments) {
+    track.push(mainRingBeam(radius, start, end, segments),
+      trackArc(radius - guideOffset, -45, 82, 62, start + 2, end - 2, segments, alloy.web, true));
+    for (const fraction of [.21, .79]) {
+      place(MathUtils.lerp(start, end, fraction), ringSupport(guideOffset, 0, 64));
+    }
+    for (const degrees of transferNodes) {
+      if (degrees > start && degrees < end) place(degrees, transferNode(guideOffset));
+    }
+  }
+  // The original observation point sits just below the valley-facing node's keel.
+  const angle = MathUtils.degToRad(anchorDegrees);
+  const r = radius - guideOffset / 2;
+  const ringAnchor: Vec3 = [Math.cos(angle) * r, transferBottom - .4, Math.sin(angle) * r];
+  return { ring: merge(track), ringAnchor };
 }
 
 function buildSecondaryRing({ radius, sectionScale: scale }: City['secondaryRing'], segments: number) {
@@ -304,33 +418,9 @@ export function buildSkyline(city: City, seed: number, compact: boolean) {
     );
   }
 
-  // Two rails share one plane; seams and paired transfer nodes reveal the track construction.
-  const { radius, guideOffset } = city.ring;
   const segments = compact ? 7 : 12;
-  const track: BufferGeometry[] = [];
-  let ringAnchor: Vec3 | undefined;
-  for (const [start, end] of ringSegments) {
-    track.push(
-      trackArc(radius, 0, 127, 93, start, end, segments, alloy.rail),
-      trackArc(radius - guideOffset, -45, 82, 62, start + 2, end - 2, segments, alloy.web),
-      trackArc(radius - 56, -54, 66, 42, start + 1, end - 1, segments, alloy.inset, true),
-    );
-    for (const fraction of [.09, .5, .91]) {
-      const azimuth = MathUtils.degToRad(MathUtils.lerp(start, end, fraction));
-      const r = radius - guideOffset / 2;
-      const dock = fraction === .5;
-      const bottom = dock ? -195 : -88;
-      if (start === 42 && dock) {
-        // Lower face of the transfer node visible from the valley.
-        ringAnchor = [Math.cos(azimuth) * r, bottom - .4, Math.sin(azimuth) * r];
-      }
-      track.push(pier([0, bottom, 0], [guideOffset + 185, dock ? 246 : 125, dock ? 250 : 93],
-        .87, dock ? alloy.silver : alloy.web, .24).rotateY(-azimuth)
-        .translate(Math.cos(azimuth) * r, 0, Math.sin(azimuth) * r));
-    }
-  }
   return {
-    civic: merge(parts), ring: merge(track), ringAnchor, secondaryRing: buildSecondaryRing(city.secondaryRing, segments),
+    civic: merge(parts), ...buildPrimaryRing(city.ring, segments), secondaryRing: buildSecondaryRing(city.secondaryRing, segments),
     satellites: buildSatellites(city.satellites, compact), batches,
   };
 }
