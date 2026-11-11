@@ -24,12 +24,12 @@ export const expanseBrand = {
 } as const;
 
 export const witnessSequence = [witnessRecords.opening, witnessRecords.passage, witnessRecords.arrival] as const;
+export type SubtitleCue = { index: number; animate: boolean };
 
 export const narrativeTiming = {
   // Path coordinates. The left ruin clears before the city entry, and the
   // central axis has settled into its last composition by the arrival entry.
   city: [.55, .76],
   arrival: .965,
-  // Fractions of the stationary hold after the camera reaches u=1.
-  brandStart: .57,
+  arrivalHoldSeconds: 2,
 } as const;
