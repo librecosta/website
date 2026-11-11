@@ -174,6 +174,10 @@ export const EXPANSE = {
       pitch: { degrees: 1.8, period: 52 },
       roll: { degrees: 1.25, period: 66 },
     },
+    secondaryRing: {
+      height: 4360, radius: 3140, sectionScale: .60,
+      revolutionSeconds: 155, direction: -1, phaseDegrees: 14,
+    },
     satellites: { count: 3, height: 5050, orbitRadius: 1830, sphereRadius: 125,
       pitchDegrees: 6, phaseDegrees: 18, revolutionSeconds: 60 },
     // Dedicated closed lanes above local traffic and inside the city's orbital track.

@@ -5,7 +5,7 @@ import { buildAeolianTerrain, duneRelief, buildMonuments, buildSlottedMonolithDa
 import { createSandTransport, renderedGround, stormExposure } from '../src/components/expanse/sand-transport.ts';
 import { addRuinDeposits } from '../src/components/expanse/dressing-terrain.ts';
 import { mapJourneyProgress } from '../src/components/expanse/journey-timing.ts';
-import { buildSkyline, buildTrafficRoutes, buildVehicleGeometry, poseSkylineOrbit, poseSkylineRing } from '../src/components/expanse/skyline.ts';
+import { buildSkyline, buildTrafficRoutes, buildVehicleGeometry, poseSecondaryRing, poseSkylineOrbit, poseSkylineRing } from '../src/components/expanse/skyline.ts';
 
 // Behavioural invariants for repeated art iteration; no browser or extra runner.
 const rendered = {};
@@ -410,9 +410,11 @@ const checkArrival = point => {
   maximum.max(point);
 };
 destination.forEach(checkArrival);
-const ringPivot = new Object3D(), ringTrack = new Object3D(), orbit = new Object3D();
-ringPivot.add(ringTrack);
+const ringPivot = new Object3D(), ringTrack = new Object3D(), secondaryTrack = new Object3D(), orbit = new Object3D();
+ringPivot.add(ringTrack, secondaryTrack);
+secondaryTrack.position.y = futureCity.secondaryRing.height - futureCity.ring.height;
 const ringPositions = skyline.ring.getAttribute('position');
+const secondaryPositions = skyline.secondaryRing.getAttribute('position');
 const satellitePositions = skyline.satellites.getAttribute('position');
 const trafficRadii = {};
 for (const [kind, size] of Object.entries(futureCity.traffic.vehicles)) {
@@ -463,17 +465,21 @@ const trafficValidation = {
 const animatedPoint = new Vector3();
 for (let step = 0; step < 24; step++) {
   const fraction = step / 24;
-  poseSkylineRing(ringPivot, ringTrack, futureCity.ring, futureCity.ring.revolutionSeconds * fraction);
+  const ringTime = futureCity.ring.revolutionSeconds * fraction;
+  poseSkylineRing(ringPivot, ringTrack, futureCity.ring, ringTime);
+  poseSecondaryRing(secondaryTrack, futureCity.secondaryRing, ringTime);
   poseSkylineOrbit(orbit, futureCity.satellites, futureCity.satellites.revolutionSeconds * fraction);
   ringPivot.updateMatrixWorld(true);
   orbit.updateMatrixWorld(true);
-  for (const [positions, transform] of [[ringPositions, ringTrack.matrixWorld], [satellitePositions, orbit.matrixWorld]]) {
+  for (const [positions, transform] of [[ringPositions, ringTrack.matrixWorld],
+    [secondaryPositions, secondaryTrack.matrixWorld], [satellitePositions, orbit.matrixWorld]]) {
     for (let i = 0; i < positions.count; i++) {
       checkArrival(cityWorld(animatedPoint.fromBufferAttribute(positions, i).applyMatrix4(transform)));
     }
   }
 }
 skyline.ring.dispose();
+skyline.secondaryRing.dispose();
 skyline.satellites.dispose();
 assert(minimum.x > -.93 && maximum.x < .93 && minimum.y > -.93 && maximum.y < .93 && minimum.z > -1 && maximum.z < 1,
   'Whole destination and sampled ring and satellite motion fit with breathing room at arrival');

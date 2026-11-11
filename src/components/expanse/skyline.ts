@@ -115,6 +115,9 @@ function populate(districts: readonly District[], inner: boolean, seed: number) 
   return lots;
 }
 
+const ringSegments = [[2, 38], [42, 82], [86, 121], [125, 174],
+  [178, 220], [224, 267], [271, 309], [313, 358]] as const;
+
 function trackArc(radius: number, y: number, width: number, depth: number,
   start: number, end: number, segments: number, color: string, lit = false) {
   const vertices: Vec3[] = [];
@@ -137,6 +140,15 @@ function trackArc(radius: number, y: number, width: number, depth: number,
   }
   faces.push([3, 2, 1, 0], [segments * 4, segments * 4 + 1, segments * 4 + 2, segments * 4 + 3]);
   return solid(vertices, faces, color, marks);
+}
+
+function buildSecondaryRing({ radius, sectionScale: scale }: City['secondaryRing'], segments: number) {
+  // The dark return laps under the silver box beam and stops short of its end caps.
+  return merge(ringSegments.flatMap(([start, end]) => [
+    trackArc(radius, 0, 127 * scale, 93 * scale, start, end, segments, alloy.silver),
+    trackArc(radius - 82 * scale, -49 * scale, 74 * scale, 46 * scale,
+      start + 2, end - 2, segments, alloy.web, true),
+  ]));
 }
 
 function buildSatellites({ count, orbitRadius, sphereRadius }: City['satellites'], compact: boolean) {
@@ -294,11 +306,10 @@ export function buildSkyline(city: City, seed: number, compact: boolean) {
 
   // Two rails share one plane; seams and paired transfer nodes reveal the track construction.
   const { radius, guideOffset } = city.ring;
+  const segments = compact ? 7 : 12;
   const track: BufferGeometry[] = [];
   let ringAnchor: Vec3 | undefined;
-  for (const [start, end] of [[2, 38], [42, 82], [86, 121], [125, 174],
-    [178, 220], [224, 267], [271, 309], [313, 358]]) {
-    const segments = compact ? 7 : 12;
+  for (const [start, end] of ringSegments) {
     track.push(
       trackArc(radius, 0, 127, 93, start, end, segments, alloy.rail),
       trackArc(radius - guideOffset, -45, 82, 62, start + 2, end - 2, segments, alloy.web),
@@ -318,7 +329,10 @@ export function buildSkyline(city: City, seed: number, compact: boolean) {
         .translate(Math.cos(azimuth) * r, 0, Math.sin(azimuth) * r));
     }
   }
-  return { civic: merge(parts), ring: merge(track), ringAnchor, satellites: buildSatellites(city.satellites, compact), batches };
+  return {
+    civic: merge(parts), ring: merge(track), ringAnchor, secondaryRing: buildSecondaryRing(city.secondaryRing, segments),
+    satellites: buildSatellites(city.satellites, compact), batches,
+  };
 }
 
 export function poseSkylineRing(pivot: Object3D, track: Object3D, ring: City['ring'], seconds: number) {
@@ -333,6 +347,11 @@ export function poseSkylineRing(pivot: Object3D, track: Object3D, ring: City['ri
     'ZYX',
   );
   track.rotation.y = phase / ring.revolutionSeconds % (2 * Math.PI);
+}
+
+export function poseSecondaryRing(track: Object3D, ring: City['secondaryRing'], seconds: number) {
+  const turn = 2 * Math.PI * seconds / ring.revolutionSeconds % (2 * Math.PI);
+  track.rotation.y = MathUtils.degToRad(ring.phaseDegrees) + ring.direction * turn;
 }
 
 export function poseSkylineOrbit(orbit: Object3D, satellites: City['satellites'], seconds: number) {

@@ -7,7 +7,7 @@ import { CityAirships } from './CityAirships';
 import { CityTraffic } from './CityTraffic';
 import { EXPANSE } from './parameters';
 import type { SandstormUniforms } from './sandstorm';
-import { buildSkyline, poseSkylineOrbit, poseSkylineRing } from './skyline';
+import { buildSkyline, poseSecondaryRing, poseSkylineOrbit, poseSkylineRing } from './skyline';
 import type { Monument } from './world';
 
 const city = EXPANSE.futureCity;
@@ -100,6 +100,7 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
 }) {
   const pivot = useRef<Group>(null);
   const track = useRef<Mesh>(null);
+  const secondaryTrack = useRef<Mesh>(null);
   const orbit = useRef<Mesh>(null);
   const elapsed = useRef(0);
   const skyline = useMemo(() => buildSkyline(city, EXPANSE.seed, mobile), [mobile]);
@@ -125,6 +126,7 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
   useEffect(() => () => {
     skyline.civic.dispose();
     skyline.ring.dispose();
+    skyline.secondaryRing.dispose();
     skyline.satellites.dispose();
     skyline.batches.forEach(batch => batch.geometry.dispose());
   }, [skyline]);
@@ -136,6 +138,7 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
     const time = reduced ? 0 : elapsed.current;
     if (debug) gl.domElement.dataset.cityTime = time.toFixed(3);
     poseSkylineRing(pivot.current!, track.current!, city.ring, time);
+    poseSecondaryRing(secondaryTrack.current!, city.secondaryRing, time);
     poseSkylineOrbit(orbit.current!, city.satellites, time);
   }, -0.5);
   return <group position={[...city.center]} scale={city.scale} dispose={null}>
@@ -144,6 +147,8 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
       <mesh ref={track} geometry={skyline.ring} material={material}>
         {skyline.ringAnchor && <object3D ref={onAnchor} position={[...skyline.ringAnchor]} />}
       </mesh>
+      <mesh ref={secondaryTrack} geometry={skyline.secondaryRing} material={material}
+        position-y={city.secondaryRing.height - city.ring.height} />
     </group>
     <mesh ref={orbit} geometry={skyline.satellites} material={material} />
     <CityTraffic material={material} elapsed={elapsed} reduced={reduced} />
