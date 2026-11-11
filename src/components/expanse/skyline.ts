@@ -145,14 +145,14 @@ function trackArc(radius: number, y: number, width: number, depth: number,
 // Radial offset and height in the main beam's cross-section. The city-facing web
 // sits behind the two flanges, with a continuous hollow cell behind the web.
 const beamSection = {
-  outline: [[-63.5, -46.5], [63.5, -46.5], [63.5, 46.5], [-63.5, 46.5],
-    [-63.5, 24], [-4, 24], [-4, -24], [-63.5, -24]],
-  cell: [[12, -27], [45, -27], [45, 27], [12, 27]],
+  outline: [[-115, -108], [115, -108], [115, 108], [-115, 108],
+    [-115, 52], [-32, 52], [-32, -52], [-115, -52]],
+  cell: [[0, -66], [78, -66], [78, 66], [0, 66]],
 };
 const terminalSection = {
-  outline: [[-63.5, -46.5], [63.5, -46.5], [63.5, 46.5], [-63.5, 46.5],
-    [-63.5, 16], [-37, 16], [-37, -16], [-63.5, -16]],
-  cell: [[17, -19], [39, -19], [39, 19], [17, 19]],
+  outline: [[-115, -108], [115, -108], [115, 108], [-115, 108],
+    [-115, 36], [-86, 36], [-86, -36], [-115, -36]],
+  cell: [[14, -44], [65, -44], [65, 44], [14, 44]],
 };
 const terminalCap = ShapeUtils.triangulateShape(
   terminalSection.outline.map(([x, y]) => new Vector2(x, y)),
@@ -162,7 +162,7 @@ const terminalCap = ShapeUtils.triangulateShape(
 function mainRingBeam(radius: number, start: number, end: number, segments: number) {
   // Short integral terminal collars taper into the normal cross-section. The
   // annular caps close the steel around the cell without closing the cell itself.
-  const terminalSpan = MathUtils.radToDeg(50 / radius);
+  const terminalSpan = MathUtils.radToDeg(72 / radius);
   const stations = [start, ...Array.from({ length: segments + 1 }, (_, i) =>
     MathUtils.lerp(start + terminalSpan, end - terminalSpan, i / segments)), end];
   const { outline, cell } = beamSection;
@@ -211,12 +211,12 @@ function mainRingBeam(radius: number, start: number, end: number, segments: numb
 
 function ringSupport(guideOffset: number, tangent: number, width: number) {
   // The sloping transverse member seats below the flange and cradles the guide.
-  const section = [[-guideOffset - 33, -106], [43, -70], [43, -38], [-guideOffset - 33, -64]];
+  const section = [[-guideOffset - 44, -191], [59, -142], [59, -88], [-guideOffset - 44, -134]];
   const vertices = [-width / 2, width / 2].flatMap(side =>
     section.map(([x, y]): Vec3 => [x, y, tangent + side]));
   const beam = solid(vertices, [[3, 2, 1, 0], [4, 5, 6, 7],
     [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]], alloy.rail);
-  return [beam, pier([-guideOffset, -91, tangent], [91, 49, width + 12], .94, alloy.web, .16)];
+  return [beam, pier([-guideOffset, -186, tangent], [124, 69, width + 12], .94, alloy.web, .16)];
 }
 
 const transferBottom = -195;
@@ -224,9 +224,20 @@ function transferNode(guideOffset: number) {
   const middle = -guideOffset / 2;
   return [
     ...ringSupport(guideOffset, -72, 52), ...ringSupport(guideOffset, 72, 52),
-    pier([middle - 2, -112, 0], [guideOffset + 109, 23, 224], 1, alloy.silver, .15),
-    pier([middle, transferBottom, 0], [97, 87, 118], 1.52, alloy.web, .24),
-    pier([-guideOffset - 31, -129, 0], [63, 19, 190], .98, alloy.rail, .18),
+    pier([middle - 2, -151, 0], [guideOffset + 109, 32, 224], 1, alloy.silver, .15),
+    pier([middle, transferBottom, 0], [97, 49, 118], 1.52, alloy.web, .24),
+    pier([-guideOffset - 52, -166, 0], [63, 19, 190], .98, alloy.rail, .18),
+  ];
+}
+
+function inboardSkyport() {
+  // Local X points away from the city. The root straddles the lower flange and
+  // the guide, while the tapered belly carries the free end of the berth.
+  return [
+    pier([-167, -182, 0], [228, 120, 326], .97, alloy.rail, .16),
+    pier([-338, -165, 0], [334, 74, 550], .98, alloy.shell, .12),
+    shaft([[-270, -304, 0, 146, 236], [-306, -245, 0, 264, 362],
+      [-322, -160, 0, 278, 448]], alloy.web, .16),
   ];
 }
 
@@ -241,7 +252,7 @@ function buildPrimaryRing({ radius, guideOffset }: City['ring'], segments: numbe
   };
   for (const [start, end] of ringSegments) {
     track.push(mainRingBeam(radius, start, end, segments),
-      trackArc(radius - guideOffset, -45, 82, 62, start + 2, end - 2, segments, alloy.web, true));
+      trackArc(radius - guideOffset, -126, 112, 100, start + 2, end - 2, segments, alloy.web, true));
     for (const fraction of [.21, .79]) {
       place(MathUtils.lerp(start, end, fraction), ringSupport(guideOffset, 0, 64));
     }
@@ -249,6 +260,7 @@ function buildPrimaryRing({ radius, guideOffset }: City['ring'], segments: numbe
       if (degrees > start && degrees < end) place(degrees, transferNode(guideOffset));
     }
   }
+  for (const degrees of [151, 331]) place(degrees, inboardSkyport());
   // The original observation point sits just below the valley-facing node's keel.
   const angle = MathUtils.degToRad(anchorDegrees);
   const r = radius - guideOffset / 2;
@@ -257,10 +269,11 @@ function buildPrimaryRing({ radius, guideOffset }: City['ring'], segments: numbe
 }
 
 function buildSecondaryRing({ radius, sectionScale: scale }: City['secondaryRing'], segments: number) {
-  // The dark return laps under the silver box beam and stops short of its end caps.
+  // Grow the shell up and outward from the return to preserve the approach
+  // clearance under the inner edge.
   return merge(ringSegments.flatMap(([start, end]) => [
-    trackArc(radius, 0, 127 * scale, 93 * scale, start, end, segments, alloy.silver),
-    trackArc(radius - 82 * scale, -49 * scale, 74 * scale, 46 * scale,
+    trackArc(radius + 40 * scale, 75 * scale, 256 * scale, 244 * scale, start, end, segments, alloy.silver),
+    trackArc(radius - 65 * scale, -12 * scale, 106 * scale, 96 * scale,
       start + 2, end - 2, segments, alloy.web, true),
   ]));
 }
