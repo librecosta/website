@@ -136,7 +136,7 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
     <group ref={opaque}>
       <FutureCity atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} visible={visible} reduced={reduced}
-        onAnchor={attach.ring} onAirshipAnchor={attach.airship} />
+        debug={debug} onAnchor={attach.ring} onAirshipAnchor={attach.airship} />
       {entrance && <Suspense fallback={null}>
         <EntranceRuin ruin={entrance} atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} onAnchor={attach.ruin} />
       </Suspense>}
@@ -235,14 +235,18 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
       reset();
     };
   }, [stage, signal, reduced, visible, editorDragging]);
-  useEffect(() => addAfterEffect(() => {
+  useEffect(() => addAfterEffect(timestamp => {
     if (!readback.current) return;
     readback.current = false;
     const dataset = gl.domElement.dataset;
     dataset.frames = String(frames.current); dataset.drawCalls = String(gl.info.render.calls);
     dataset.triangles = String(gl.info.render.triangles); dataset.geometries = String(gl.info.memory.geometries);
+    if (inspect) {
+      dataset.frameAt = timestamp.toFixed(3);
+      dataset.textures = String(gl.info.memory.textures);
+    }
     if (!ready.current) { ready.current = true; onReady(); }
-  }), [gl, onReady]);
+  }), [gl, inspect, onReady]);
   useEffect(() => {
     const canvas = gl.domElement;
     const lost = (event: Event) => { event.preventDefault(); onContextLost(); };

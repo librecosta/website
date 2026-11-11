@@ -93,8 +93,8 @@ export function EntranceRuin({ ruin, atmosphere, storm, mobile, onAnchor }: {
   </mesh>;
 }
 
-export function FutureCity({ atmosphere, storm, mobile, visible, reduced, onAnchor, onAirshipAnchor }: {
-  atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean; visible: boolean; reduced: boolean;
+export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug, onAnchor, onAirshipAnchor }: {
+  atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean; visible: boolean; reduced: boolean; debug: boolean;
   onAnchor: (object: Object3D | null) => void;
   onAirshipAnchor: (object: Object3D | null) => void;
 }) {
@@ -129,11 +129,12 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, onAnch
     skyline.batches.forEach(batch => batch.geometry.dispose());
   }, [skyline]);
   useEffect(() => () => material.dispose(), [material]);
-  useFrame((_, delta) => {
+  useFrame(({ gl }, delta) => {
     if (!visible) return;
     // A demand-rendered frame can include time spent in a hidden tab.
     if (!reduced) elapsed.current += Math.min(delta, 0.08);
     const time = reduced ? 0 : elapsed.current;
+    if (debug) gl.domElement.dataset.cityTime = time.toFixed(3);
     poseSkylineRing(pivot.current!, track.current!, city.ring, time);
     poseSkylineOrbit(orbit.current!, city.satellites, time);
   }, -0.5);
