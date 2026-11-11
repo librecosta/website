@@ -55,7 +55,6 @@ export default function ExpanseLab() {
   const observationElements = useRef<ObservationElements>({ buttons: {}, readouts: {}, card: null });
   const [observation, setObservation] = useState<ObservationId | null>(null);
   const [read, setRead] = useState<ReadonlySet<ObservationId>>(() => new Set());
-  const focusCard = useRef(false);
   const { cue } = useSiteAudio();
   const cameraRef = useRef<Camera>(null);
   const signal = useRef<JourneySignal>({ value: 0, raw: 0, invalidate: () => {} });
@@ -74,10 +73,9 @@ export default function ExpanseLab() {
     if (marker?.dataset.state === 'visible') marker.focus({ preventScroll: true });
     setObservation(null);
   }, [observation]);
-  const selectObservation = (id: ObservationId, keyboard: boolean) => {
+  const selectObservation = (id: ObservationId) => {
     if (id === observation) { closeObservation(); return; }
     cue(scanCue[id]);
-    focusCard.current = keyboard;
     setRead(previous => previous.has(id) ? previous : new Set([...previous, id]));
     setObservation(id);
   };
@@ -146,8 +144,7 @@ export default function ExpanseLab() {
       gsap.set(parts, { autoAlpha: 0, y: 9 });
       brand.to(parts[0], { duration: .25 }, narrativeTiming.brandStart)
         .to(parts[1], { duration: .22 }, .68)
-        .to(parts[2], { duration: .18 }, .77)
-        .to(parts[3], { duration: .16 }, .84);
+        .to(parts[2], { duration: .18 }, .77);
       let revealTime = 0;
       let brandShown = false;
       let routeStart = element.offsetTop;
@@ -219,8 +216,8 @@ export default function ExpanseLab() {
       </SceneBoundary>
       <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost} stage={stage}
         hint={hint} progressBar={progressBar} progressFill={progressFill} cameraRef={cameraRef} />
-      <ExpanseSignals elements={observationElements} enabled={ready && !contextLost} focusCard={focusCard}
-        active={observation} read={read} onSelect={selectObservation} onClose={closeObservation}
+      <ExpanseSignals elements={observationElements} enabled={ready && !contextLost}
+        active={observation} read={read} onSelect={selectObservation}
         invalidate={invalidateScene} />
       <ExpanseNarrative layer={narrativeLayer} active={narrative} brandActive={brandActive}
         ready={ready} reduced={reduced} unavailable={contextLost} />

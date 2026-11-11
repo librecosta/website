@@ -1,10 +1,12 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
-import { Box3, BufferAttribute, BufferGeometry, DynamicDrawUsage, InstancedMesh, Line, LineBasicMaterial, Matrix4,
-  Mesh, Ray, Raycaster, Vector3, type Group, type Intersection, type Object3D } from 'three';
+import { Box3, Euler, Frustum, InstancedMesh, MathUtils, Matrix4, Mesh, Quaternion, Ray, Raycaster, Vector3,
+  type Group, type Intersection, type Object3D } from 'three';
 import { observationIds, type ObservationId } from './narrative';
+import { createObservationGraphics, signalPanel } from './observation-graphics';
+import { EXPANSE } from './parameters';
 
-type SignalCard = { id: ObservationId; node: HTMLElement; close: HTMLButtonElement; width: number; height: number; focus: boolean };
+type SignalCard = { id: ObservationId; node: HTMLElement };
 
 export type ObservationElements = {
   buttons: Partial<Record<ObservationId, HTMLButtonElement | null>>;
@@ -14,6 +16,40 @@ export type ObservationElements = {
 };
 
 const axes = ['x', 'y', 'z'] as const;
+const panelAspect = signalPanel.height / signalPanel.width;
+
+function boardPose(id: ObservationId, ground: (x: number, z: number) => number) {
+  const spec = EXPANSE.observationBoards[id];
+  const height = spec.width * panelAspect;
+  const rotation = new Quaternion().setFromEuler(new Euler(MathUtils.degToRad(spec.pitch - 90),
+    MathUtils.degToRad(spec.yaw), 0, 'YXZ'));
+  const size = new Vector3(spec.width, height, 1);
+  if ('center' in spec) return { position: new Vector3(...spec.center), rotation, size };
+
+  const [x, z] = spec.foot;
+  const foot = new Vector3(x, ground(x, z), z);
+  const right = new Vector3(1, 0, 0).applyQuaternion(rotation);
+  const up = new Vector3(0, 1, 0).applyQuaternion(rotation);
+  const edge = right.clone().multiplyScalar(spec.width / 2);
+  const crossSlope = (ground(x + edge.x, z + edge.z) - ground(x - edge.x, z - edge.z)) / spec.width;
+  right.y = crossSlope * spec.followSlope + Math.tan(MathUtils.degToRad(spec.roll));
+  right.normalize();
+  up.addScaledVector(right, -up.dot(right)).normalize();
+  rotation.setFromRotationMatrix(new Matrix4().makeBasis(right, up, new Vector3().crossVectors(right, up)));
+
+  // Keep the plate low on the slope, allowing the sand to meet the rim on the uphill side.
+  const sample = new Vector3();
+  let lift = 0;
+  for (const across of [-.5, -.25, 0, .25, .5]) {
+    for (const along of [0, .5, 1]) {
+      sample.copy(foot).addScaledVector(right, across * spec.width).addScaledVector(up, along * height);
+      lift = Math.max(lift, ground(sample.x, sample.z) - sample.y);
+    }
+  }
+  const position = foot.addScaledVector(up, height / 2);
+  position.y += Math.min(lift, spec.liftLimit) + spec.clearance;
+  return { position, rotation, size };
+}
 
 function terrainOccludes(ray: Ray, distance: number, bounds: Box3, ground: (x: number, z: number) => number,
   step: number, sample: Vector3) {
@@ -51,27 +87,19 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
   const blocked = useRef<Partial<Record<ObservationId, { anchor: Object3D; by: 'terrain' | 'structure' | '' }>>>({});
   const scratch = useMemo(() => ({
     world: new Vector3(), eye: new Vector3(), view: new Vector3(), endpoint: new Vector3(), localEnd: new Vector3(),
-    selected: new Vector3(), center: new Vector3(), bend: new Vector3(), port: new Vector3(), head: new Vector3(),
+    frustum: new Frustum(), projection: new Matrix4(),
     localRay: new Ray(), inverse: new Matrix4(), caster: new Raycaster(), hits: [] as Intersection[],
     meshes: [] as Mesh[],
   }), []);
-  const leader = useMemo(() => {
-    const points = new BufferAttribute(new Float32Array(9), 3).setUsage(DynamicDrawUsage);
-    const geometry = new BufferGeometry().setAttribute('position', points);
-    const material = new LineBasicMaterial({ color: '#d6efdb', opacity: .82, transparent: true,
-      depthWrite: false, toneMapped: false, fog: false });
-    const line = new Line(geometry, material);
-    line.frustumCulled = false;
-    line.visible = false;
-    return { line, geometry, material, points };
-  }, []);
-  useEffect(() => () => { leader.geometry.dispose(); leader.material.dispose(); }, [leader]);
-  const placement = useRef({ card: null as SignalCard | null, width: 0, height: 0, cardWidth: 0, cardHeight: 0,
-    side: 1, offset: new Vector3(), began: 0, blocked: '' });
+  const graphics = useMemo(createObservationGraphics, []);
+  useEffect(() => () => graphics.dispose(), [graphics]);
+  const poses = useMemo(() => ({ bones: boardPose('bones', ground), ruin: boardPose('ruin', ground),
+    ring: boardPose('ring', ground) }), [ground]);
+  const placement = useRef({ card: null as SignalCard | null, poses, began: 0, blocked: '' });
 
   useFrame(({ camera, size }) => {
-    const { world, eye, view, endpoint, localEnd, caster, localRay, inverse, hits, meshes,
-      selected, center, bend, port, head } = scratch;
+    const { world, eye, view, endpoint, localEnd, caster, localRay, inverse, hits, meshes, frustum, projection } = scratch;
+    const { panel } = graphics;
     const now = performance.now();
     // Update projected coordinates on every existing frame. Bound CPU occlusion work
     // independently of the frame rate and reject city batches before tracing instances.
@@ -95,7 +123,6 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
     eye.setFromMatrixPosition(camera.matrixWorld);
     const { card, cardReadout } = elements.current;
     let cardState = card ? 'outside' : 'closed';
-    let selectedX = 0, selectedY = 0;
     function occlusion(target: Vector3, margin: number) {
       caster.ray.origin.copy(eye);
       caster.ray.direction.subVectors(target, eye);
@@ -142,7 +169,6 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
             if (state === 'visible') {
               button.style.transform = `translate3d(${x}px, ${y}px, 0)`;
               button.toggleAttribute('data-label-inward', x > size.width - 140);
-              if (card?.id === id) { selected.copy(world); selectedX = x; selectedY = y; }
             }
           }
         }
@@ -155,71 +181,37 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
       if (readout && trace) {
         readout.textContent = anchor ? `${state} · ${world.toArray().map(Math.round).join(' / ')}` : state;
       }
-      if (card?.id === id) cardState = state;
     }
-    leader.line.visible = false;
+    panel.visible = false;
     if (!card) placement.current.card = null;
-    if (card && cardState === 'visible') {
+    if (card) {
       const fit = placement.current;
       const opening = fit.card !== card;
-      const changed = opening || fit.width !== size.width || fit.height !== size.height ||
-        fit.cardWidth !== card.width || fit.cardHeight !== card.height;
-      const halfWidth = card.width / 2, halfHeight = card.height / 2;
-      const safeX = halfWidth + (mobile ? 14 : 26);
-      const safeTop = Math.min(mobile ? 204 : 116, size.height * .31) + halfHeight;
-      const safeBottom = Math.min(mobile ? 104 : 84, size.height * .18) + halfHeight;
-      const clampX = (x: number) => Math.max(safeX, Math.min(size.width - safeX, x));
-      const clampY = (y: number) => Math.max(safeTop, Math.min(size.height - safeBottom, y));
-      const worldAt = (target: Vector3, x: number, y: number, z: number) =>
-        target.set(x * 2 / size.width - 1, 1 - y * 2 / size.height, z).unproject(camera);
+      const changed = opening || fit.poses !== poses;
       if (changed) {
         fit.card = card;
-        fit.width = size.width; fit.height = size.height;
-        fit.cardWidth = card.width; fit.cardHeight = card.height;
-        if (opening) fit.began = now;
-        fit.side = selectedX < size.width * .5 ? 1 : -1;
-        view.copy(selected).applyMatrix4(camera.matrixWorldInverse);
-        view.multiplyScalar(.91).applyMatrix4(camera.projectionMatrix);
-        worldAt(center, clampX(selectedX + fit.side * (halfWidth + (mobile ? 24 : 54))),
-          clampY(selectedY - (mobile ? 69 : 65)), view.z);
-        // Preserve the three-dimensional offset as the anchor moves. Refit it only when the viewport or card changes.
-        fit.offset.subVectors(center, selected);
+        fit.poses = poses;
+        if (opening) { fit.began = now; graphics.paint(card.id); }
+        const { position, rotation, size: scale } = poses[card.id];
+        panel.position.copy(position);
+        panel.quaternion.copy(rotation);
+        panel.scale.copy(scale);
+        panel.updateMatrixWorld();
       }
-      view.copy(selected).add(fit.offset).project(camera);
-      const x = clampX((view.x + 1) * size.width / 2);
-      const y = clampY((1 - view.y) * size.height / 2);
-      const z = view.z;
-      worldAt(center, x, y, z);
-      if (trace || changed) fit.blocked = occlusion(center, .2);
-      if (fit.blocked) cardState = fit.blocked;
-      else {
-        card.node.style.transform = `translate3d(${x - halfWidth}px, ${y - halfHeight}px, 0)`;
-        card.node.toggleAttribute('data-port-right', fit.side < 0);
-        const endX = x - fit.side * halfWidth;
-        worldAt(port, endX, y, z);
-        const elbowX = endX - fit.side * Math.min(18, Math.abs(endX - selectedX) * .35);
-        worldAt(bend, elbowX, y, z);
-        const progress = reduced ? 1 : Math.min(1, (now - fit.began) / 215);
-        const length = selected.distanceTo(bend), last = bend.distanceTo(port);
-        const shown = (length + last) * (1 - (1 - progress) ** 2);
-        head.copy(bend).lerp(port, Math.max(0, (shown - length) / Math.max(last, 1e-6)));
-        bend.lerp(selected, Math.max(0, 1 - shown / Math.max(length, 1e-6)));
-        if (shown < length) head.copy(bend);
-        leader.points.setXYZ(0, selected.x, selected.y, selected.z);
-        leader.points.setXYZ(1, bend.x, bend.y, bend.z);
-        leader.points.setXYZ(2, head.x, head.y, head.z);
-        leader.points.needsUpdate = true;
-        leader.line.visible = true;
+      const inView = frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,
+        camera.matrixWorldInverse)).intersectsObject(panel);
+      if (inView) {
+        if (trace || changed || card.node.dataset.state === 'outside') fit.blocked = occlusion(panel.position, .2);
+        cardState = fit.blocked || 'visible';
+        const elapsed = now - fit.began;
+        panel.material.opacity = reduced ? 1 : Math.min(1, elapsed / 220);
+        panel.visible = true;
       }
+      if (card.node.dataset.state !== cardState) card.node.dataset.state = cardState;
     }
-    if (card && card.node.dataset.state !== cardState) {
-      card.node.dataset.state = cardState;
-      if (cardState === 'visible' && card.focus) {
-        card.focus = false;
-        card.close.focus({ preventScroll: true });
-      }
+    if (cardReadout && (trace || !card)) {
+      cardReadout.textContent = card ? `${card.id} · ${cardState} · ${panel.position.toArray().map(Math.round).join(' / ')}` : '关闭';
     }
-    if (cardReadout && (trace || !card)) cardReadout.textContent = card ? `${card.id} · ${cardState}` : '关闭';
   });
-  return <primitive object={leader.line} dispose={null} />;
+  return <primitive object={graphics.panel} dispose={null} />;
 }

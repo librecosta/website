@@ -17,9 +17,8 @@ export const observationIds = Object.keys(observationRecords) as ObservationId[]
 
 export const expanseBrand = {
   title: '从荒原，到远岸。',
-  description: '我们用心创造软件、工具与数字体验，为想象付出实践。',
+  description: ['我们用心创造软件、工具与数字体验。', '敢于想象，同时也付出实践。'],
   signature: 'LibreCosta · 远岸开物',
-  actions: ['探索作品', '了解我们'],
 } as const;
 
 export const witnessSequence = [witnessRecords.opening, witnessRecords.passage, witnessRecords.arrival] as const;

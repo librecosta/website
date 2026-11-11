@@ -263,6 +263,13 @@ export const EXPANSE = {
   ],
   distantSteleGroove,
   distantSteleTaper: [0.76, 0.84],
+  observationBoards: {
+    // X/Z on the dune, world-unit widths and clearances, angles in degrees.
+    bones: { foot: [268, -1370], width: 123, yaw: -15, pitch: 47, roll: -10, followSlope: .10, liftLimit: 22, clearance: 3 },
+    ruin: { foot: [-600, -2780], width: 400, yaw: 30, pitch: 55, roll: 8, followSlope: .35, liftLimit: 44, clearance: 7 },
+    // Stationary in the opening below the front rim, centred against the axis.
+    ring: { center: [1300, 38200, -72000], width: 21800, yaw: 4, pitch: 72 },
+  },
   dressing: {
     deposits: [
       { id: 'field-axis', height: 27, tail: 390 },

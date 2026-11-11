@@ -97,9 +97,10 @@
 .transcriptSignals details + details { margin-block-start: .45rem; }
 .transcriptSignals details p { margin-inline-start: 1em; }
 .brandReveal {
+  --brand-lift: clamp(62px, 7.5vh, 76px);
   position: absolute;
   inset-inline: 0;
-  bottom: calc(var(--edge-bottom) + var(--rail) + 42px);
+  bottom: calc(var(--edge-bottom) + var(--rail) + var(--brand-lift));
   box-sizing: border-box;
   padding-inline: max(24px, calc(var(--edge-left) + var(--rail)));
   color: #1f2b28;
@@ -127,21 +128,6 @@
   font: 600 12px/1.5 var(--instrument-type, sans-serif);
   letter-spacing: .11em;
 }
-.actions { display: flex; gap: 16px; margin-top: 11px; }
-.brandReveal .actions { justify-content: center; }
-.actions button {
-  padding: 3px 0;
-  border: 0;
-  border-bottom: 1px solid #26342d55;
-  background: transparent;
-  color: #404840;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.5;
-  letter-spacing: .08em;
-}
-
 .transcript {
   box-sizing: border-box;
   max-inline-size: 42rem;
@@ -155,7 +141,7 @@
 .transcript .brandStatic { margin-block-start: 3rem; }
 
 @media (max-width: 940px) {
-  .brandReveal { bottom: calc(var(--edge-bottom) + var(--rail) + 104px); }
+  .brandReveal { --brand-lift: 128px; }
 }
 @media (max-width: 700px) {
   .observer {
@@ -171,9 +157,9 @@
 }
 :global([data-reduced='true']) .observer * { animation: none; transition: none; }
 @media (max-height: 530px) {
-  .brandReveal { bottom: calc(var(--edge-bottom) + var(--rail) + 29px); }
+  .brandReveal { --brand-lift: 52px; }
   .brandReveal h2 { font-size: clamp(27px, 5vh, 36px); }
 }
 @media (max-width: 940px) and (max-height: 530px) {
-  .brandReveal { bottom: calc(var(--edge-bottom) + var(--rail) + 98px); }
+  .brandReveal { --brand-lift: 121px; }
 }

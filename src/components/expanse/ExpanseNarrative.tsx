@@ -108,11 +108,8 @@ function BrandReveal({ cinematic = false, active = true }: { cinematic?: boolean
   return <section className={cinematic ? styles.brandReveal : styles.brandStatic}
     data-brand-reveal={cinematic ? '' : undefined} inert={!active} aria-hidden={!active}>
     <h2 data-reveal-part="title">{expanseBrand.title}</h2>
-    <p data-reveal-part="description">{expanseBrand.description}</p>
+    <p data-reveal-part="description">{expanseBrand.description[0]}<br />{expanseBrand.description[1]}</p>
     <p className={styles.signature} data-reveal-part="signature">{expanseBrand.signature}</p>
-    <div className={styles.actions} data-reveal-part="actions">
-      {expanseBrand.actions.map(label => <button key={label} type="button" disabled>{label}</button>)}
-    </div>
   </section>;
 }
 
