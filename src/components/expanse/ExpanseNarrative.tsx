@@ -1,37 +1,64 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { gsap } from 'gsap';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { expanseBrand, observationIds, observationRecords, witnessRecords, type NarrativeCue, type ObservationId,
-  type WitnessRecord } from './narrative';
-import ui from './expanse.module.css';
+import { expanseBrand, observationIds, observationRecords, witnessSequence, type NarrativeCue } from './narrative';
 import styles from './narrative.module.css';
 
 const charactersPerSecond = 14;
 
-function TypewrittenRecord({ record, animate, onComplete }: {
-  record: WitnessRecord; animate: boolean; onComplete?: () => void;
-}) {
+const entryCharacters = witnessSequence.map(record => record.lines.map(line => Array.from(line)));
+
+function ObserverLog({ active, ready, reduced }: { active: NarrativeCue; ready: boolean; reduced: boolean }) {
   const { cue, stopTextCue } = useSiteAudio();
-  const [visible, setVisible] = useState(0);
+  const history = useRef<HTMLDivElement>(null);
+  const following = useRef(true);
+  const [historyBounds, setHistoryBounds] = useState({ older: false, newer: false });
+  const [draft, setDraft] = useState({ index: -1, count: 0 });
   const timeline = useRef<gsap.core.Timeline | null>(null);
-  const lines = record.lines.map(line => Array.from(line));
-  const total = lines.reduce((sum, line) => sum + line.length, 0);
-  const typing = animate && visible < total;
+  const { index, animate } = active;
+  const total = entryCharacters[index].reduce((sum, line) => sum + line.length, 0);
+  const write = ready && animate && !reduced;
+  const count = draft.index === index ? draft.count : 0;
+  const typing = write && count < total;
+  const last = reduced ? witnessSequence.length - 1 : index;
+
+  const updateBounds = useCallback(() => {
+    const view = history.current!;
+    const older = view.scrollTop > 1;
+    const newer = view.scrollHeight - view.clientHeight - view.scrollTop > 1;
+    setHistoryBounds(previous => previous.older === older && previous.newer === newer ? previous : { older, newer });
+    return newer;
+  }, []);
+  useLayoutEffect(() => {
+    const view = history.current!;
+    const refresh = () => {
+      if (following.current) view.scrollTop = view.scrollHeight;
+      updateBounds();
+    };
+    refresh();
+    const observer = new ResizeObserver(refresh);
+    observer.observe(view);
+    return () => observer.disconnect();
+  }, [updateBounds]);
+  useLayoutEffect(() => {
+    const view = history.current!;
+    if (following.current) view.scrollTop = view.scrollHeight;
+    updateBounds();
+  }, [draft, last, ready, write, updateBounds]);
 
   useEffect(() => {
-    if (!animate) return;
+    if (!write) return;
     const sequence = gsap.timeline({ paused: true });
     timeline.current = sequence;
-    let at = .28, count = 0;
-    for (const line of record.lines) {
+    let at = .28, revealed = 0;
+    for (const line of entryCharacters[index]) {
       let previous = '';
       for (const character of line) {
         if ((previous === '…' && character !== '…') || (previous === '.' && character !== '.')) at += .27;
-        const next = ++count;
+        const next = ++revealed;
         sequence.call(() => {
-          setVisible(next);
-          if (!/[.…！？。]/u.test(character)) cue('text');
-          if (next === total) onComplete?.();
+          setDraft({ index, count: next });
+          cue('text');
         }, [], at);
         previous = character;
         at += 1 / charactersPerSecond;
@@ -44,46 +71,59 @@ function TypewrittenRecord({ record, animate, onComplete }: {
       timeline.current = null;
       stopTextCue();
     };
-  }, [animate, record, cue, stopTextCue, total, onComplete]);
+  }, [write, index, cue, stopTextCue]);
 
-  let remaining = animate ? visible : total;
+  const complete = () => {
+    if (!typing) return;
+    timeline.current?.kill();
+    stopTextCue();
+    setDraft({ index, count: total });
+  };
+  const move = (latest: boolean) => {
+    const view = history.current!;
+    following.current = latest;
+    view.scrollTop = latest ? view.scrollHeight : view.scrollTop - view.clientHeight / 2;
+    updateBounds();
+  };
+  let remaining = count;
   let cursorPlaced = false;
-  return <div className={styles.record}>
-    <div className={ui.srOnly}>{record.lines.map((line, index) => <p key={index}>{line}</p>)}</div>
-    <div aria-hidden="true">
-      {lines.map((line, index) => {
-        const text = line.slice(0, Math.max(0, remaining)).join('');
-        const cursor = typing && !cursorPlaced && remaining < line.length;
-        cursorPlaced ||= cursor;
-        remaining -= line.length;
-        return <p key={index}><span className={styles.line}>
-          <span className={styles.lineMeasure}>{line.join('')}</span>
-          <span className={styles.lineText}>{text}{cursor && <i className={styles.cursor} />}</span>
-        </span></p>;
-      })}
-    </div>
-    {animate && <button type="button" className={styles.complete} aria-label="立即显示完整独白"
-      aria-disabled={!typing} tabIndex={typing ? 0 : -1} onClick={() => {
-        if (!typing) return;
-        timeline.current?.kill();
-        stopTextCue();
-        setVisible(total);
-        onComplete?.();
-      }} />}
-  </div>;
-}
-
-export function ObserverLog({ record, animate, onComplete, onClose }: {
-  record: WitnessRecord; animate: boolean; onComplete?: () => void; onClose?: () => void;
-}) {
-  return <section className={styles.observer} aria-label="观察日志" data-observer-log={record.id}
-    id={onClose ? 'expanse-signal-log' : undefined} data-optional={onClose ? '' : undefined}>
+  return <section className={styles.observer} aria-label="观察日志" data-observer-log={witnessSequence[last].id}
+    data-writing={typing} data-history={historyBounds.newer}>
+    <span className={styles.glass} aria-hidden="true" />
+    <svg className={styles.guide} viewBox="0 0 352 92" preserveAspectRatio="none" fill="none" aria-hidden="true">
+      <path className={styles.trace} d="M0 91V29L16 10H226L238 1H351M12 41V32L25 18H45M294 9H351" />
+      <path className={styles.traceLight} d="M0 39V29L16 10H66M226 10L238 1H260" />
+    </svg>
     <header className={styles.logHeader}>
+      <i key={index} className={styles.lamp} aria-hidden="true" />
       <span lang="en">WITNESS / OBSERVATION LOG</span>
-      <span>{record.id}</span>
-      {onClose && <button className={styles.closeLog} type="button" aria-label="关闭观测记录" onClick={onClose}>×</button>}
+      <span className={styles.recordNumber}>{witnessSequence[last].id}</span>
     </header>
-    <TypewrittenRecord key={record.id} record={record} animate={animate} onComplete={onComplete} />
+    <div className={styles.history} ref={history} tabIndex={historyBounds.older || historyBounds.newer ? 0 : -1}
+      aria-label="独白历史" onClick={complete} onScroll={() => { following.current = !updateBounds(); }}>
+      {ready && witnessSequence.slice(0, last + 1).flatMap((record, entry) =>
+        entryCharacters[entry].map((line, lineIndex) => {
+          const current = write && entry === index;
+          const cursor = typing && current && !cursorPlaced && remaining < line.length && remaining >= 0;
+          cursorPlaced ||= cursor;
+          const text = current ? line.slice(0, Math.max(0, remaining)).join('') : line.join('');
+          if (current) remaining -= line.length;
+          return text || cursor ? <p key={`${record.id}-${lineIndex}`} className={styles.line} data-current-line={cursor}>
+            {text}{cursor && <i className={styles.cursor} aria-hidden="true" />}
+          </p> : null;
+        }))}
+    </div>
+    <div className={styles.logControls}>
+      <button type="button" aria-label="立即显示完整独白" title="立即显示完整独白" disabled={!typing} onClick={complete}>
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="m2 4 3 3-3 3m5-6 3 3-3 3" /></svg>
+      </button>
+      <button type="button" aria-label="查看较早日志" title="查看较早日志" disabled={!historyBounds.older} onClick={() => move(false)}>
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="m3 8 4-4 4 4" /></svg>
+      </button>
+      <button type="button" aria-label="返回最新日志" title="返回最新日志" disabled={!historyBounds.newer} onClick={() => move(true)}>
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="m3 5 4 4 4-4" /></svg>
+      </button>
+    </div>
   </section>;
 }
 
@@ -99,30 +139,20 @@ function BrandReveal({ cinematic = false, active = true }: { cinematic?: boolean
   </section>;
 }
 
-export function ExpanseNarrative({ layer, active, enabled, observation, onRead, onClose }: {
-  layer: RefObject<HTMLDivElement | null>; active: NarrativeCue; enabled: boolean;
-  observation: { id: ObservationId; animate: boolean } | null;
-  onRead: () => void;
-  onClose: () => void;
+export function ExpanseNarrative({ layer, active, ready, reduced, unavailable, brandActive }: {
+  layer: RefObject<HTMLDivElement | null>; active: NarrativeCue; ready: boolean; reduced: boolean;
+  unavailable: boolean; brandActive: boolean;
 }) {
-  const beat = enabled ? active?.beat : null;
-  const animate = active?.animate ?? false;
-  return <div className={styles.layer} ref={layer} lang="zh-CN" data-narrative-beat={beat ?? 'quiet'}>
-    {observation && beat !== 'brand' && <ObserverLog key={observation.id} record={observationRecords[observation.id]}
-      animate={observation.animate} onComplete={onRead} onClose={onClose} />}
-    {!observation && beat === 'opening' && <section className={styles.opening} aria-label="苏醒" data-opening>
-      <TypewrittenRecord record={witnessRecords.opening} animate={animate} />
-    </section>}
-    {!observation && (beat === 'passage' || beat === 'arrival') &&
-      <ObserverLog key={beat} record={witnessRecords[beat]} animate={animate} />}
-    <BrandReveal cinematic active={beat === 'brand'} />
+  return <div className={styles.layer} ref={layer} lang="zh-CN">
+    {!unavailable && <ObserverLog active={active} ready={ready} reduced={reduced} />}
+    <BrandReveal cinematic active={ready && brandActive && !reduced} />
   </div>;
 }
 
 export function ExpanseTranscript() {
   return <article id="expanse-transcript" className={styles.transcript} lang="zh-CN">
     <h2>第一幕 · 荒原</h2>
-    {Object.values(witnessRecords).map(record => <section key={record.id} aria-label={`独白 ${record.id}`}>
+    {witnessSequence.map(record => <section key={record.id} aria-label={`独白 ${record.id}`}>
       {record.lines.map((line, index) => <p key={index}>{line}</p>)}
     </section>)}
     <section className={styles.transcriptSignals} aria-labelledby="expanse-transcript-signals">

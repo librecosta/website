@@ -22,8 +22,8 @@ export const expanseBrand = {
   actions: ['探索作品', '了解我们'],
 } as const;
 
-export type NarrativeBeat = keyof typeof witnessRecords | 'brand';
-export type NarrativeCue = { beat: NarrativeBeat; animate: boolean } | null;
+export const witnessSequence = [witnessRecords.opening, witnessRecords.passage, witnessRecords.arrival] as const;
+export type NarrativeCue = { index: number; animate: boolean };
 
 export const narrativeTiming = {
   // Path coordinates. The left ruin clears before the city entry, and the
@@ -31,6 +31,5 @@ export const narrativeTiming = {
   city: [.55, .76],
   arrival: .965,
   // Fractions of the stationary hold after the camera reaches u=1.
-  logFade: [.18, .38],
   brandStart: .57,
 } as const;

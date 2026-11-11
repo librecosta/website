@@ -136,7 +136,7 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
       <EnvironmentalDressing ground={groundHeight} mobile={mobile} material={resources.dressing} onAnchor={attach.bones} />
       <Instances items={distantStelae} geometry={stelaGeometry} material={resources.distant} distant />
     </group>
-    <ObservationProjection anchors={anchors.current} elements={observationElements} opaque={opaque} mobile={mobile}
+    <ObservationProjection anchors={anchors.current} elements={observationElements} opaque={opaque} mobile={mobile} reduced={reduced}
       terrain={terrain.geometry.boundingBox!} ground={groundHeight} />
     {storm && windView !== 'static' && <SandDust terrain={terrain.geometry} ground={groundHeight} windSurface={windSurface}
       storm={storm} mobile={mobile} mode={windView} visible={visible} debug={debug} />}

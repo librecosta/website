@@ -12,7 +12,7 @@ import { mapJourneyProgress } from './journey-timing';
 import { ExpanseInstrument, WordmarkStudy } from './ExpanseInstrument';
 import { ExpanseAudioLevels } from './ExpanseAudio';
 import { ExpanseNarrative, ExpanseTranscript } from './ExpanseNarrative';
-import { narrativeTiming, type NarrativeBeat, type NarrativeCue, type ObservationId } from './narrative';
+import { narrativeTiming, type NarrativeCue, type ObservationId } from './narrative';
 import { ExpanseSignals, SignalReadouts } from './ExpanseSignals';
 import type { ObservationElements } from './ObservationProjection';
 import styles from './expanse.module.css';
@@ -49,16 +49,17 @@ export default function ExpanseLab() {
   const progressBar = useRef<HTMLDivElement>(null), progressFill = useRef<HTMLSpanElement>(null);
   const distances = useRef({ intro: 0, travel: 0, hold: 0 });
   const narrativeLayer = useRef<HTMLDivElement>(null);
-  const seen = useRef(new Set<NarrativeBeat>());
-  const shown = useRef<NarrativeBeat | null>(null);
-  const [narrative, setNarrative] = useState<NarrativeCue>(null);
-  const observationElements = useRef<ObservationElements>({ buttons: {}, readouts: {} });
+  const reached = useRef(-1);
+  const [narrative, setNarrative] = useState<NarrativeCue>({ index: 0, animate: true });
+  const [brandActive, setBrandActive] = useState(false);
+  const observationElements = useRef<ObservationElements>({ buttons: {}, readouts: {}, card: null });
   const [observation, setObservation] = useState<ObservationId | null>(null);
   const [read, setRead] = useState<ReadonlySet<ObservationId>>(() => new Set());
-  const [signalsAllowed, setSignalsAllowed] = useState(true);
+  const focusCard = useRef(false);
   const { cue } = useSiteAudio();
   const cameraRef = useRef<Camera>(null);
   const signal = useRef<JourneySignal>({ value: 0, raw: 0, invalidate: () => {} });
+  const invalidateScene = useCallback(() => signal.current.invalidate(), []);
   const [mobile, setMobile] = useState(false), [mediaReduced, setMediaReduced] = useState(false);
   const [debug, setDebug] = useState(false), [forceReduced, setForceReduced] = useState(false);
   const [skyView, setSkyView] = useState<SkyView>('color');
@@ -67,22 +68,25 @@ export default function ExpanseLab() {
   const reduced = mediaReduced || forceReduced;
   const onReady = useCallback(() => setReady(true), []);
   const onContextLost = useCallback(() => { setContextLost(true); setReady(false); setObservation(null); }, []);
-  const markRead = useCallback(() => {
-    if (observation) setRead(previous => previous.has(observation) ? previous : new Set([...previous, observation]));
-  }, [observation]);
-  useEffect(() => { if (reduced) markRead(); }, [reduced, markRead]);
   const closeObservation = useCallback(() => {
     if (!observation) return;
     const marker = observationElements.current.buttons[observation];
     if (marker?.dataset.state === 'visible') marker.focus({ preventScroll: true });
     setObservation(null);
-    setNarrative(current => current?.animate ? { ...current, animate: false } : current);
   }, [observation]);
-  const selectObservation = (id: ObservationId) => {
-    if (id === observation || !signalsAllowed) return;
+  const selectObservation = (id: ObservationId, keyboard: boolean) => {
+    if (id === observation) { closeObservation(); return; }
     cue(scanCue[id]);
+    focusCard.current = keyboard;
+    setRead(previous => previous.has(id) ? previous : new Set([...previous, id]));
     setObservation(id);
   };
+  useEffect(() => {
+    if (!observation) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') closeObservation(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [observation, closeObservation]);
   useEffect(() => {
     if (debugOutput.current) debugOutput.current.value = progressText(signal.current, reduced || contextLost);
   }, [debug, reduced, contextLost]);
@@ -123,9 +127,8 @@ export default function ExpanseLab() {
     };
     const context = gsap.context(() => {
       if (reduced || contextLost) {
-        shown.current = null;
-        setNarrative(null);
-        setSignalsAllowed(true);
+        setBrandActive(false);
+        setNarrative(current => current.animate ? { ...current, animate: false } : current);
         return;
       }
       const entranceEnd = `top+=${intro} top`;
@@ -145,56 +148,33 @@ export default function ExpanseLab() {
         .to(parts[1], { duration: .22 }, .68)
         .to(parts[2], { duration: .18 }, .77)
         .to(parts[3], { duration: .16 }, .84);
-      let previousOffset: number | undefined, forward = false;
-      let openingOpacity = 1, logOpacity = 1, revealTime = 0;
-      let lastSignalsAllowed = true;
-      setSignalsAllowed(true);
+      let revealTime = 0;
+      let brandShown = false;
       let routeStart = element.offsetTop;
       const clamp = gsap.utils.clamp(0, 1);
-      const easeFade = gsap.parseEase('sine.inOut');
       const [cityIn, cityOut] = narrativeTiming.city;
-      const [logFadeIn, logFadeOut] = narrativeTiming.logFade;
       updateNarrative = () => {
         const offset = window.scrollY - routeStart;
         const raw = mapJourneyProgress((offset - intro) / travel, EXPANSE.journey.timing);
         const path = mapJourneyProgress(signal.current.value, EXPANSE.journey.timing);
         const tail = clamp((offset - intro - travel) / hold);
-        const allowSignals = tail < logFadeOut;
-        if (allowSignals !== lastSignalsAllowed) {
-          lastSignalsAllowed = allowSignals;
-          setSignalsAllowed(allowSignals);
-          if (!allowSignals) setObservation(null);
-        }
-        if (offset !== previousOffset) {
-          forward = previousOffset !== undefined && offset > previousOffset;
-          previousOffset = offset;
-        }
-        const nextOpeningOpacity = 1 - easeFade(clamp((offset / intro - .64) / .36));
-        const nextLogOpacity = 1 - easeFade(clamp((tail - logFadeIn) / (logFadeOut - logFadeIn)));
-        if (openingOpacity !== nextOpeningOpacity) {
-          openingOpacity = nextOpeningOpacity;
-          layer.style.setProperty('--opening-opacity', String(openingOpacity));
-        }
-        if (logOpacity !== nextLogOpacity) {
-          logOpacity = nextLogOpacity;
-          layer.style.setProperty('--log-opacity', String(logOpacity));
-        }
         const showBrand = tail >= narrativeTiming.brandStart && path >= .995;
+        if (brandShown !== showBrand) {
+          brandShown = showBrand;
+          setBrandActive(showBrand);
+        }
         const nextRevealTime = showBrand ? tail : 0;
         if (revealTime !== nextRevealTime) {
           revealTime = nextRevealTime;
           brand.time(revealTime);
         }
-        let beat: NarrativeBeat | null = null;
-        if (showBrand) beat = 'brand';
-        else if (offset < intro) beat = 'opening';
-        else if (raw >= cityIn && raw < cityOut && path >= cityIn && path < cityOut) beat = 'passage';
-        else if (raw >= narrativeTiming.arrival && path >= narrativeTiming.arrival && tail < logFadeOut) beat = 'arrival';
-        if (beat === shown.current) return;
-        shown.current = beat;
-        const animate = beat !== null && beat !== 'brand' && !seen.current.has(beat) && (beat === 'opening' || forward);
-        if (beat) seen.current.add(beat);
-        setNarrative(beat ? { beat, animate } : null);
+        const progress = Math.min(raw, path);
+        const index = progress >= narrativeTiming.arrival ? 2 : progress >= cityIn ? 1 : 0;
+        if (index <= reached.current) return;
+        const animate = index === reached.current + 1 &&
+          (index === 0 || (index === 1 ? raw < cityOut : tail < narrativeTiming.brandStart));
+        reached.current = index;
+        setNarrative({ index, animate });
       };
       ScrollTrigger.create({
         trigger: element, start: 'top top', end: 'bottom bottom',
@@ -219,8 +199,6 @@ export default function ExpanseLab() {
     return () => {
       context.revert();
       element.removeAttribute('data-exploring');
-      layer.style.removeProperty('--opening-opacity');
-      layer.style.removeProperty('--log-opacity');
     };
   }, [reduced, contextLost]);
   const seek = (progress: number, reveal = false) => {
@@ -231,8 +209,7 @@ export default function ExpanseLab() {
   return <main ref={root} className={styles.journey} data-reduced={reduced || contextLost} data-ready={ready}
     style={{ '--journey-screens': EXPANSE.journey.screens, '--journey-intro': EXPANSE.journey.introScreens,
       '--journey-hold': EXPANSE.journey.holdScreens } as CSSProperties}>
-    <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。"
-      onKeyDown={event => { if (event.key === 'Escape') closeObservation(); }}>
+    <figure ref={stage} className={styles.stage} aria-label="连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。">
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
           debug={debug} skyView={skyView} windView={windView} cameraRef={cameraRef} observationElements={observationElements}
@@ -241,15 +218,16 @@ export default function ExpanseLab() {
       </SceneBoundary>
       <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost} stage={stage}
         hint={hint} progressBar={progressBar} progressFill={progressFill} cameraRef={cameraRef} />
-      <ExpanseSignals elements={observationElements} enabled={ready && !contextLost && signalsAllowed}
-        active={observation} read={read} onSelect={selectObservation} />
-      <ExpanseNarrative layer={narrativeLayer} active={narrative} enabled={ready && !reduced && !contextLost}
-        observation={observation && signalsAllowed ? { id: observation, animate: !reduced && !read.has(observation) } : null}
-        onRead={markRead} onClose={closeObservation} />
+      <ExpanseSignals elements={observationElements} enabled={ready && !contextLost} focusCard={focusCard}
+        active={observation} read={read} onSelect={selectObservation} onClose={closeObservation}
+        invalidate={invalidateScene} />
+      <ExpanseNarrative layer={narrativeLayer} active={narrative} brandActive={brandActive}
+        ready={ready} reduced={reduced} unavailable={contextLost} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} aria-label="场景调试">
         <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
+        <div>主线 {narrative.index + 1} / 3 · 全息卡 {observation ?? '关闭'}</div>
         <div>{([['起点 · Passage', 0], ['50%', .5], ['终点', 1]] as const)
           .map(([label, progress]) => <button key={label} type="button" disabled={reduced || contextLost} onClick={() => seek(progress)}>{label}</button>)}
           <button type="button" disabled={reduced || contextLost} onClick={() => seek(1, true)}>品牌</button>

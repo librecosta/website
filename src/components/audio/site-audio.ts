@@ -10,7 +10,6 @@ const cues = {
   hover: [[760, 712, .098, .14, 0], [1320, 1210, .052, .045, .007]],
   click: [[585, 388, .11, .22, 0], [1040, 820, .058, .060, .006]],
   confirm: [[528, 516, .17, .17, 0], [785, 773, .23, .12, .049]],
-  text: [[1420, 1130, .055, .018, 0]],
   scanBones: [[1175, 1090, .14, .052, 0], [1760, 1620, .11, .016, .028]],
   scanRuin: [[670, 1130, .094, .042, 0], [1520, 810, .118, .041, .092]],
   scanRing: [[185, 176, .264, .055, 0], [370, 352, .22, .030, .012], [554, 530, .15, .012, .029]],
@@ -40,7 +39,8 @@ export class SiteAudio {
   private hoverAt = -Infinity;
   private textAt = -Infinity;
   private scanAt = -Infinity;
-  private textPulse?: { voice: OscillatorNode; envelope: GainNode };
+  private textBuffer?: AudioBuffer;
+  private textPulse?: { voice: AudioBufferSourceNode; envelope: GainNode };
 
   constructor(levels: typeof defaultLevels, private readonly reportWind: (status: 'ready' | 'missing') => void) {
     this.master.gain.value = 0;
@@ -168,6 +168,42 @@ export class SiteAudio {
     }
   }
 
+  private typeTick(now: number) {
+    if (now - this.textAt < .045) return;
+    this.textAt = now;
+    if (!this.textBuffer) {
+      const rate = this.context.sampleRate;
+      const buffer = this.context.createBuffer(1, Math.round(rate * .032), rate);
+      const samples = buffer.getChannelData(0);
+      let seed = 731;
+      for (let index = 0; index < samples.length; index++) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        const time = index / rate;
+        const noise = seed / 0x80000000 - 1;
+        const strike = noise * .56 * Math.exp(-time / .0038);
+        const body = .48 * Math.sin(time * 2 * Math.PI * 645) * Math.exp(-time / .006);
+        samples[index] = (strike + body) * Math.min(1, time / .0007, (samples.length - index) / (rate * .004));
+      }
+      this.textBuffer = buffer;
+    }
+    const voice = this.context.createBufferSource();
+    const filter = this.context.createBiquadFilter();
+    const envelope = this.context.createGain();
+    voice.buffer = this.textBuffer;
+    voice.playbackRate.value = .96 + Math.random() * .08;
+    filter.type = 'lowpass';
+    filter.frequency.value = 2500;
+    filter.Q.value = .5;
+    envelope.gain.value = .052;
+    voice.connect(filter).connect(envelope).connect(this.buses.ui);
+    this.textPulse = { voice, envelope };
+    voice.onended = () => {
+      if (this.textPulse?.voice === voice) this.textPulse = undefined;
+      voice.disconnect(); filter.disconnect(); envelope.disconnect();
+    };
+    voice.start(now);
+  }
+
   cue(kind: AudioCue) {
     if (!this.audible || document.hidden || this.context.state !== 'running') return;
     const now = this.context.currentTime;
@@ -176,8 +212,8 @@ export class SiteAudio {
       this.hoverAt = now;
     }
     if (kind === 'text') {
-      if (now - this.textAt < .16) return;
-      this.textAt = now;
+      this.typeTick(now);
+      return;
     }
     const scan = scanFilters[kind];
     if (scan) {
@@ -200,9 +236,7 @@ export class SiteAudio {
         voice.connect(filter).connect(envelope);
       } else voice.connect(envelope);
       envelope.connect(this.buses.ui);
-      if (kind === 'text') this.textPulse = { voice, envelope };
       voice.onended = () => {
-        if (this.textPulse?.voice === voice) this.textPulse = undefined;
         voice.disconnect(); filter?.disconnect(); envelope.disconnect();
       };
       voice.start(start);
