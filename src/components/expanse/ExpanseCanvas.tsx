@@ -1,7 +1,7 @@
 'use client';
 
 import { addAfterEffect, Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   ACESFilmicToneMapping, BufferAttribute, BufferGeometry, InstancedMesh, MathUtils,
   MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, Quaternion, SRGBColorSpace, WebGLRenderer,
@@ -21,13 +21,17 @@ import { addRuinDeposits } from './dressing-terrain';
 import { createDistantSteleMaterial } from './ensemble-material';
 import { EnvironmentalDressing } from './EnvironmentalDressing';
 import { EntranceRuin, FutureCity } from './FutureCity';
-import { ObservationProjection, type ObservationElements } from './ObservationProjection';
+import { ObservationProjection, type BoardPreviews, type ObservationElements } from './ObservationProjection';
+import type { ExpanseEditorMount } from './ExpanseTransformEditor';
 import { observationIds, type ObservationId } from './narrative';
 import styles from './expanse.module.css';
 
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
   skyView: SkyView; cameraRef: RefObject<Camera | null>; observationElements: RefObject<ObservationElements>;
+  editor?: ExpanseEditorMount; editorDragging: RefObject<boolean>;
   windView: WindView; onReady: () => void; onContextLost: () => void };
+
+const ExpanseTransformEditor = lazy(() => import('./ExpanseTransformEditor'));
 
 function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array; normals?: Float32Array }) {
   const g = new BufferGeometry();
@@ -59,8 +63,9 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant} dispose={null} />;
 }
 
-function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere, observationElements }:
-  Pick<Props, 'mobile' | 'windView' | 'skyView' | 'reduced' | 'debug' | 'observationElements'> & { visible: boolean; atmosphere: Atmosphere }) {
+function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere, observationElements, editor, stage, signal, editorDragging }:
+  Pick<Props, 'mobile' | 'windView' | 'skyView' | 'reduced' | 'debug' | 'observationElements' | 'editor' | 'stage' | 'signal' | 'editorDragging'> &
+  { visible: boolean; atmosphere: Atmosphere }) {
   const { invalidate, gl } = useThree();
   const opaque = useRef<Group>(null);
   const anchors = useRef<Partial<Record<ObservationId, Object3D | null>>>({});
@@ -83,6 +88,8 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
   }, [mobile, monuments]);
   const groundHeight = useMemo(() => renderedGround(terrain.geometry.getAttribute('position').array,
     EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop'], EXPANSE.terrain), [terrain, mobile]);
+  const { center: [duneX, duneZ], height: duneOffset } = EXPANSE.duneObservation;
+  const previews = useRef<BoardPreviews>({ drafts: {} });
   const windSurface = useMemo(() => windSurfaceAbove(groundHeight, monuments), [groundHeight, monuments]);
   const windActive = windView !== 'static';
   const storm = useMemo(() => windActive ? createSandstorm() : null, [windActive]);
@@ -129,22 +136,27 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
     <mesh geometry={terrain.geometry} material={resources.ground} receiveShadow />
     <group ref={opaque}>
       <FutureCity atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} visible={visible} reduced={reduced}
-        onAnchor={attach.ring} />
+        onAnchor={attach.ring} onAirshipAnchor={attach.airship} />
       {entrance && <Suspense fallback={null}>
         <EntranceRuin ruin={entrance} atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} onAnchor={attach.ruin} />
       </Suspense>}
       <EnvironmentalDressing ground={groundHeight} mobile={mobile} material={resources.dressing} onAnchor={attach.bones} />
       <Instances items={distantStelae} geometry={stelaGeometry} material={resources.distant} distant />
     </group>
+    <object3D ref={attach.dune} position={[duneX, groundHeight(duneX, duneZ) + duneOffset, duneZ]} />
     <ObservationProjection anchors={anchors.current} elements={observationElements} opaque={opaque} mobile={mobile} reduced={reduced}
-      terrain={terrain.geometry.boundingBox!} ground={groundHeight} />
+      terrain={terrain.geometry.boundingBox!} ground={groundHeight} previews={previews} />
+    {editor && <Suspense fallback={null}>
+      <ExpanseTransformEditor mount={editor} stage={stage} signal={signal} reduced={reduced}
+        previews={previews} anchors={anchors.current} dragging={editorDragging} />
+    </Suspense>}
     {storm && windView !== 'static' && <SandDust terrain={terrain.geometry} ground={groundHeight} windSurface={windSurface}
       storm={storm} mobile={mobile} mode={windView} visible={visible} debug={debug} />}
     {storm && windView === 'transport' && <StormGrit uniforms={storm} mobile={mobile} />}
   </group>;
 }
 
-function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, cameraRef, visible }:
+function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, cameraRef, visible, editorDragging }:
   Props & { visible: boolean }) {
   const { camera, invalidate, gl, size } = useThree();
   useEffect(() => {
@@ -201,9 +213,9 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
       signal.current.invalidate();
     };
     const move = (event: PointerEvent) => {
-      if (event.pointerType !== 'mouse' || !fineHover.matches || document.hidden) return;
+      if (editorDragging.current || event.pointerType !== 'mouse' || !fineHover.matches || document.hidden) return;
       // Retain the last scene sample over controls and when the pointer leaves the viewport.
-      if (event.target instanceof Element && event.target.closest('a, button, aside')) return;
+      if (event.target instanceof Element && event.target.closest('a, button, aside, [data-transform-inspector]')) return;
       const { left, top, width, height } = container.getBoundingClientRect();
       const x = (event.clientX - left) / width, y = (event.clientY - top) / height;
       if (x < 0 || x > 1 || y < 0 || y > 1) return;
@@ -222,7 +234,7 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
       fineHover.removeEventListener('change', reset);
       reset();
     };
-  }, [stage, signal, reduced, visible]);
+  }, [stage, signal, reduced, visible, editorDragging]);
   useEffect(() => addAfterEffect(() => {
     if (!readback.current) return;
     readback.current = false;
@@ -249,7 +261,11 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
     const dataset = gl.domElement.dataset;
     const motion = pointer.current;
     const settings = EXPANSE.journey.pointer;
-    if (!reduced && visible && !document.hidden && motion.sampledAt !== null) {
+    if (editorDragging.current) {
+      motion.targetX = motion.x;
+      motion.targetY = motion.y;
+      motion.sampledAt = null;
+    } else if (!reduced && visible && !document.hidden && motion.sampledAt !== null) {
       const now = performance.now();
       const weight = -Math.expm1(-(now - motion.sampledAt) / settings.responseMs);
       motion.x = MathUtils.lerp(motion.x, motion.targetX, weight);
@@ -349,7 +365,8 @@ export default function ExpanseCanvas(props: Props) {
       <orthographicCamera attach="shadow-camera" args={[...daylight.shadowBounds]} />
     </directionalLight>
     <World mobile={props.mobile} windView={windView} skyView={props.skyView} reduced={props.reduced}
-      visible={visible} debug={props.debug} atmosphere={atmosphere} observationElements={props.observationElements} />
+      visible={visible} debug={props.debug} atmosphere={atmosphere} observationElements={props.observationElements}
+      editor={props.editor} stage={props.stage} signal={props.signal} editorDragging={props.editorDragging} />
     <Observation {...props} visible={visible} />
   </Canvas>;
 }

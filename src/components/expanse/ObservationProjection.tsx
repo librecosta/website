@@ -1,12 +1,14 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
-import { Box3, Euler, Frustum, InstancedMesh, MathUtils, Matrix4, Mesh, Quaternion, Ray, Raycaster, Vector3,
-  type Group, type Intersection, type Object3D } from 'three';
+import { Frustum, InstancedMesh, Matrix4, Mesh, Ray, Raycaster, Vector3,
+  type Box3, type Group, type Intersection, type Object3D } from 'three';
 import { observationIds, type ObservationId } from './narrative';
-import { createObservationGraphics, signalPanel } from './observation-graphics';
+import { createObservationGraphics } from './observation-graphics';
 import { EXPANSE } from './parameters';
+import type { Transform } from '@/tools/transform-inspector/editor';
 
 type SignalCard = { id: ObservationId; node: HTMLElement };
+export type ObservationAnchors = Partial<Record<ObservationId, Object3D | null>>;
 
 export type ObservationElements = {
   buttons: Partial<Record<ObservationId, HTMLButtonElement | null>>;
@@ -15,41 +17,12 @@ export type ObservationElements = {
   cardReadout?: HTMLSpanElement | null;
 };
 
+export type BoardPreviews = {
+  selected?: ObservationId;
+  drafts: Partial<Record<ObservationId, Transform>>;
+};
+
 const axes = ['x', 'y', 'z'] as const;
-const panelAspect = signalPanel.height / signalPanel.width;
-
-function boardPose(id: ObservationId, ground: (x: number, z: number) => number) {
-  const spec = EXPANSE.observationBoards[id];
-  const height = spec.width * panelAspect;
-  const rotation = new Quaternion().setFromEuler(new Euler(MathUtils.degToRad(spec.pitch - 90),
-    MathUtils.degToRad(spec.yaw), 0, 'YXZ'));
-  const size = new Vector3(spec.width, height, 1);
-  if ('center' in spec) return { position: new Vector3(...spec.center), rotation, size };
-
-  const [x, z] = spec.foot;
-  const foot = new Vector3(x, ground(x, z), z);
-  const right = new Vector3(1, 0, 0).applyQuaternion(rotation);
-  const up = new Vector3(0, 1, 0).applyQuaternion(rotation);
-  const edge = right.clone().multiplyScalar(spec.width / 2);
-  const crossSlope = (ground(x + edge.x, z + edge.z) - ground(x - edge.x, z - edge.z)) / spec.width;
-  right.y = crossSlope * spec.followSlope + Math.tan(MathUtils.degToRad(spec.roll));
-  right.normalize();
-  up.addScaledVector(right, -up.dot(right)).normalize();
-  rotation.setFromRotationMatrix(new Matrix4().makeBasis(right, up, new Vector3().crossVectors(right, up)));
-
-  // Keep the plate low on the slope, allowing the sand to meet the rim on the uphill side.
-  const sample = new Vector3();
-  let lift = 0;
-  for (const across of [-.5, -.25, 0, .25, .5]) {
-    for (const along of [0, .5, 1]) {
-      sample.copy(foot).addScaledVector(right, across * spec.width).addScaledVector(up, along * height);
-      lift = Math.max(lift, ground(sample.x, sample.z) - sample.y);
-    }
-  }
-  const position = foot.addScaledVector(up, height / 2);
-  position.y += Math.min(lift, spec.liftLimit) + spec.clearance;
-  return { position, rotation, size };
-}
 
 function terrainOccludes(ray: Ray, distance: number, bounds: Box3, ground: (x: number, z: number) => number,
   step: number, sample: Vector3) {
@@ -73,12 +46,13 @@ function terrainOccludes(ray: Ray, distance: number, bounds: Box3, ground: (x: n
   return false;
 }
 
-export function ObservationProjection({ anchors, elements, opaque, terrain, ground, mobile, reduced }: {
-  anchors: Partial<Record<ObservationId, Object3D | null>>;
+export function ObservationProjection({ anchors, elements, opaque, terrain, ground, previews, mobile, reduced }: {
+  anchors: ObservationAnchors;
   elements: RefObject<ObservationElements>;
   opaque: RefObject<Group | null>;
   terrain: Box3;
   ground: (x: number, z: number) => number;
+  previews: RefObject<BoardPreviews>;
   mobile: boolean;
   reduced: boolean;
 }) {
@@ -93,9 +67,8 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
   }), []);
   const graphics = useMemo(createObservationGraphics, []);
   useEffect(() => () => graphics.dispose(), [graphics]);
-  const poses = useMemo(() => ({ bones: boardPose('bones', ground), ruin: boardPose('ruin', ground),
-    ring: boardPose('ring', ground) }), [ground]);
-  const placement = useRef({ card: null as SignalCard | null, poses, began: 0, blocked: '' });
+  const placement = useRef({ card: null as SignalCard | null, id: undefined as ObservationId | undefined,
+    draft: undefined as Transform | undefined, began: 0, blocked: '' });
 
   useFrame(({ camera, size }) => {
     const { world, eye, view, endpoint, localEnd, caster, localRay, inverse, hits, meshes, frustum, projection } = scratch;
@@ -183,30 +156,48 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
       }
     }
     panel.visible = false;
-    if (!card) placement.current.card = null;
-    if (card) {
-      const fit = placement.current;
-      const opening = fit.card !== card;
-      const changed = opening || fit.poses !== poses;
+    const fit = placement.current;
+    const selected = previews.current.selected;
+    const id = selected ?? card?.id;
+    if (id) {
+      const draft = previews.current.drafts[id];
+      const pose = EXPANSE.observationBoards[id];
+      const relative = 'relative' in pose;
+      const parent = relative ? anchors[id] : null;
+      const opening = fit.id !== id || (!selected && fit.card !== card);
+      const changed = opening || fit.draft !== draft;
       if (changed) {
         fit.card = card;
-        fit.poses = poses;
-        if (opening) { fit.began = now; graphics.paint(card.id); }
-        const { position, rotation, size: scale } = poses[card.id];
-        panel.position.copy(position);
-        panel.quaternion.copy(rotation);
-        panel.scale.copy(scale);
+        fit.id = id;
+        fit.draft = draft;
+        if (opening) { fit.began = now; graphics.paint(id); }
+      }
+      if (changed || parent) {
+        const { position, quaternion, scale } = draft ?? pose;
+        panel.position.fromArray(position);
+        panel.quaternion.fromArray(quaternion);
+        panel.scale.fromArray(scale);
+        if (parent) {
+          parent.updateWorldMatrix(true, false);
+          panel.applyMatrix4(parent.matrixWorld);
+        }
         panel.updateMatrixWorld();
       }
-      const inView = frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,
+      const inView = (!relative || parent) && frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,
         camera.matrixWorldInverse)).intersectsObject(panel);
       if (inView) {
-        if (trace || changed || card.node.dataset.state === 'outside') fit.blocked = occlusion(panel.position, .2);
+        if (trace || changed || card?.node.dataset.state === 'outside') fit.blocked = occlusion(panel.position, .2);
         cardState = fit.blocked || 'visible';
         const elapsed = now - fit.began;
-        panel.material.opacity = reduced ? 1 : Math.min(1, elapsed / 220);
+        panel.material.opacity = reduced || selected ? 1 : Math.min(1, elapsed / 220);
         panel.visible = true;
       }
+    } else {
+      fit.card = null;
+      fit.id = undefined;
+    }
+    if (card) {
+      if (card.id !== id) cardState = 'outside';
       if (card.node.dataset.state !== cardState) card.node.dataset.state = cardState;
     }
     if (cardReadout && (trace || !card)) {

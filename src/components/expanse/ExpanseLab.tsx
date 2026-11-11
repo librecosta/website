@@ -18,7 +18,9 @@ import type { ObservationElements } from './ObservationProjection';
 import styles from './expanse.module.css';
 
 const ExpanseCanvas = dynamic(() => import('./ExpanseCanvas'), { ssr: false });
-const scanCue = { bones: 'scanBones', ruin: 'scanRuin', ring: 'scanRing' } satisfies Record<ObservationId, AudioCue>;
+const scanCue = {
+  bones: 'scanBones', ruin: 'scanRuin', ring: 'scanRing', airship: 'scanRing', dune: 'scanBones',
+} satisfies Record<ObservationId, AudioCue>;
 
 function progressText({ raw, value }: Pick<JourneySignal, 'raw' | 'value'>, staticView: boolean) {
   const journey = staticView ? EXPANSE.journey.reducedProgress : mapJourneyProgress(value, EXPANSE.journey.timing);
@@ -45,6 +47,8 @@ class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void 
 export default function ExpanseLab() {
   const root = useRef<HTMLElement>(null), hint = useRef<HTMLParagraphElement>(null);
   const stage = useRef<HTMLElement>(null);
+  const editorHost = useRef<HTMLDivElement>(null), editorDragging = useRef(false);
+  const editorToggle = useRef<HTMLButtonElement>(null);
   const debugOutput = useRef<HTMLOutputElement>(null);
   const progressBar = useRef<HTMLDivElement>(null), progressFill = useRef<HTMLSpanElement>(null);
   const distances = useRef({ intro: 0, travel: 0, hold: 0 });
@@ -64,6 +68,11 @@ export default function ExpanseLab() {
   const [skyView, setSkyView] = useState<SkyView>('color');
   const [windView, setWindView] = useState<WindView>('transport');
   const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
+  const [editorStarted, setEditorStarted] = useState(false), [editorOpen, setEditorOpen] = useState(false);
+  const closeEditor = useCallback(() => setEditorOpen(false), []);
+  useEffect(() => {
+    if (editorStarted && !editorOpen) editorToggle.current?.focus({ preventScroll: true });
+  }, [editorOpen, editorStarted]);
   const reduced = mediaReduced || forceReduced;
   const onReady = useCallback(() => setReady(true), []);
   const onContextLost = useCallback(() => { setContextLost(true); setReady(false); setObservation(null); }, []);
@@ -211,6 +220,8 @@ export default function ExpanseLab() {
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
           debug={debug} skyView={skyView} windView={windView} cameraRef={cameraRef} observationElements={observationElements}
+          editor={editorStarted ? { host: editorHost, open: editorOpen, close: closeEditor } : undefined}
+          editorDragging={editorDragging}
           onReady={onReady} onContextLost={onContextLost} />}
         {!ready && !contextLost && <p className={styles.loading} role="status">正在展开荒原</p>}
       </SceneBoundary>
@@ -223,13 +234,18 @@ export default function ExpanseLab() {
         ready={ready} reduced={reduced} unavailable={contextLost} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
-      {debug && <aside className={styles.debug} aria-label="场景调试">
+      {debug && <aside className={styles.debug} data-editor-open={editorOpen && !contextLost} aria-label="场景调试">
         <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
         <div>主线 {narrative.index + 1} / 3 · 全息卡 {observation ?? '关闭'}</div>
         <div>{([['起点 · Passage', 0], ['50%', .5], ['终点', 1]] as const)
           .map(([label, progress]) => <button key={label} type="button" disabled={reduced || contextLost} onClick={() => seek(progress)}>{label}</button>)}
           <button type="button" disabled={reduced || contextLost} onClick={() => seek(1, true)}>品牌</button>
         </div>
+        <button ref={editorToggle} type="button" disabled={!ready || contextLost} aria-expanded={editorOpen && !contextLost}
+          aria-controls={editorStarted ? 'expanse-transform-inspector' : undefined}
+          onClick={() => { setEditorStarted(true); setEditorOpen(!editorOpen); }}>
+          {editorOpen ? '关闭物体变换' : '打开物体变换'}
+        </button>
         <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />验证减少动态效果</label>
         <label>风沙 <select disabled={reduced || contextLost} value={reduced ? 'static' : windView}
           onChange={event => setWindView(event.target.value as WindView)}>
@@ -242,6 +258,9 @@ export default function ExpanseLab() {
         <SignalReadouts elements={observationElements} />
         <ExpanseAudioLevels />
       </aside>}
+      {debug && editorStarted && <div ref={editorHost} id="expanse-transform-inspector"
+        className={styles.transformEditor} data-transform-inspector
+        hidden={!editorOpen || contextLost} />}
       <figcaption className={styles.srOnly}>以页面滚动走近遗落巨构。随时停止，向上滚动可以原路返回。</figcaption>
     </figure>
     {(reduced || contextLost) && <ExpanseTranscript />}

@@ -268,18 +268,20 @@ export function poseSkylineOrbit(orbit: Object3D, satellites: City['satellites']
 type Traffic = WorldParameters['futureCity']['traffic'];
 export type VehicleKind = keyof Traffic['vehicles'];
 
+export function buildFlightRoute<T extends { waypoints: readonly Vec3[] }>(route: T) {
+  const curve = new CatmullRomCurve3(route.waypoints.map(point => new Vector3(...point)), true);
+  curve.arcLengthDivisions = 512;
+  return { ...route, curve, length: curve.getLength() };
+}
+
 export function buildTrafficRoutes(traffic: Traffic) {
-  return traffic.routes.map(route => {
-    const curve = new CatmullRomCurve3(route.waypoints.map(point => new Vector3(...point)), true);
-    curve.arcLengthDivisions = 512;
-    return { ...route, curve, length: curve.getLength() };
-  });
+  return traffic.routes.map(buildFlightRoute);
 }
 
 type Slice = readonly [z: number, halfWidth: number, bottom: number, top: number];
 const skin = '#8595a1', trim = '#263540', glass = '#415564', cargo = '#756e60';
 
-export function buildVehicleGeometry(kind: VehicleKind, size: Vec3) {
+function flightHull(size: Vec3) {
   const parts: BufferGeometry[] = [];
   const hull = (color: string, slices: readonly Slice[], offsetX = 0, light = 0) => {
     const vertices: Vec3[] = slices.flatMap(([z, half, bottom, top]) => {
@@ -313,6 +315,40 @@ export function buildVehicleGeometry(kind: VehicleKind, size: Vec3) {
     ], x, light);
   };
 
+  return { parts, hull, pod };
+}
+
+export function buildAirshipGeometry(kind: City['airships'][number]['id'], size: Vec3) {
+  const { parts, hull, pod } = flightHull(size);
+  if (kind === 'passenger') {
+    // A tapered lift hull above a distinct promenade deck and swept aft stabilizers.
+    hull(skin, [[-.50,.08,-.10,.14],[-.38,.30,-.27,.30],[-.16,.46,-.33,.48],
+      [.22,.44,-.32,.46],[.40,.27,-.25,.30],[.51,.06,-.07,.12]]);
+    hull(trim, [[-.37,.15,-.30,-.18],[-.18,.33,-.53,-.18],[.25,.31,-.48,-.16],[.44,.10,-.28,-.10]]);
+    hull(alloy.shell, [[-.32,.18,.29,.31],[-.14,.30,.38,.54],[.21,.24,.38,.53],[.39,.09,.30,.35]]);
+    hull(alloy.rail, [[-.52,.43,-.12,.07],[-.43,.53,-.14,.08],[-.26,.26,-.12,.12]]);
+    for (const side of [-1, 1]) {
+      pod(side * .41, -.10, -.30, .22, .26, .27, trim);
+      pod(side * .43, -.10, -.441, .12, .13, .036, glass, 6);
+      for (const z of [-.10, .02, .14, .26]) pod(side * .285, -.35, z, .086, .10, .070, glass, 6);
+    }
+  } else {
+    // Twin lift housings bracket a loaded spine, with a separate forward bridge.
+    hull(trim, [[-.46,.15,-.23,.14],[-.33,.38,-.37,.30],[.25,.38,-.35,.28],[.46,.22,-.23,.11]]);
+    hull(cargo, [[-.36,.20,-.29,.28],[-.28,.27,-.48,.45],[.19,.27,-.48,.45],[.29,.16,-.27,.27]]);
+    hull(glass, [[.22,.15,-.12,.30],[.36,.21,-.21,.36],[.52,.10,-.16,.12]]);
+    for (const side of [-1, 1]) {
+      hull(skin, [[-.50,.078,-.16,.17],[-.34,.14,-.32,.42],[.24,.14,-.31,.37],[.44,.082,-.17,.20]], side * .38);
+      pod(side * .38, -.01, -.491, .12, .18, .042, cargo, 7);
+      pod(side * .38, .02, .436, .10, .12, .042, glass, 6);
+      for (const z of [-.25, .17]) pod(side * .38, .29, z, .31, .19, .08, alloy.rail);
+    }
+  }
+  return merge(parts);
+}
+
+export function buildVehicleGeometry(kind: VehicleKind, size: Vec3) {
+  const { parts, hull, pod } = flightHull(size);
   switch (kind) {
     case 'courier':
       // A swept dispatch sled with a low canopy.

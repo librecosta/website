@@ -10,6 +10,8 @@ export const observationRecords = {
   bones: { id: 'S01', name: '沙中遗骸', lines: ['动物骸骨……', '这片苍白的荒原，曾经也有生命。'] },
   ruin: { id: 'S02', name: '信号塔遗迹', lines: ['信号塔……它应该能收发信号。', '不过已经废弃了。'] },
   ring: { id: 'S03', name: '断续的巨环', lines: ['无声运转的巨环，在沙暴之中也能看见。', '令人震惊。'] },
+  airship: { id: 'S04', name: '远航飞艇', lines: ['庞大的飞艇，或许承载着许多人的梦想。'] },
+  dune: { id: 'S05', name: '风成沙丘', lines: ['或许是风沙的沉积造就了这片土地。'] },
 } as const satisfies Record<string, WitnessRecord & { name: string }>;
 
 export type ObservationId = keyof typeof observationRecords;

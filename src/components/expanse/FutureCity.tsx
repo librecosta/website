@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Color, Mesh, MeshStandardMaterial, Object3D, Raycaster, Vector3, Vector4, type BufferGeometry, type Group, type InstancedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyAerialPerspective, type Atmosphere } from './atmosphere';
+import { CityAirships } from './CityAirships';
 import { CityTraffic } from './CityTraffic';
 import { EXPANSE } from './parameters';
 import type { SandstormUniforms } from './sandstorm';
@@ -92,9 +93,10 @@ export function EntranceRuin({ ruin, atmosphere, storm, mobile, onAnchor }: {
   </mesh>;
 }
 
-export function FutureCity({ atmosphere, storm, mobile, visible, reduced, onAnchor }: {
+export function FutureCity({ atmosphere, storm, mobile, visible, reduced, onAnchor, onAirshipAnchor }: {
   atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean; visible: boolean; reduced: boolean;
   onAnchor: (object: Object3D | null) => void;
+  onAirshipAnchor: (object: Object3D | null) => void;
 }) {
   const pivot = useRef<Group>(null);
   const track = useRef<Mesh>(null);
@@ -144,6 +146,7 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, onAnch
     </group>
     <mesh ref={orbit} geometry={skyline.satellites} material={material} />
     <CityTraffic material={material} elapsed={elapsed} reduced={reduced} />
+    <CityAirships material={material} elapsed={elapsed} reduced={reduced} onAnchor={onAirshipAnchor} />
     {skyline.batches.map((batch, index) => <DistrictInstances key={index} {...batch} material={material} />)}
   </group>;
 }

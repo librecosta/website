@@ -176,6 +176,16 @@ export const EXPANSE = {
     },
     satellites: { count: 3, height: 5050, orbitRadius: 1830, sphereRadius: 125,
       pitchDegrees: 6, phaseDegrees: 18, revolutionSeconds: 60 },
+    // Dedicated closed lanes above local traffic and inside the city's orbital track.
+    // Width, height, length and waypoints are in skyline-local units.
+    airships: [
+      { id: 'passenger', size: [380, 210, 970], speed: 43, phase: .04,
+        waypoints: [[-3550,4000,560],[-3100,4020,980],[-2580,4060,940],[-2360,4110,550],
+          [-2570,4140,120],[-3070,4090,25],[-3510,4040,160]] },
+      { id: 'cargo', size: [535, 250, 1120], speed: 35, phase: .06,
+        waypoints: [[3570,3440,900],[3070,3420,1200],[2520,3480,1010],[2330,3560,570],
+          [2580,3630,-340],[3180,3610,-670],[3570,3530,-260],[3710,3480,330]] },
+    ],
     traffic: {
       // Width, height, length in skyline-local units. Small craft share the service and passenger lanes.
       vehicles: {
@@ -263,12 +273,36 @@ export const EXPANSE = {
   ],
   distantSteleGroove,
   distantSteleTaper: [0.76, 0.84],
+  duneObservation: { center: [473, -1717], height: 3 },
   observationBoards: {
-    // X/Z on the dune, world-unit widths and clearances, angles in degrees.
-    bones: { foot: [268, -1370], width: 123, yaw: -15, pitch: 47, roll: -10, followSlope: .10, liftLimit: 22, clearance: 3 },
-    ruin: { foot: [-600, -2780], width: 400, yaw: 30, pitch: 55, roll: 8, followSlope: .35, liftLimit: 44, clearance: 7 },
-    // Stationary in the opening below the front rim, centred against the axis.
-    ring: { center: [1300, 38200, -72000], width: 21800, yaw: 4, pitch: 72 },
+    // Approved scene-root poses from the transform inspector. Quaternions are XYZW.
+    bones: {
+      position: [204.09600513225388, 83.95141683850744, -1338.7312755215785],
+      quaternion: [-0.1720811034144197, -0.6138817613407904, -0.26784836249764493, 0.7223534672500262],
+      scale: [123, 51.37058823529412, 1],
+    },
+    ruin: {
+      position: [-628.9823214234278, 214.40878648295427, -2827.350322615274],
+      quaternion: [-0.15038460402906367, 0.5796677379987989, 0.017866922384221814, 0.8006563291943016],
+      scale: [400, 167.05882352941177, 1],
+    },
+    ring: {
+      position: [1300, 38200, -90435.4794453424],
+      quaternion: [0.4589831905753898, 0.039227546794147396, 0.006767486175302883, 0.8875527203905218],
+      scale: [28870.87714754157, 12057.836926326187, 1.3243521627312647],
+    },
+    airship: {
+      relative: true,
+      position: [250, -610, 620],
+      quaternion: [0.1684976229, 0.08858292996, 0.01520586408, 0.9815958422],
+      scale: [2103.5354001537125, 878.5353730052035, 1.450714069071526],
+    },
+    dune: {
+      relative: true,
+      position: [40.70205781960027, 49.831754820044466, -49.93065308537234],
+      quaternion: [-0.10430798801336942, -0.1922979428650093, 0.13295642349879971, 0.9666767475515775],
+      scale: [178, 74.341176471, 1],
+    },
   },
   dressing: {
     deposits: [
