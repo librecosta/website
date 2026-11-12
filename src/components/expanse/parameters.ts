@@ -168,14 +168,18 @@ export const EXPANSE = {
     lookAtHeights: [49300, 55500],
     retarget: [0.356, 1],
     ring: {
-      height: 3760, radius: 4700, guideOffset: 222, tilt: [8, 0, -4],
+      height: 3760, radius: 4700, guideOffset: 287, tilt: [8, 0, -4],
       revolutionSeconds: 180,
       bob: { amplitude: 110, period: 36 },
       pitch: { degrees: 1.8, period: 52 },
       roll: { degrees: 1.25, period: 66 },
+      skyports: [
+        { degrees: 159.5, inset: 835, length: 1190, width: 690, deckHeight: -690, berthAdvance: 72, berthOffset: -92 },
+        { degrees: 18, inset: 700, length: 920, width: 640, deckHeight: -690 },
+      ],
     },
     secondaryRing: {
-      height: 4360, radius: 3140, sectionScale: .60,
+      height: 4360, radius: 3140, sectionScale: .78,
       revolutionSeconds: 155, direction: -1, phaseDegrees: 14,
     },
     satellites: { count: 3, height: 5050, orbitRadius: 1830, sphereRadius: 125,
@@ -291,15 +295,14 @@ export const EXPANSE = {
       scale: [400, 167.05882352941177, 1],
     },
     ring: {
-      position: [1300, 38200, -90435.4794453424],
-      quaternion: [0.4589831905753898, 0.039227546794147396, 0.006767486175302883, 0.8875527203905218],
+      position: [26416.593726034494, 25789.426727509344, -71667.26738961616],
+      quaternion: [0.0943314156763963, 0.03891686531536027, -0.008371194099174157, 0.9947446831825075],
       scale: [28870.87714754157, 12057.836926326187, 1.3243521627312647],
     },
     airship: {
-      relative: true,
-      position: [250, -610, 620],
-      quaternion: [0.1684976229, 0.08858292996, 0.01520586408, 0.9815958422],
-      scale: [2103.5354001537125, 878.5353730052035, 1.450714069071526],
+      position: [-25256.87406209661, 27219.65093136527, -72370.84796612074],
+      quaternion: [0.11327154319462551, 0.03906933095612705, -0.007628019091517282, 0.9927663160108166],
+      scale: [28870.87714754157, 12057.836926326187, 1.3243521627312647],
     },
     dune: {
       relative: true,

@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Color, Mesh, MeshStandardMaterial, Object3D, Raycaster, Vector3, Vector4, type BufferGeometry, type Group, type InstancedMesh } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyAerialPerspective, type Atmosphere } from './atmosphere';
-import { CityAirships } from './CityAirships';
+import { CirclingAirship, DockedAirship } from './CityAirships';
 import { CityTraffic } from './CityTraffic';
 import { EXPANSE } from './parameters';
 import type { SandstormUniforms } from './sandstorm';
@@ -146,13 +146,14 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
     <group ref={pivot}>
       <mesh ref={track} geometry={skyline.ring} material={material}>
         {skyline.ringAnchor && <object3D ref={onAnchor} position={[...skyline.ringAnchor]} />}
+        <DockedAirship material={material} onAnchor={onAirshipAnchor} />
       </mesh>
       <mesh ref={secondaryTrack} geometry={skyline.secondaryRing} material={material}
         position-y={city.secondaryRing.height - city.ring.height} />
     </group>
     <mesh ref={orbit} geometry={skyline.satellites} material={material} />
     <CityTraffic material={material} elapsed={elapsed} reduced={reduced} />
-    <CityAirships material={material} elapsed={elapsed} reduced={reduced} onAnchor={onAirshipAnchor} />
+    <CirclingAirship material={material} elapsed={elapsed} reduced={reduced} />
     {skyline.batches.map((batch, index) => <DistrictInstances key={index} {...batch} material={material} />)}
   </group>;
 }
