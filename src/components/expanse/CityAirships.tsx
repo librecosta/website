@@ -28,8 +28,8 @@ export function DockedAirship({ material, onAnchor }: {
   </group>;
 }
 
-export function CirclingAirship({ material, elapsed, reduced }: {
-  material: MeshStandardMaterial; elapsed: RefObject<number>; reduced: boolean;
+export function CirclingAirship({ material, elapsed }: {
+  material: MeshStandardMaterial; elapsed: RefObject<number>;
 }) {
   const hull = useRef<Group>(null);
   const { curve, length, geometry, tangent } = useMemo(() => ({
@@ -38,8 +38,7 @@ export function CirclingAirship({ material, elapsed, reduced }: {
   }), []);
   useEffect(() => () => geometry.dispose(), [geometry]);
   useFrame(() => {
-    const time = reduced ? 0 : elapsed.current;
-    const progress = (cargo.phase + time * cargo.speed / length) % 1;
+    const progress = (cargo.phase + elapsed.current * cargo.speed / length) % 1;
     curve.getPointAt(progress, hull.current!.position);
     curve.getTangentAt(progress, tangent);
     hull.current!.rotation.set(-Math.asin(tangent.y), Math.atan2(tangent.x, tangent.z), 0, 'YXZ');

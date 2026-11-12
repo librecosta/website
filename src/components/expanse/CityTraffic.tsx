@@ -6,8 +6,8 @@ import { EXPANSE } from './parameters';
 
 const traffic = EXPANSE.futureCity.traffic;
 
-export function CityTraffic({ material, elapsed, reduced }: {
-  material: MeshStandardMaterial; elapsed: RefObject<number>; reduced: boolean;
+export function CityTraffic({ material, elapsed }: {
+  material: MeshStandardMaterial; elapsed: RefObject<number>;
 }) {
   const meshes = useRef<(InstancedMesh | null)[]>([]);
   const lastTime = useRef(NaN);
@@ -33,7 +33,7 @@ export function CityTraffic({ material, elapsed, reduced }: {
   }, [batches]);
 
   useFrame(() => {
-    const time = reduced ? 0 : elapsed.current;
+    const time = elapsed.current;
     if (time === lastTime.current) return;
     lastTime.current = time;
     batches.forEach(({ members }, index) => {

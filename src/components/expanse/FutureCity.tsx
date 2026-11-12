@@ -108,6 +108,7 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
   const secondaryTrack = useRef<Mesh>(null);
   const orbit = useRef<Mesh>(null);
   const elapsed = useRef(0);
+  const skipDelta = useRef(true);
   const skyline = useMemo(() => buildSkyline(city, EXPANSE.seed, mobile), [mobile]);
   const material = useMemo(() => {
     const alloy = new MeshStandardMaterial({ vertexColors: true, ...legacyCityFinish });
@@ -132,7 +133,14 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
         .replace('#include <common>', `#include <common>\n${skylineEmission}`)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = vCityFinish.x;')
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = vCityFinish.y;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skylineLight(vCityMark);')
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          // Traffic uses instancing without the district batches' instanceColor.
+          ${mobile ? `#if defined(USE_INSTANCING) && !defined(USE_INSTANCING_COLOR)
+            totalEmissiveRadiance += skylineLight(vCityMark) * 0.25;
+          #else
+            totalEmissiveRadiance += skylineLight(vCityMark);
+          #endif` : 'totalEmissiveRadiance += skylineLight(vCityMark);'}
+        `)
         // Keep the warm key and aerial perspective; give the city less diffuse skylight fill.
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
           reflectedLight.indirectDiffuse *= ${EXPANSE.atmosphere.daylight.cityDiffuseFill.toFixed(2)};
@@ -149,11 +157,20 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
     skyline.batches.forEach(batch => batch.geometry.dispose());
   }, [skyline]);
   useEffect(() => () => material.dispose(), [material]);
+  useLayoutEffect(() => {
+    // The demand loop may sleep throughout a visibility or reduced-motion pause.
+    if (!visible || reduced) skipDelta.current = true;
+  }, [visible, reduced]);
   useFrame(({ gl }, delta) => {
-    if (!visible) return;
-    // A demand-rendered frame can include time spent in a hidden tab.
-    if (!reduced) elapsed.current += Math.min(delta, 0.08);
-    const time = reduced ? 0 : elapsed.current;
+    if (!visible || document.hidden) {
+      skipDelta.current = true;
+      return;
+    }
+    if (!reduced) {
+      if (!skipDelta.current) elapsed.current += Math.min(delta, 0.08);
+      skipDelta.current = false;
+    }
+    const time = elapsed.current;
     if (debug) gl.domElement.dataset.cityTime = time.toFixed(3);
     poseSkylineRing(pivot.current!, track.current!, city.ring, time);
     poseSecondaryRing(secondaryTrack.current!, city.secondaryRing, time);
@@ -170,8 +187,8 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
         position-y={city.secondaryRing.height - city.ring.height} />
     </group>
     <mesh ref={orbit} geometry={skyline.satellites} material={material} />
-    <CityTraffic material={material} elapsed={elapsed} reduced={reduced} />
-    <CirclingAirship material={material} elapsed={elapsed} reduced={reduced} />
+    <CityTraffic material={material} elapsed={elapsed} />
+    <CirclingAirship material={material} elapsed={elapsed} />
     {skyline.batches.map(batch => <DistrictInstances key={batch.id} {...batch} material={material} />)}
   </group>;
 }
