@@ -64,8 +64,8 @@ function solid(vertices: Vec3[], faces: number[][], surface: CitySurface, marks 
   return geometry;
 }
 
-function finishedSolid(vertices: Vec3[], faces: number[][], finishes: CitySurface[]) {
-  const geometry = solid(vertices, faces, alloy.rail);
+function finishedSolid(vertices: Vec3[], faces: number[][], finishes: CitySurface[], marks?: Map<number, Vec3[]>) {
+  const geometry = solid(vertices, faces, alloy.rail, marks);
   const colors = geometry.getAttribute('color');
   const properties = geometry.getAttribute('cityFinish');
   const tint = new Color();
@@ -73,7 +73,7 @@ function finishedSolid(vertices: Vec3[], faces: number[][], finishes: CitySurfac
   for (const [i, face] of faces.entries()) {
     const finish = finishes[i];
     const { roughness, metalness } = cityFinish(finish);
-    tint.set(cityColor(finish));
+    tint.set(marks?.get(i)?.[0][2] === 1 ? alloy.web : cityColor(finish));
     const count = (face.length - 2) * 3;
     for (let j = 0; j < count; j++, vertex++) {
       colors.setXYZ(vertex, tint.r, tint.g, tint.b);
@@ -83,8 +83,6 @@ function finishedSolid(vertices: Vec3[], faces: number[][], finishes: CitySurfac
   return geometry;
 }
 
-// All district modules use the same chamfered section and stepped construction.
-// The origin sits on the floor so footprint and height can be scaled independently.
 function pier(at: Vec3, size: Vec3, taper: number, surface: CitySurface, cut = .13, lit?: (level: number, side: number) => number) {
   const [w, h, d] = size;
   return shaft([
@@ -93,23 +91,43 @@ function pier(at: Vec3, size: Vec3, taper: number, surface: CitySurface, cut = .
   ], surface, cut, lit);
 }
 
-function shaft(levels: ShaftLevel[], surface: CitySurface, cut: number,
-  lit?: (level: number, side: number) => number) {
+type ShaftFinish = CitySurface | ((level: number, side: number) => CitySurface);
+type FrontRebate = { center: number; width: number; depth: number };
+
+function shaft(levels: ShaftLevel[], surface: ShaftFinish, cut: number,
+  lit?: (level: number, side: number) => number, rebate?: FrontRebate) {
   const section = [[-.5 + cut, .5], [-.5, .5 - cut], [-.5, -.5 + cut], [-.5 + cut, -.5],
     [.5 - cut, -.5], [.5, -.5 + cut], [.5, .5 - cut], [.5 - cut, .5]];
+  if (rebate) {
+    const { center, width, depth } = rebate;
+    const right = center + width / 2, left = center - width / 2;
+    section.push([right, .5], [right, .5 - depth], [left, .5 - depth], [left, .5]);
+  }
   const vertices: Vec3[] = levels.flatMap(([x, y, z, w, d]) =>
     section.map(([u, v]): Vec3 => [x + u * w, y, z + v * d]));
-  const faces = [section.map((_, i) => i)];
+  const count = section.length;
+  // The rebate opens into the section, so its end caps cannot use a triangle fan.
+  const caps = rebate ? ShapeUtils.triangulateShape(section.map(([x, z]) => new Vector2(x, z)), [])
+    : [section.map((_, i) => i)];
+  const faces = [...caps];
+  const finishes: CitySurface[] = [];
+  const finish = typeof surface === 'function' ? surface : null;
+  if (finish) caps.forEach(() => finishes.push(finish(0, -1)));
   const marks = new Map<number, Vec3[]>();
-  for (let level = 0; level < levels.length - 1; level++) for (let i = 0; i < 8; i++) {
-    const start = level * 8;
-    const a = start + i, b = start + (i + 1) % 8;
+  for (let level = 0; level < levels.length - 1; level++) for (let i = 0; i < count; i++) {
+    const start = level * count;
+    const a = start + i, b = start + (i + 1) % count;
     const light = lit?.(level, i);
     if (light) marks.set(faces.length, [[0, 0, light], [0, 1, light], [1, 1, light], [1, 0, light]]);
-    faces.push([a, a + 8, b + 8, b]);
+    faces.push([a, a + count, b + count, b]);
+    if (finish) finishes.push(finish(level, i));
   }
-  faces.push(section.map((_, i) => vertices.length - 1 - i));
-  return solid(vertices, faces, surface, marks);
+  for (const cap of caps) {
+    faces.push(cap.map(i => vertices.length - count + i).reverse());
+    if (finish) finishes.push(finish(levels.length - 2, -1));
+  }
+  return typeof surface === 'function' ? finishedSolid(vertices, faces, finishes, marks)
+    : solid(vertices, faces, surface, marks);
 }
 
 function merge(parts: BufferGeometry[]) {
@@ -118,41 +136,114 @@ function merge(parts: BufferGeometry[]) {
   return result;
 }
 
+const { satinAlloy, structuralIron, precisionMetal, deckComposite, sandAged } = citySurfaces;
+
+// Archetypes are authored in the existing lot units: the base sets the
+// footprint and the highest occupied tier stays at y = 1.
+function districtFooting(bottom: number, top: number, depth: number, taper: number) {
+  return shaft([
+    [0, bottom, 0, 1, depth],
+    [0, MathUtils.lerp(bottom, top, .58), 0, 1, depth],
+    [0, top, 0, taper, depth * taper],
+  ], band => band === 0 ? sandAged : structuralIron, .11);
+}
+
 const cityArchetypes = {
   'service-podium': () => [
-    pier([0, -.10, 0], [1, .43, .94], .97, alloy.footing),
-    pier([-.07, .28, .04], [.82, .35, .76], .94, alloy.shell),
-    pier([.24, .55, -.14], [.29, .45, .43], .79, alloy.silver),
+    shaft([
+      [0, -.10, 0, 1, .94], [0, .33, 0, .96, .9024],
+    ], (_, edge) => edge === 0 || edge === 6 || edge === 7 ? sandAged : structuralIron, .11),
+    // A recessed service band under the wide upper body and its working roof.
+    shaft([
+      [-.07, .28, .04, .71, .65], [-.07, .37, .04, .71, .65],
+      [-.07, .43, .04, .82, .76], [-.07, .63, .04, .79, .72],
+    ], (band, edge) => band === 0 ? structuralIron : edge === -1 ? deckComposite : satinAlloy, .10),
+    shaft([
+      [.24, .55, -.14, .29, .43], [.24, .66, -.14, .26, .37],
+      [.24, 1, -.14, .22, .32],
+    ], band => band === 0 ? structuralIron : satinAlloy, .13),
+    pier([-.35, .26, .12], [.25, .21, .42], .80, structuralIron, .16),
   ],
   'gatehouse-block': () => [
-    pier([0, -.10, 0], [1, .23, 1], 1, alloy.footing),
-    pier([-.34, .10, 0], [.31, .90, .86], .91, alloy.shell),
-    pier([.32, .10, .05], [.35, .76, .77], .90, alloy.shell),
-    pier([0, .69, .12], [.84, .14, .71], 1, alloy.rail),
+    districtFooting(-.10, .13, 1, .99),
+    // Inward faces expose the jambs; the open bay starts just above the footing.
+    shaft([
+      [-.34, .10, 0, .31, .86], [-.34, .22, 0, .30, .81],
+      [-.34, 1, 0, .2821, .75],
+    ], (band, edge) => band === 0 || edge === 5 ? structuralIron : satinAlloy, .09),
+    shaft([
+      [.32, .10, .05, .35, .77], [.32, .22, .05, .33, .75],
+      [.32, .86, .05, .31, .68],
+    ], (band, edge) => band === 0 || edge === 1 ? structuralIron : satinAlloy, .09),
+    shaft([
+      [0, .69, .12, .72, .53], [0, .74, .12, .84, .71],
+      [0, .83, .12, .79, .65],
+    ], (band, edge) => band === 0 ? structuralIron : edge === -1 ? deckComposite : satinAlloy, .14),
   ],
   'bridge-pair': () => [
-    pier([0, -.10, 0], [1, .24, .98], .98, alloy.footing),
-    pier([-.30, .10, -.12], [.34, .90, .72], .76, alloy.silver),
-    pier([.29, .11, .11], [.37, .73, .68], .85, alloy.shell),
-    pier([0, .61, .02], [.64, .08, .32], 1, alloy.rail),
+    districtFooting(-.10, .14, .98, .98),
+    shaft([
+      [-.30, .10, -.12, .34, .72], [-.30, .29, -.12, .32, .67],
+      [-.30, .85, -.12, .30, .58], [-.30, 1, -.12, .2584, .5472],
+    ], band => band === 0 ? structuralIron : satinAlloy, .09),
+    shaft([
+      [.29, .11, .11, .37, .68], [.29, .26, .11, .35, .65],
+      [.29, .73, .11, .35, .64], [.29, .84, .11, .3145, .578],
+    ], band => band === 0 ? structuralIron : satinAlloy, .09),
+    // One crossing, with a deep underbeam and two haunches seated into the towers.
+    shaft([
+      [0, .594, .02, .61, .18], [0, .645, .02, .64, .30], [0, .69, .02, .64, .32],
+    ], band => band === 0 ? structuralIron : deckComposite, .12),
+    shaft([[-.25, .51, .02, .14, .21], [-.226, .647, .02, .23, .28]], structuralIron, .16),
+    shaft([[.25, .51, .02, .14, .21], [.224, .647, .02, .23, .28]], structuralIron, .16),
   ],
   'stepped-core-tower': () => [
-    pier([0, -.12, 0], [1, .30, 1], .94, alloy.footing),
-    pier([0, .16, 0], [.86, .33, .89], .99, alloy.shell),
-    pier([-.08, .47, -.04], [.61, .33, .72], 1, alloy.silver),
-    pier([-.15, .78, -.10], [.42, .22, .51], .79, alloy.silver, .13,
-      (_, side) => side === 7 ? 4 : 0),
+    districtFooting(-.12, .18, 1, .94),
+    shaft([
+      [0, .16, 0, .86, .89], [0, .425, 0, .85, .88], [-.02, .49, -.015, .77, .81],
+    ], band => band === 0 ? satinAlloy : deckComposite, .08),
+    // A single full-height rebate makes the middle tier read as a vertical extrusion.
+    shaft([
+      [-.08, .47, -.04, .61, .72], [-.08, .73, -.04, .61, .72],
+      [-.10, .80, -.05, .55, .64],
+    ], (_, edge) => edge >= 8 && edge <= 10 ? structuralIron : satinAlloy,
+      .09, undefined, { center: .17, width: .16, depth: .13 }),
+    shaft([
+      [-.15, .78, -.10, .42, .51], [-.15, .835, -.10, .39, .48],
+      [-.15, 1, -.10, .3318, .4029],
+    ], band => band === 0 ? structuralIron : precisionMetal, .13,
+    (level, side) => level === 1 && side === 7 ? 4 : 0),
   ],
   'winged-tower': () => [
-    pier([0, -.10, 0], [1, .27, 1], .96, citySurfaces.sandAged),
-    pier([-.18, .14, -.07], [.58, .86, .74], .80, citySurfaces.satinAlloy),
-    pier([.22, .15, .11], [.52, .46, .75], .88, citySurfaces.structuralIron),
+    districtFooting(-.10, .17, 1, .96),
+    shaft([
+      [-.18, .14, -.07, .58, .74], [-.18, .26, -.07, .55, .71],
+      [-.18, .89, -.07, .50, .64], [-.18, 1, -.07, .464, .592],
+    ], band => band === 0 ? structuralIron : satinAlloy, .09),
+    // The wing grows from the footing on a separate bearing line, then seats into the tower.
+    shaft([
+      [.255, .15, .105, .43, .71], [.235, .27, .11, .49, .75],
+      [.198, .61, .08, .45, .62],
+    ], structuralIron, .13),
+    shaft([
+      [.08, .48, .18, .27, .37], [.043, .63, .20, .22, .31],
+    ], precisionMetal, .16),
   ],
   'forecourt-transfer': () => [
-    pier([0, -.06, 0], [1, .39, 1], .95, alloy.footing),
-    pier([-.07, .29, -.11], [.86, .33, .77], .89, alloy.shell),
-    pier([-.28, .59, -.24], [.36, .41, .43], .84, alloy.silver),
-    pier([.28, .58, -.27], [.27, .29, .37], .91, alloy.shell),
+    districtFooting(-.06, .33, 1, .95),
+    // The front of the terrace is a clear tread; its rear shoulder takes the annexes.
+    shaft([
+      [-.07, .29, -.09, .86, .77], [-.07, .41, -.10, .85, .74],
+      [-.07, .56, -.13, .76, .66], [-.07, .62, -.13, .76, .66],
+    ], band => [structuralIron, satinAlloy, deckComposite][band], .13),
+    shaft([
+      [-.28, .59, -.24, .36, .43], [-.28, .70, -.24, .34, .40],
+      [-.28, 1, -.24, .3024, .3612],
+    ], band => band === 0 ? structuralIron : satinAlloy, .11),
+    shaft([
+      [.28, .58, -.27, .27, .37], [.28, .66, -.27, .27, .37],
+      [.28, .87, -.27, .2457, .3367],
+    ], band => band === 0 ? structuralIron : satinAlloy, .11),
   ],
 } satisfies Record<string, () => BufferGeometry[]>;
 
@@ -473,6 +564,7 @@ function buildSatellites({ count, orbitRadius, sphereRadius }: City['satellites'
 }
 
 function buildSpireWing(side: -1 | 1, coreWidth: number) {
+  const { satinAlloy, structuralIron, precisionMetal, sandAged } = citySurfaces;
   const z = side < 0 ? 10 : -245;
   const top = side < 0 ? 8750 : 8370;
   const profile: ShaftLevel[] = [
@@ -501,13 +593,15 @@ function buildSpireWing(side: -1 | 1, coreWidth: number) {
     return [x, y, z - recess / 2, w, d - recess];
   });
   const parts = [
-    shaft(wing, citySurfaces.structuralIron, .23),
-    // The flared shoe carries the wing into the stepped podium.
+    shaft(wing, structuralIron, .23),
+    // The flared shoe is let into the podium. Only its lowest exposed skirt takes sand.
     shaft([
-      [side * 487, 790, z - 80, 735, 1300],
+      [side * 487, 760, z - 80, 722, 1270],
+      [side * 487, 850, z - 80, 735, 1300],
       [side * 466, 1170, z - 48, 665, 1110],
+      [side * 448, 1260, z - 63, 598, 967],
       [side * 414, 1730, z - 100, 490, 750],
-    ], alloy.footing, .19),
+    ], band => band === 0 ? sandAged : structuralIron, .19),
   ];
   const offset = side > 0 ? 100 : 0;
   const courses = [
@@ -515,28 +609,53 @@ function buildSpireWing(side: -1 | 1, coreWidth: number) {
     { from: 2870 - offset, to: 4310 - offset, width: .66, shift: .085, thickness: 114 },
     { from: 4515, to: 6240 - offset, width: .72, shift: .025, thickness: 88 },
   ];
-  for (const { from, to, width, shift, thickness } of courses) {
-    const stations = [from, from + 90, ...profile.map(level => level[1]).filter(y => y > from + 90 && y < to - 70), to - 70, to];
+  for (const [index, { from, to, width, shift, thickness }] of courses.entries()) {
+    const entry = 135, exit = 106;
+    const stations = [from, from + entry, ...profile.map(level => level[1]).filter(y => y > from + entry && y < to - exit), to - exit, to];
     const casing = stations.map((y, i): ShaftLevel => {
       const [x, , z, w, d] = sectionAt(y);
       const rim = i === 0 || i === stations.length - 1;
-      return [x + side * w * shift, y, z + d / 2 - 15 - thickness / 2,
+      return [x + side * w * shift, y, z + d / 2 - 15 - thickness / 2 - (rim ? 31 : 0),
         w * width * (rim ? .84 : 1), thickness - (rim ? 30 : 0)];
     });
-    const [x, y, z, w, d] = sectionAt((from + to) / 2);
-    // A short bracket seats each shell against the wing and leaves the ends open.
-    parts.push(shaft(casing, citySurfaces.satinAlloy, .15),
-      pier([x + side * w * shift, y - 68, z + d / 2 - 177], [w * .34, 136, 188], 1, citySurfaces.structuralIron, .16));
+    // Iron seats enter the wing behind the casing; a machined shoe is exposed
+    // at the lower end of each course. The remaining gap stays open.
+    const [x, , z, w, d] = sectionAt(from + entry);
+    const face = z + d / 2;
+    const seatX = x + side * w * shift;
+    parts.push(
+      shaft(casing, (_, edge) => edge === 9 || edge === 0 || edge === 6 ? structuralIron : satinAlloy,
+        .10, undefined, index === 2 ? undefined : { center: side * .18, width: .14, depth: .44 }),
+      shaft([
+        [seatX, from - 70, face - 202, w * .37, 108],
+        [seatX, from + 35, face - 154, w * .55, 205],
+        [seatX, from + entry + 50, face - 161, w * .45, 190],
+      ], structuralIron, .17),
+      pier([seatX, from + 12, face - 62], [w * .43, 82, 72], .87, precisionMetal, .12),
+    );
   }
   return parts;
 }
 
 function buildAxialSpire(coreWidth: number) {
+  const { satinAlloy, structuralIron, precisionMetal, deckComposite, sandAged } = citySurfaces;
   const parts = [
-    pier([0, -180, 80], [3650, 405, 3270], .91, alloy.footing, .23),
-    pier([0, 205, 10], [2920, 420, 2720], .88, alloy.shell, .19),
-    pier([0, 595, -100], [2100, 375, 2040], .86, alloy.silver, .21),
-    pier([0, 950, -190], [1390, 575, 1390], .80, alloy.inset, .24),
+    shaft([
+      [0, -180, 80, 3650, 3270], [0, 118, 80, 3470, 3110],
+      [0, 225, 80, 3321.5, 2975.7],
+    ], band => band === 0 ? structuralIron : sandAged, .23),
+    shaft([
+      [0, 205, 10, 2920, 2720], [0, 265, 10, 2890, 2680],
+      [0, 532, 10, 2720, 2500], [0, 625, 10, 2569.6, 2393.6],
+    ], band => [structuralIron, satinAlloy, deckComposite][band], .19),
+    shaft([
+      [0, 595, -100, 2100, 2040], [0, 852, -100, 2010, 1910],
+      [0, 970, -100, 1806, 1754.4],
+    ], band => band === 0 ? satinAlloy : deckComposite, .19),
+    shaft([
+      [0, 950, -190, 1390, 1390], [0, 1045, -194, 1340, 1330],
+      [0, 1440, -208, 1210, 1190], [0, 1525, -190, 1112, 1112],
+    ], band => band === 0 ? deckComposite : structuralIron, .21),
     // The wings form the side walls of the bay. This spine closes it from behind.
     shaft([
       [0, 1120, -385, 880, 730],
@@ -546,7 +665,7 @@ function buildAxialSpire(coreWidth: number) {
       [0, 6500, -595, 535, 480],
       [0, 6870, -540, 455, 450],
       [0, 7360, -460, 270.3, 300.9],
-    ], citySurfaces.structuralIron, .22),
+    ], structuralIron, .22),
     ...buildSpireWing(-1, coreWidth),
     ...buildSpireWing(1, coreWidth),
   ];
@@ -556,15 +675,23 @@ function buildAxialSpire(coreWidth: number) {
       [side * 123, 2870, -341, 120, 170],
       [side * 104, 4970, -326, 102, 170],
       [side * 100, 6470, -341, 76, 146],
-    ], alloy.rail, .18, (level, face) => level === 1 && face === (side < 0 ? 6 : 0) ? 1 : 0));
+    ], precisionMetal, .18, (level, face) => level === 1 && face === (side < 0 ? 6 : 0) ? 1 : 0));
   }
   for (const [y, span, front] of [[2680, 950, 176], [4740, 850, 123]]) {
     // Two diaphragms tie both wings to the spine. The tall bays between them stay open.
     const back = -520;
     const depth = front - back;
     const z = (front + back) / 2;
-    parts.push(pier([0, y, z], [span, 121, depth], 1, citySurfaces.deckComposite, .12),
-      pier([0, y - 142, z - 52], [span * .75, 144, depth - 92], 1.28, citySurfaces.structuralIron, .15));
+    parts.push(shaft([
+      [0, y, z - 14, span * .91, depth - 28],
+      [0, y + 49, z, span, depth],
+      [0, y + 121, z, span, depth],
+    ], band => band === 0 ? structuralIron : deckComposite, .12),
+    shaft([
+      [0, y - 142, z - 67, span * .62, depth - 122],
+      [0, y - 40, z - 52, span * .91, depth - 74],
+      [0, y + 5, z - 52, span * .96, depth - 66],
+    ], structuralIron, .15));
   }
   return parts;
 }
