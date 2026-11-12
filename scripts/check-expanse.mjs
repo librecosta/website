@@ -368,7 +368,6 @@ assert(comparedLandmarks>0);
 const arrival=sampleJourney(1,EXPANSE), arrivalCamera=new PerspectiveCamera(arrival.fov,EXPANSE.journey.framingAspect,3,cameraFar);
 arrivalCamera.position.set(...arrival.position); arrivalCamera.lookAt(...arrival.target); arrivalCamera.updateMatrixWorld();
 const cityCenter = new Vector3(...futureCity.center);
-const cityAxis = new Vector3(0,1,0);
 const cityWorld = point => {
   point.y=Math.max(point.y,0); // Below the distant grade, behind the valley horizon.
   return point.multiplyScalar(futureCity.scale).add(cityCenter);
@@ -386,10 +385,10 @@ for (const batch of skyline.batches) {
     buildingTransform.scale.set(...size);
     buildingTransform.rotation.y = yaw;
     buildingTransform.updateMatrix();
+    const { min, max } = batch.geometry.boundingBox;
     buildingBounds.push(batch.geometry.boundingBox.clone().applyMatrix4(buildingTransform.matrix));
-    for (const vertex of localVertices('box', EXPANSE)) {
-      vertex.y += .5;
-      destination.push(cityWorld(vertex.multiply(new Vector3(...size)).applyAxisAngle(cityAxis, yaw).add(new Vector3(...position))));
+    for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) for (const z of [min.z, max.z]) {
+      destination.push(cityWorld(new Vector3(x, y, z).applyMatrix4(buildingTransform.matrix)));
     }
   }
   batch.geometry.dispose();
@@ -400,7 +399,10 @@ for (let i = 0; i < positions.count; i += 3) {
   civicFaces.push({ triangle:new Triangle(...corners), bounds:new Box3().setFromPoints(corners) });
 }
 skyline.civic.dispose();
-assert(buildings >= 300 && buildings <= 500, 'The districts supply hundreds of reusable skyline silhouettes');
+assert(buildings >= 100 && buildings <= 140, 'The districts contain spaced, multi-volume complexes');
+assert.equal(skyline.batches.length, 6, 'Each building archetype uses one instanced batch');
+const bridgePairs = skyline.batches.find(batch => batch.id === 'bridge-pair')?.buildings.length ?? 0;
+assert(bridgePairs > 0 && bridgePairs <= 5, 'Bridge pairs are reserved for a few rear complexes');
 assert((futureCity.ring.radius - futureCity.ring.guideOffset) * 2 > futureCity.coreWidth * 5.8, 'Open space separates the axis from the rails');
 const minimum = new Vector3(Infinity, Infinity, Infinity), maximum = new Vector3(-Infinity, -Infinity, -Infinity);
 const checkArrival = point => {

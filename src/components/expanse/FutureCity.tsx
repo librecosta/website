@@ -7,7 +7,7 @@ import { CirclingAirship, DockedAirship } from './CityAirships';
 import { CityTraffic } from './CityTraffic';
 import { EXPANSE } from './parameters';
 import type { SandstormUniforms } from './sandstorm';
-import { buildSkyline, poseSecondaryRing, poseSkylineOrbit, poseSkylineRing } from './skyline';
+import { buildSkyline, legacyCityFinish, poseSecondaryRing, poseSkylineOrbit, poseSkylineRing } from './skyline';
 import type { Monument } from './world';
 
 const city = EXPANSE.futureCity;
@@ -15,6 +15,7 @@ type District = ReturnType<typeof buildSkyline>['batches'][number];
 
 const skylineEmission = /* glsl */ `
   varying vec3 vCityMark;
+  varying vec2 vCityFinish;
   vec3 skylineLight(vec3 mark) {
     if (mark.z > 5.5) {
       return mark.z < 6.5 ? vec3(0.44, 0.77, 1.0) * 2.1 : vec3(1.0, 0.50, 0.16) * 1.9;
@@ -105,19 +106,28 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
   const elapsed = useRef(0);
   const skyline = useMemo(() => buildSkyline(city, EXPANSE.seed, mobile), [mobile]);
   const material = useMemo(() => {
-    const alloy = new MeshStandardMaterial({ vertexColors: true, roughness: .55, metalness: .26 });
+    const alloy = new MeshStandardMaterial({ vertexColors: true, ...legacyCityFinish });
+    alloy.customProgramCacheKey = () => 'city-surface-finish';
     alloy.onBeforeCompile = shader => {
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec3 cityMark;\nvarying vec3 vCityMark;')
+        .replace('#include <common>', `#include <common>
+          attribute vec3 cityMark;
+          attribute vec2 cityFinish;
+          varying vec3 vCityMark;
+          varying vec2 vCityFinish;
+        `)
         .replace('#include <begin_vertex>', `
           #include <begin_vertex>
           vCityMark = cityMark;
+          vCityFinish = cityFinish;
           #ifdef USE_INSTANCING_COLOR
             vCityMark.z *= step(0.96, instanceColor.r);
           #endif
         `);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>\n${skylineEmission}`)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = vCityFinish.x;')
+        .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = vCityFinish.y;')
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skylineLight(vCityMark);');
     };
     applyAerialPerspective(alloy, { ...atmosphere, distantFade: new Vector4(...city.fog) }, true, storm, mobile, true);
@@ -154,6 +164,6 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
     <mesh ref={orbit} geometry={skyline.satellites} material={material} />
     <CityTraffic material={material} elapsed={elapsed} reduced={reduced} />
     <CirclingAirship material={material} elapsed={elapsed} reduced={reduced} />
-    {skyline.batches.map((batch, index) => <DistrictInstances key={index} {...batch} material={material} />)}
+    {skyline.batches.map(batch => <DistrictInstances key={batch.id} {...batch} material={material} />)}
   </group>;
 }

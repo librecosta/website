@@ -11,7 +11,37 @@ const alloy = {
   rail: '#5b6f85', web: '#273849', sand: '#aa9980',
 };
 
-function solid(vertices: Vec3[], faces: number[][], color: string, marks = new Map<number, Vec3[]>()) {
+// Color-only pieces retain the G1 response in the shared shader.
+export const legacyCityFinish = { roughness: .55, metalness: .26 } as const;
+const citySurfaces = {
+  satinAlloy:      { color: '#c4c9cb', roughness: .42, metalness: .34 },
+  structuralIron: { color: '#465059', roughness: .78, metalness: .16 },
+  precisionMetal: { color: '#8b9da9', roughness: .36, metalness: .46 },
+  deckComposite:  { color: '#7e7b70', roughness: .77, metalness: .08 },
+  sandAged:       { color: '#a69b86', roughness: .91, metalness: .03 },
+} as const;
+
+type CitySurface = string | { color: string; roughness: number; metalness: number };
+
+function cityFinish(surface: CitySurface) {
+  return typeof surface === 'string' ? legacyCityFinish : surface;
+}
+
+function cityColor(surface: CitySurface) {
+  return typeof surface === 'string' ? surface : surface.color;
+}
+
+function cityFinishAttribute(vertexCount: number,
+  { roughness, metalness }: { roughness: number; metalness: number } = legacyCityFinish) {
+  const values = new Float32Array(vertexCount * 2);
+  for (let i = 0; i < values.length; i += 2) {
+    values[i] = roughness;
+    values[i + 1] = metalness;
+  }
+  return new Float32BufferAttribute(values, 2);
+}
+
+function solid(vertices: Vec3[], faces: number[][], surface: CitySurface, marks = new Map<number, Vec3[]>()) {
   const positions: number[] = [];
   const lights: number[] = [];
   for (const [index, face] of faces.entries()) {
@@ -25,38 +55,45 @@ function solid(vertices: Vec3[], faces: number[][], color: string, marks = new M
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
   geometry.setAttribute('cityMark', new Float32BufferAttribute(lights, 3));
+  geometry.setAttribute('cityFinish', cityFinishAttribute(positions.length / 3, cityFinish(surface)));
   geometry.computeVertexNormals();
-  const tint = new Color(color), cladding = new Color(alloy.web);
+  const tint = new Color(cityColor(surface)), cladding = new Color(alloy.web);
   const colors = new Float32Array(positions.length);
   for (let i = 0; i < colors.length; i += 3) (lights[i + 2] === 1 ? cladding : tint).toArray(colors, i);
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
   return geometry;
 }
 
-function finishedSolid(vertices: Vec3[], faces: number[][], finishes: string[]) {
+function finishedSolid(vertices: Vec3[], faces: number[][], finishes: CitySurface[]) {
   const geometry = solid(vertices, faces, alloy.rail);
   const colors = geometry.getAttribute('color');
+  const properties = geometry.getAttribute('cityFinish');
   const tint = new Color();
   let vertex = 0;
   for (const [i, face] of faces.entries()) {
-    tint.set(finishes[i]);
+    const finish = finishes[i];
+    const { roughness, metalness } = cityFinish(finish);
+    tint.set(cityColor(finish));
     const count = (face.length - 2) * 3;
-    for (let j = 0; j < count; j++) colors.setXYZ(vertex++, tint.r, tint.g, tint.b);
+    for (let j = 0; j < count; j++, vertex++) {
+      colors.setXYZ(vertex, tint.r, tint.g, tint.b);
+      properties.setXY(vertex, roughness, metalness);
+    }
   }
   return geometry;
 }
 
 // All district modules use the same chamfered section and stepped construction.
 // The origin sits on the floor so footprint and height can be scaled independently.
-function pier(at: Vec3, size: Vec3, taper: number, color: string, cut = .13, lit?: (level: number, side: number) => number) {
+function pier(at: Vec3, size: Vec3, taper: number, surface: CitySurface, cut = .13, lit?: (level: number, side: number) => number) {
   const [w, h, d] = size;
   return shaft([
     [at[0], at[1], at[2], w, d],
     [at[0], at[1] + h, at[2], w * taper, d * taper],
-  ], color, cut, lit);
+  ], surface, cut, lit);
 }
 
-function shaft(levels: ShaftLevel[], color: string, cut: number,
+function shaft(levels: ShaftLevel[], surface: CitySurface, cut: number,
   lit?: (level: number, side: number) => number) {
   const section = [[-.5 + cut, .5], [-.5, .5 - cut], [-.5, -.5 + cut], [-.5 + cut, -.5],
     [.5 - cut, -.5], [.5, -.5 + cut], [.5, .5 - cut], [.5 - cut, .5]];
@@ -72,7 +109,7 @@ function shaft(levels: ShaftLevel[], color: string, cut: number,
     faces.push([a, a + 8, b + 8, b]);
   }
   faces.push(section.map((_, i) => vertices.length - 1 - i));
-  return solid(vertices, faces, color, marks);
+  return solid(vertices, faces, surface, marks);
 }
 
 function merge(parts: BufferGeometry[]) {
@@ -81,58 +118,111 @@ function merge(parts: BufferGeometry[]) {
   return result;
 }
 
-function archetype(inner: boolean, tall: boolean, compact: boolean) {
-  const shoulder = tall ? .66 : .54;
-  const parts = [
-    pier([0, -.06, 0], [1, .19, 1], .94, alloy.footing),
-    pier([0, .13, 0], [tall ? .77 : .91, shoulder - .13, .87], tall ? .85 : .93, alloy.shell),
-    pier([0, shoulder, tall ? -.04 : 0], [tall ? .61 : .71, 1 - shoulder, tall ? .58 : .70],
-      tall ? .63 : .88, alloy.silver, tall ? .19 : .11, (_, side) => inner && tall && side === 7 ? 4 : 0),
-  ];
-  if (inner && !tall) {
-    // A broad gatehouse volume breaks the repetition of the tall pylons.
-    parts.push(pier([0, .47, .04], [1.05, .13, .91], .91, alloy.inset, .13,
-      (_, side) => side === 7 || side === 5 ? 3 : 0));
-    if (!compact) parts.push(pier([0, .60, .04], [.95, .065, .82], .91, alloy.silver));
-  } else if (inner && !compact) {
-    parts.push(pier([0, .27, .26], [.29, .47, .42], .64, alloy.inset));
-  }
-  return merge(parts);
-}
+const cityArchetypes = {
+  'service-podium': () => [
+    pier([0, -.10, 0], [1, .43, .94], .97, alloy.footing),
+    pier([-.07, .28, .04], [.82, .35, .76], .94, alloy.shell),
+    pier([.24, .55, -.14], [.29, .45, .43], .79, alloy.silver),
+  ],
+  'gatehouse-block': () => [
+    pier([0, -.10, 0], [1, .23, 1], 1, alloy.footing),
+    pier([-.34, .10, 0], [.31, .90, .86], .91, alloy.shell),
+    pier([.32, .10, .05], [.35, .76, .77], .90, alloy.shell),
+    pier([0, .69, .12], [.84, .14, .71], 1, alloy.rail),
+  ],
+  'bridge-pair': () => [
+    pier([0, -.10, 0], [1, .24, .98], .98, alloy.footing),
+    pier([-.30, .10, -.12], [.34, .90, .72], .76, alloy.silver),
+    pier([.29, .11, .11], [.37, .73, .68], .85, alloy.shell),
+    pier([0, .61, .02], [.64, .08, .32], 1, alloy.rail),
+  ],
+  'stepped-core-tower': () => [
+    pier([0, -.12, 0], [1, .30, 1], .94, alloy.footing),
+    pier([0, .16, 0], [.86, .33, .89], .99, alloy.shell),
+    pier([-.08, .47, -.04], [.61, .33, .72], 1, alloy.silver),
+    pier([-.15, .78, -.10], [.42, .22, .51], .79, alloy.silver, .13,
+      (_, side) => side === 7 ? 4 : 0),
+  ],
+  'winged-tower': () => [
+    pier([0, -.10, 0], [1, .27, 1], .96, citySurfaces.sandAged),
+    pier([-.18, .14, -.07], [.58, .86, .74], .80, citySurfaces.satinAlloy),
+    pier([.22, .15, .11], [.52, .46, .75], .88, citySurfaces.structuralIron),
+  ],
+  'forecourt-transfer': () => [
+    pier([0, -.06, 0], [1, .39, 1], .95, alloy.footing),
+    pier([-.07, .29, -.11], [.86, .33, .77], .89, alloy.shell),
+    pier([-.28, .59, -.24], [.36, .41, .43], .84, alloy.silver),
+    pier([.28, .58, -.27], [.27, .29, .37], .91, alloy.shell),
+  ],
+} satisfies Record<string, () => BufferGeometry[]>;
 
-function populate(districts: readonly District[], inner: boolean, seed: number) {
+type ArchetypeId = keyof typeof cityArchetypes;
+type Cluster = readonly [ArchetypeId, number, number, number, number, number];
+
+// Each slot names a complete complex. The open strip through each shelf
+// separates its frontage from the taller back row.
+const districtClusters: Record<District[6], readonly Cluster[]> = {
+  outer: [
+    ['service-podium', -.31, .24, .28, .28, 315], ['service-podium', .01, .25, .30, .29, 185],
+    ['service-podium', .32, .21, .25, .32, 265], ['service-podium', -.28, -.10, .34, .22, 390],
+    ['service-podium', .22, -.12, .35, .23, 360], ['service-podium', -.22, -.34, .34, .20, 485],
+    ['service-podium', .15, -.35, .23, .22, 285], ['service-podium', .37, -.32, .16, .18, 215],
+  ],
+  middle: [
+    ['service-podium', -.31, .27, .25, .24, 365], ['gatehouse-block', .01, .26, .35, .27, 610],
+    ['service-podium', .34, .24, .20, .24, 280], ['winged-tower', -.29, -.04, .30, .26, 970],
+    ['gatehouse-block', .24, -.03, .36, .26, 870], ['gatehouse-block', -.32, -.34, .28, .24, 1020],
+    ['bridge-pair', .03, -.34, .33, .24, 1290], ['winged-tower', .34, -.31, .23, .25, 1060],
+  ],
+  inner: [
+    ['gatehouse-block', -.32, .26, .24, .22, 710], ['winged-tower', .02, .27, .27, .24, 990],
+    ['service-podium', .34, .25, .20, .22, 480], ['stepped-core-tower', -.29, -.01, .24, .22, 1520],
+    ['winged-tower', .24, -.04, .30, .23, 1420], ['stepped-core-tower', -.34, -.31, .22, .25, 1770],
+    ['bridge-pair', .00, -.33, .34, .25, 1610], ['stepped-core-tower', .34, -.31, .23, .25, 1940],
+  ],
+};
+
+function modularDistricts(districts: readonly District[], seed: number) {
+  const buildings = new Map<ArchetypeId, Building[]>();
+  const place = (id: ArchetypeId, building: Building) => {
+    const instances = buildings.get(id);
+    if (instances) instances.push(building);
+    else buildings.set(id, [building]);
+  };
   let state = seed >>> 0;
   const random = () => ((state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296);
-  const lots: [Building[], Building[]] = [[], []];
-  const [columns, rows] = inner ? [5, 4] : [7, 5];
-  for (const [x, z, width, depth, datum, degrees] of districts) {
+  for (const [x, z, width, depth, datum, degrees, zone] of districts) {
     const yaw = MathUtils.degToRad(degrees);
     const c = Math.cos(yaw), s = Math.sin(yaw);
-    const inward = 1 - MathUtils.smoothstep(Math.abs(x), 1700, 8800);
-    for (let row = 0; row < rows; row++) {
-      for (let column = 0; column < columns; column++) {
-        const u = ((column + .46 + .22 * (row % 2) + .25 * (random() - .5)) / columns - .5) * width;
-        const v = ((row + .5 + .28 * (random() - .5)) / rows - .5) * depth;
-        const tall = (column + 2 * row) % 5 < (inner ? 3 : 2);
-        const fill = (inner ? .71 : .50) + .16 * random() + .10 * inward;
-        const height = (inner ? 510 + 390 * inward : 290 + 170 * inward)
-          * (.65 + .62 * random()) * (tall ? 1.55 : .78) * (1.09 - .18 * row / rows);
-        lots[Number(tall)].push({
-          position: [x + c * u + s * v, datum - 19 + 42 * row, z - s * u + c * v],
-          size: [width * fill / columns * (tall ? .93 : 1.14), height, depth * fill / rows],
-          yaw, shade: .83 + .19 * random(),
-        });
-      }
+    const flip = random() < .5 ? -1 : 1;
+    for (const [type, u, v, w, d, height] of districtClusters[zone]) {
+      const a = width * (u * flip + (random() - .5) * .035);
+      const b = depth * (v + (random() - .5) * .035);
+      // Reserve bridges for the rear terraces, away from the main approach.
+      const id = type === 'bridge-pair' && z > -1200 ? 'winged-tower' : type;
+      // The service lanes pass over the front shelves' back rows.
+      const streetHeight = zone === 'middle' && z > 0 && id === 'winged-tower' ? height * .74 : height;
+      place(id, {
+        position: [x + c * a + s * b, datum + (v < -.2 ? 105 : v < 0 ? 45 : 15), z - s * a + c * b],
+        size: [width * w, streetHeight * (.84 + random() * .30), depth * d],
+        yaw: yaw + (random() < .25 ? Math.PI : 0),
+        shade: .85 + random() * .17,
+      });
     }
   }
-  return lots;
+  for (const side of [-1, 1]) {
+    place('forecourt-transfer', { position: [side * 1670, 0, 1040], size: [1240, 860, 1100], yaw: side * .10, shade: .96 });
+    place('gatehouse-block', { position: [side * 1750, 0, 1830], size: [840, 515, 460], yaw: 0, shade: .94 });
+    place('forecourt-transfer', { position: [side * 2220, 0, 160], size: [750, 505, 910], yaw: side * .10, shade: .89 });
+  }
+  return [...buildings].map(([id, instances]) => ({ id, geometry: merge(cityArchetypes[id]()), buildings: instances }));
 }
 
 const ringSegments = [[2, 38], [42, 82], [86, 121], [125, 174],
   [178, 220], [224, 267], [271, 309], [313, 358]] as const;
 
 function trackArc(radius: number, y: number, width: number, depth: number,
-  start: number, end: number, segments: number, color: string, lit = false, endBevel = 0) {
+  start: number, end: number, segments: number, surface: CitySurface, lit = false, endBevel = 0) {
   const vertices: Vec3[] = [];
   const faces: number[][] = [];
   const marks = new Map<number, Vec3[]>();
@@ -160,7 +250,7 @@ function trackArc(radius: number, y: number, width: number, depth: number,
     faces.push([a, b, b + 4, a + 4]);
   }
   faces.push([3, 2, 1, 0], [last * 4, last * 4 + 1, last * 4 + 2, last * 4 + 3]);
-  return solid(vertices, faces, color, marks);
+  return solid(vertices, faces, surface, marks);
 }
 
 // Radial offset and height in the main beam's cross-section. The city-facing web
@@ -184,7 +274,7 @@ const terminalCap = ShapeUtils.triangulateShape(
   [terminalSection.cell.map(([x, y]) => new Vector2(x, y))],
 );
 
-function mainRingBeam(radius: number, start: number, end: number, segments: number) {
+function mainRingBeam(radius: number, start: number, end: number, segments: number, proof: boolean) {
   // Short integral terminal collars taper into the normal cross-section. The
   // annular caps close the steel around the cell without closing the cell itself.
   const neck = MathUtils.radToDeg(45 / radius);
@@ -202,8 +292,12 @@ function mainRingBeam(radius: number, start: number, end: number, segments: numb
     return [...section.outline, ...section.cell].map(([x, y]): Vec3 => [(radius + x) * c, y, (radius + x) * s]);
   });
   const faces: number[][] = [];
-  const finishes: string[] = [];
-  const sideFinish = [alloy.rail, alloy.silver, alloy.silver, alloy.shell, alloy.shell,
+  const finishes: CitySurface[] = [];
+  const { satinAlloy, structuralIron, precisionMetal } = citySurfaces;
+  const sideFinish = proof
+    ? [structuralIron, satinAlloy, satinAlloy, satinAlloy, satinAlloy,
+      precisionMetal, structuralIron, precisionMetal, satinAlloy, satinAlloy]
+    : [alloy.rail, alloy.silver, alloy.silver, alloy.shell, alloy.shell,
     alloy.rail, alloy.web, alloy.rail, alloy.shell, alloy.silver];
   for (let i = 0; i < last; i++) {
     const first = i * stride;
@@ -211,18 +305,19 @@ function mainRingBeam(radius: number, start: number, end: number, segments: numb
     for (let side = 0; side < outline.length; side++) {
       const a = first + side, b = first + (side + 1) % outline.length;
       faces.push([a, b, b + stride, a + stride]);
-      finishes.push(terminal && side === 6 ? alloy.rail : sideFinish[side]);
+      finishes.push(terminal && side === 6 ? (proof ? precisionMetal : alloy.rail) : sideFinish[side]);
     }
     for (let side = 0; side < cell.length; side++) {
       const a = first + outline.length + side;
       const b = first + outline.length + (side + 1) % cell.length;
       faces.push([b, a, a + stride, b + stride]);
-      finishes.push(alloy.inset);
+      finishes.push(proof ? structuralIron : alloy.inset);
     }
   }
   for (const face of terminalCap) {
     faces.push([...face].reverse(), face.map(i => i + last * stride));
-    finishes.push(alloy.shell, alloy.shell);
+    const cap = proof ? satinAlloy : alloy.shell;
+    finishes.push(cap, cap);
   }
   return finishedSolid(vertices, faces, finishes);
 }
@@ -245,11 +340,11 @@ function ringSupport(guideOffset: number, tangent: number, width: number) {
 
 const anchorInset = 111;
 const transferBottom = -195;
-function transferNode(guideOffset: number) {
+function transferNode(guideOffset: number, proof: boolean) {
   return [
     // Keep the sightline to the existing observation keel between the braces.
     ...ringSupport(guideOffset, -205, 70), ...ringSupport(guideOffset, 205, 70),
-    pier([-guideOffset - 27, -274, 0], [228, 46, 466], 1, alloy.silver, .15),
+    pier([-guideOffset - 27, -274, 0], [228, 46, 466], 1, proof ? citySurfaces.deckComposite : alloy.silver, .15),
     pier([-anchorInset, transferBottom, 0], [97, 57, 118], 1.38, alloy.web, .24),
   ];
 }
@@ -303,8 +398,11 @@ function buildPrimaryRing({ radius, guideOffset, skyports }: City['ring'], segme
       .translate(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)));
   };
   for (const [start, end] of ringSegments) {
-    track.push(mainRingBeam(radius, start, end, segments),
-      trackArc(radius - guideOffset, -222, 176, 164, start + 2, end - 2, segments, alloy.web, true));
+    // The observation node's segment is visible on the near right in S3.
+    const proof = start < anchorDegrees && end > anchorDegrees;
+    track.push(mainRingBeam(radius, start, end, segments, proof),
+      trackArc(radius - guideOffset, -222, 176, 164, start + 2, end - 2, segments,
+        proof ? citySurfaces.precisionMetal : alloy.web, true));
     for (const fraction of [.21, .79]) {
       const degrees = MathUtils.lerp(start, end, fraction);
       // The skyport root already bridges the two rails at its station.
@@ -313,7 +411,7 @@ function buildPrimaryRing({ radius, guideOffset, skyports }: City['ring'], segme
       }
     }
     for (const degrees of transferNodes) {
-      if (degrees > start && degrees < end) place(degrees, transferNode(guideOffset));
+      if (degrees > start && degrees < end) place(degrees, transferNode(guideOffset, proof));
     }
   }
   for (const [start, end] of innerArcSpans) {
@@ -365,6 +463,7 @@ function buildSatellites({ count, orbitRadius, sphereRadius }: City['satellites'
   }
   sphere.setAttribute('color', new Float32BufferAttribute(colors, 3));
   sphere.setAttribute('cityMark', new Float32BufferAttribute(marks, 3));
+  sphere.setAttribute('cityFinish', cityFinishAttribute(uv.count));
   const members = Array.from({ length: count }, (_, i) => {
     const angle = 2 * Math.PI * i / count;
     return sphere.clone().translate(orbitRadius * Math.cos(angle), 0, orbitRadius * Math.sin(angle));
@@ -402,7 +501,7 @@ function buildSpireWing(side: -1 | 1, coreWidth: number) {
     return [x, y, z - recess / 2, w, d - recess];
   });
   const parts = [
-    shaft(wing, alloy.rail, .23),
+    shaft(wing, citySurfaces.structuralIron, .23),
     // The flared shoe carries the wing into the stepped podium.
     shaft([
       [side * 487, 790, z - 80, 735, 1300],
@@ -412,11 +511,11 @@ function buildSpireWing(side: -1 | 1, coreWidth: number) {
   ];
   const offset = side > 0 ? 100 : 0;
   const courses = [
-    { from: 1620, to: 2690 - offset, width: .77, shift: .035, thickness: 104, color: alloy.shell },
-    { from: 2870 - offset, to: 4310 - offset, width: .66, shift: .085, thickness: 114, color: alloy.shell },
-    { from: 4515, to: 6240 - offset, width: .72, shift: .025, thickness: 88, color: alloy.silver },
+    { from: 1620, to: 2690 - offset, width: .77, shift: .035, thickness: 104 },
+    { from: 2870 - offset, to: 4310 - offset, width: .66, shift: .085, thickness: 114 },
+    { from: 4515, to: 6240 - offset, width: .72, shift: .025, thickness: 88 },
   ];
-  for (const { from, to, width, shift, thickness, color } of courses) {
+  for (const { from, to, width, shift, thickness } of courses) {
     const stations = [from, from + 90, ...profile.map(level => level[1]).filter(y => y > from + 90 && y < to - 70), to - 70, to];
     const casing = stations.map((y, i): ShaftLevel => {
       const [x, , z, w, d] = sectionAt(y);
@@ -426,8 +525,8 @@ function buildSpireWing(side: -1 | 1, coreWidth: number) {
     });
     const [x, y, z, w, d] = sectionAt((from + to) / 2);
     // A short bracket seats each shell against the wing and leaves the ends open.
-    parts.push(shaft(casing, color, .15),
-      pier([x + side * w * shift, y - 68, z + d / 2 - 177], [w * .34, 136, 188], 1, alloy.web, .16));
+    parts.push(shaft(casing, citySurfaces.satinAlloy, .15),
+      pier([x + side * w * shift, y - 68, z + d / 2 - 177], [w * .34, 136, 188], 1, citySurfaces.structuralIron, .16));
   }
   return parts;
 }
@@ -447,7 +546,7 @@ function buildAxialSpire(coreWidth: number) {
       [0, 6500, -595, 535, 480],
       [0, 6870, -540, 455, 450],
       [0, 7360, -460, 270.3, 300.9],
-    ], alloy.inset, .22),
+    ], citySurfaces.structuralIron, .22),
     ...buildSpireWing(-1, coreWidth),
     ...buildSpireWing(1, coreWidth),
   ];
@@ -464,21 +563,19 @@ function buildAxialSpire(coreWidth: number) {
     const back = -520;
     const depth = front - back;
     const z = (front + back) / 2;
-    parts.push(pier([0, y, z], [span, 121, depth], 1, alloy.silver, .12),
-      pier([0, y - 142, z - 52], [span * .75, 144, depth - 92], 1.28, alloy.footing, .15));
+    parts.push(pier([0, y, z], [span, 121, depth], 1, citySurfaces.deckComposite, .12),
+      pier([0, y - 142, z - 52], [span * .75, 144, depth - 92], 1.28, citySurfaces.structuralIron, .15));
   }
   return parts;
 }
 
 export function buildSkyline(city: City, seed: number, compact: boolean) {
   const parts: BufferGeometry[] = [];
-  const outer = populate(city.outerDistricts, false, seed);
-  const middle = populate(city.middleDistricts, true, seed + 37);
-  const batches = [outer, middle].flatMap((pair, tier) => pair.map((buildings, variant) =>
-    ({ geometry: archetype(tier === 1, variant === 1, compact), buildings })));
+  const districts = [...city.outerDistricts, ...city.middleDistricts];
+  const batches = modularDistricts(districts, seed);
 
   // Linked bedrock shelves. Sand belongs on exposed treads and at the toe.
-  for (const [x, z, w, d, y, degrees] of [...city.outerDistricts, ...city.middleDistricts]) {
+  for (const [x, z, w, d, y, degrees] of districts) {
     const yaw = MathUtils.degToRad(degrees);
     const shelf = [
       pier([0, -130, 0], [w * 1.14, y + 130, d * 1.12], .88, alloy.footing),
@@ -496,9 +593,6 @@ export function buildSkyline(city: City, seed: number, compact: boolean) {
       pier([sign * 1050, 800, -830], [535, 2870, 650], .61, alloy.silver, .23),
       pier([sign * 1445, 510, -1060], [460, 1880, 720], .65, alloy.shell, .21),
       pier([sign * 1700, 355, -1740], [410, 1990, 520], .50, alloy.silver),
-      pier([sign * 820, 335, 930], [480, 1370, 470], .67, alloy.silver),
-      pier([sign * 1650, 280, 80], [690, 340, 325], .96, alloy.inset),
-      pier([sign * 1750, 580, 90], [1110, 93, 270], 1, alloy.shell),
       // Civic skyways span the valley-side gaps between the denser tower precincts.
       pier([sign * 2780, 475, -1340], [1970, 160, 350], .98, alloy.inset).rotateY(sign * .085),
       pier([sign * 3120, 120, -1450], [310, 410, 420], .86, alloy.shell),
