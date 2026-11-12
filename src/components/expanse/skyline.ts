@@ -312,11 +312,71 @@ function modularDistricts(districts: readonly District[], seed: number) {
 const ringSegments = [[2, 38], [42, 82], [86, 121], [125, 174],
   [178, 220], [224, 267], [271, 309], [313, 358]] as const;
 
+type Quad = [number, number, number, number];
+type PanelRecess = {
+  across: readonly [number, number];
+  along: readonly [number, number];
+  depth: number;
+  bevel: number;
+  surface: CitySurface;
+  lining: CitySurface;
+  floor: CitySurface;
+};
+
+// Replace one flat face with a framed recess. The original perimeter is shared
+// with its neighbours, so the joint does not alter the swept profile.
+function recessPanel(vertices: Vec3[], face: Quad, recess: PanelRecess) {
+  const [a, b, c, d] = face.map(i => new Vector3(...vertices[i]));
+  const across = b.clone().sub(a);
+  const along = d.clone().sub(a);
+  const inward = across.clone().cross(along).normalize().negate();
+  const { across: [u0, u1], along: [v0, v1], depth, bevel, surface, lining, floor } = recess;
+  const bu = Math.min(bevel / across.length(), (u1 - u0) * .25);
+  const bv = Math.min(bevel / along.length(), (v1 - v0) * .25);
+  const addQuad = (u0: number, u1: number, v0: number, v1: number, depth: number) =>
+    [[u0, v0], [u1, v0], [u1, v1], [u0, v1]].map(([u, v]) => {
+      const near = a.clone().lerp(b, u);
+      const far = d.clone().lerp(c, u);
+      vertices.push(near.lerp(far, v).addScaledVector(inward, depth).toArray());
+      return vertices.length - 1;
+    });
+  const lip = addQuad(u0, u1, v0, v1, 0);
+  const bed = addQuad(u0 + bu, u1 - bu, v0 + bv, v1 - bv, depth);
+  const faces: number[][] = [], finishes: CitySurface[] = [];
+  for (let i = 0; i < 4; i++) {
+    const next = (i + 1) % 4;
+    faces.push([face[i], face[next], lip[next], lip[i]], [lip[i], lip[next], bed[next], bed[i]]);
+    finishes.push(surface, lining);
+  }
+  faces.push(bed);
+  finishes.push(floor);
+  return { faces, finishes };
+}
+
+function ringShellJoint(vertices: Vec3[], face: Quad, width: number, depth: number, surface: CitySurface,
+  floor: CitySurface) {
+  const span = new Vector3(...vertices[face[0]]).distanceTo(new Vector3(...vertices[face[3]]));
+  const half = width / (2 * span);
+  return recessPanel(vertices, face, {
+    across: [.14, .86], along: [.5 - half, .5 + half], depth, bevel: 8,
+    surface, lining: precisionMetal, floor,
+  });
+}
+
+type ArcFinish = {
+  sides: readonly [CitySurface, CitySurface, CitySurface, CitySurface];
+  end: CitySurface;
+  bevel: number;
+  joint?: { width: number; floor: CitySurface };
+};
+
 function trackArc(radius: number, y: number, width: number, depth: number,
-  start: number, end: number, segments: number, surface: CitySurface, lit = false, endBevel = 0) {
+  start: number, end: number, segments: number, finish: ArcFinish, lit = false) {
   const vertices: Vec3[] = [];
   const faces: number[][] = [];
+  const finishes: CitySurface[] = [];
   const marks = new Map<number, Vec3[]>();
+  const endBevel = finish.bevel;
   const bevelAngle = MathUtils.radToDeg(endBevel / radius);
   const angles = Array.from({ length: segments + 1 }, (_, i) =>
     MathUtils.lerp(start + bevelAngle, end - bevelAngle, i / segments));
@@ -334,14 +394,24 @@ function trackArc(radius: number, y: number, width: number, depth: number,
   }
   for (let i = 0; i < last; i++) for (let side = 0; side < 4; side++) {
     const a = i * 4 + side, b = i * 4 + (side + 1) % 4;
-    if (lit && (side === 0 || side === 3)) {
+    const face: Quad = [a, b, b + 4, a + 4];
+    const marked = lit && (side === 0 || side === 3);
+    if (side === 1 && i === Math.floor(last / 2) && finish.joint) {
+      const joint = ringShellJoint(vertices, face, finish.joint.width, 11, finish.sides[side], finish.joint.floor);
+      faces.push(...joint.faces);
+      finishes.push(...joint.finishes);
+      continue;
+    }
+    if (marked) {
       const low = (angles[i] - start) / (end - start), high = (angles[i + 1] - start) / (end - start);
       marks.set(faces.length, [[0, low, 2], [1, low, 2], [1, high, 2], [0, high, 2]]);
     }
-    faces.push([a, b, b + 4, a + 4]);
+    faces.push(face);
+    finishes.push(!marked && (i === 0 || i === last - 1) ? finish.end : finish.sides[side]);
   }
   faces.push([3, 2, 1, 0], [last * 4, last * 4 + 1, last * 4 + 2, last * 4 + 3]);
-  return solid(vertices, faces, surface, marks);
+  finishes.push(finish.end, finish.end);
+  return finishedSolid(vertices, faces, finishes, marks);
 }
 
 // Radial offset and height in the main beam's cross-section. The city-facing web
@@ -365,7 +435,7 @@ const terminalCap = ShapeUtils.triangulateShape(
   [terminalSection.cell.map(([x, y]) => new Vector2(x, y))],
 );
 
-function mainRingBeam(radius: number, start: number, end: number, segments: number, proof: boolean) {
+function mainRingBeam(radius: number, start: number, end: number, segments: number) {
   // Short integral terminal collars taper into the normal cross-section. The
   // annular caps close the steel around the cell without closing the cell itself.
   const neck = MathUtils.radToDeg(45 / radius);
@@ -384,31 +454,35 @@ function mainRingBeam(radius: number, start: number, end: number, segments: numb
   });
   const faces: number[][] = [];
   const finishes: CitySurface[] = [];
-  const { satinAlloy, structuralIron, precisionMetal } = citySurfaces;
-  const sideFinish = proof
-    ? [structuralIron, satinAlloy, satinAlloy, satinAlloy, satinAlloy,
-      precisionMetal, structuralIron, precisionMetal, satinAlloy, satinAlloy]
-    : [alloy.rail, alloy.silver, alloy.silver, alloy.shell, alloy.shell,
-    alloy.rail, alloy.web, alloy.rail, alloy.shell, alloy.silver];
+  const sideFinish = [structuralIron, satinAlloy, satinAlloy, satinAlloy, satinAlloy,
+    precisionMetal, structuralIron, precisionMetal, satinAlloy, satinAlloy];
   for (let i = 0; i < last; i++) {
     const first = i * stride;
     const terminal = i === 0 || i === last - 1;
+    const panelJoint = i === 2 + Math.floor(segments / 3) || i === 2 + Math.floor(segments * 2 / 3);
     for (let side = 0; side < outline.length; side++) {
       const a = first + side, b = first + (side + 1) % outline.length;
-      faces.push([a, b, b + stride, a + stride]);
-      finishes.push(terminal && side === 6 ? (proof ? precisionMetal : alloy.rail) : sideFinish[side]);
+      const face: Quad = [a, b, b + stride, a + stride];
+      if (side === 1 && panelJoint) {
+        const joint = ringShellJoint(vertices, face, 34, 16, satinAlloy, precisionMetal);
+        faces.push(...joint.faces);
+        finishes.push(...joint.finishes);
+        continue;
+      }
+      faces.push(face);
+      // The machined return bridges the collar to the shell and lines the bore mouth.
+      finishes.push(terminal && (side === 1 || side === 6) ? precisionMetal : sideFinish[side]);
     }
     for (let side = 0; side < cell.length; side++) {
       const a = first + outline.length + side;
       const b = first + outline.length + (side + 1) % cell.length;
       faces.push([b, a, a + stride, b + stride]);
-      finishes.push(proof ? structuralIron : alloy.inset);
+      finishes.push(terminal ? precisionMetal : structuralIron);
     }
   }
   for (const face of terminalCap) {
     faces.push([...face].reverse(), face.map(i => i + last * stride));
-    const cap = proof ? satinAlloy : alloy.shell;
-    finishes.push(cap, cap);
+    finishes.push(precisionMetal, precisionMetal);
   }
   return finishedSolid(vertices, faces, finishes);
 }
@@ -417,31 +491,43 @@ function ringBrace(section: number[][], tangent: number, width: number) {
   const vertices = [-width / 2, width / 2].flatMap(side =>
     section.map(([x, y]): Vec3 => [x, y, tangent + side]));
   return solid(vertices, [[3, 2, 1, 0], [4, 5, 6, 7],
-    [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]], alloy.rail);
+    [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]], structuralIron);
 }
 
 function ringSupport(guideOffset: number, tangent: number, width: number) {
   const guideEnd = -guideOffset - 55;
   return [
     ringBrace([[guideEnd, -323], [58, -162], [58, -109], [guideEnd, -218]], tangent, width),
-    pier([16, -166, tangent], [136, 36, width + 52], .92, alloy.silver, .19),
-    pier([-guideOffset, -328, tangent], [184, 96, width + 18], .94, alloy.web, .16),
+    pier([16, -166, tangent], [136, 36, width + 52], .92, precisionMetal, .19),
+    shaft([
+      [-guideOffset, -328, tangent, 174, width + 12],
+      [-guideOffset, -304, tangent, 180, width + 18],
+      [-guideOffset, -232, tangent, 172.96, (width + 18) * .94],
+    ], band => band === 0 ? precisionMetal : structuralIron, .16),
   ];
 }
 
 const anchorInset = 111;
 const transferBottom = -195;
-function transferNode(guideOffset: number, proof: boolean) {
+function transferNode(guideOffset: number) {
   return [
     // Keep the sightline to the existing observation keel between the braces.
     ...ringSupport(guideOffset, -205, 70), ...ringSupport(guideOffset, 205, 70),
-    pier([-guideOffset - 27, -274, 0], [228, 46, 466], 1, proof ? citySurfaces.deckComposite : alloy.silver, .15),
-    pier([-anchorInset, transferBottom, 0], [97, 57, 118], 1.38, alloy.web, .24),
+    pier([-guideOffset - 27, -274, 0], [228, 46, 466], 1, deckComposite, .15),
+    pier([-anchorInset, transferBottom, 0], [97, 57, 118], 1.38, structuralIron, .24),
   ];
 }
 
 const innerArcRadius = 4235;
 const innerArcSpans = [[50, 74], [129, 153], [186, 210], [281, 303]] as const;
+const carrierRail: ArcFinish = {
+  sides: [precisionMetal, structuralIron, structuralIron, precisionMetal],
+  end: precisionMetal, bevel: 56, joint: { width: 36, floor: structuralIron },
+};
+const shortGuide: ArcFinish = {
+  sides: [structuralIron, precisionMetal, precisionMetal, precisionMetal],
+  end: precisionMetal, bevel: 38,
+};
 
 function inboardSkyport({ inset, length, width, deckHeight }: City['ring']['skyports'][number]) {
   const tip = -inset - length / 2;
@@ -464,18 +550,50 @@ function inboardSkyport({ inset, length, width, deckHeight }: City['ring']['skyp
       .map(([y, z]): Vec3 => [x, y, z]);
   });
   const faces = [Array.from({ length: 8 }, (_, i) => i)];
-  const finishes = [alloy.rail];
-  const deckFinish = [alloy.shell, alloy.silver, alloy.rail, alloy.web,
-    alloy.web, alloy.web, alloy.rail, alloy.silver];
+  const finishes: CitySurface[] = [structuralIron];
+  const rootFinish = [satinAlloy, precisionMetal, structuralIron, structuralIron,
+    structuralIron, structuralIron, structuralIron, precisionMetal];
+  const deckFinish = [deckComposite, satinAlloy, satinAlloy, structuralIron,
+    structuralIron, structuralIron, satinAlloy, precisionMetal];
+  const panels = [
+    { station: 2, side: 4, recess: { // Inspection plate at the lower root.
+      across: [.20, .80], along: [.16, .84], depth: 14, bevel: 12,
+      surface: structuralIron, lining: precisionMetal, floor: structuralIron,
+    } },
+    { station: 3, side: 0, recess: { // Hatch lies landward of the berth.
+      across: [.34, .57], along: [.23, .64], depth: 9, bevel: 7,
+      surface: deckComposite, lining: structuralIron, floor: deckComposite,
+    } },
+    { station: 4, side: 0, recess: { // The setback runs beyond the passenger skids.
+      across: [.85, .97], along: [.10, .91], depth: 20, bevel: 10,
+      surface: deckComposite, lining: precisionMetal, floor: sandAged,
+    } },
+    { station: 4, side: 4, recess: { // A single large recessed belly plate.
+      across: [.17, .83], along: [.11, .89], depth: 24, bevel: 22,
+      surface: structuralIron, lining: precisionMetal, floor: structuralIron,
+    } },
+  ] as const;
   for (let i = 0; i < stations.length - 1; i++) {
     for (let side = 0; side < 8; side++) {
       const a = i * 8 + side, b = i * 8 + (side + 1) % 8;
-      faces.push([b, a, a + 8, b + 8]);
-      finishes.push(i < 3 && side === 0 ? alloy.silver : deckFinish[side]);
+      const face: Quad = [b, a, a + 8, b + 8];
+      const panel = panels.find(panel => panel.station === i && panel.side === side);
+      if (panel) {
+        const cut = recessPanel(vertices, face, panel.recess);
+        faces.push(...cut.faces);
+        finishes.push(...cut.finishes);
+      } else {
+        faces.push(face);
+        finishes.push((i < 3 ? rootFinish : deckFinish)[side]);
+      }
     }
   }
-  faces.push(Array.from({ length: 8 }, (_, i) => vertices.length - 1 - i));
-  finishes.push(alloy.rail);
+  const end = (stations.length - 1) * 8;
+  // The nose exposes the machined edge, shell return and iron belly in section.
+  for (const panel of [[7, 2, 1, 0], [6, 3, 2, 7], [5, 4, 3, 6]]) {
+    faces.push(panel.map(i => end + i));
+  }
+  finishes.push(precisionMetal, satinAlloy, structuralIron);
   return finishedSolid(vertices, faces, finishes);
 }
 
@@ -489,11 +607,8 @@ function buildPrimaryRing({ radius, guideOffset, skyports }: City['ring'], segme
       .translate(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)));
   };
   for (const [start, end] of ringSegments) {
-    // The observation node's segment is visible on the near right in S3.
-    const proof = start < anchorDegrees && end > anchorDegrees;
-    track.push(mainRingBeam(radius, start, end, segments, proof),
-      trackArc(radius - guideOffset, -222, 176, 164, start + 2, end - 2, segments,
-        proof ? citySurfaces.precisionMetal : alloy.web, true));
+    track.push(mainRingBeam(radius, start, end, segments),
+      trackArc(radius - guideOffset, -222, 176, 164, start + 2, end - 2, segments, carrierRail, true));
     for (const fraction of [.21, .79]) {
       const degrees = MathUtils.lerp(start, end, fraction);
       // The skyport root already bridges the two rails at its station.
@@ -502,16 +617,16 @@ function buildPrimaryRing({ radius, guideOffset, skyports }: City['ring'], segme
       }
     }
     for (const degrees of transferNodes) {
-      if (degrees > start && degrees < end) place(degrees, transferNode(guideOffset, proof));
+      if (degrees > start && degrees < end) place(degrees, transferNode(guideOffset));
     }
   }
   for (const [start, end] of innerArcSpans) {
-    track.push(trackArc(innerArcRadius, -190, 90, 102, start, end, Math.ceil(segments * .6), alloy.shell));
+    track.push(trackArc(innerArcRadius, -190, 90, 102, start, end, Math.ceil(segments * .6), shortGuide));
     const innerSeat = innerArcRadius - radius - 35;
     for (const fraction of [.19, .81]) {
       place(MathUtils.lerp(start, end, fraction), [
         ringBrace([[innerSeat, -247], [-guideOffset, -275], [-guideOffset, -208], [innerSeat, -170]], 0, 79),
-        pier([innerSeat + 35, -255, 0], [90, 41, 108], .9, alloy.rail, .18),
+        pier([innerSeat + 35, -255, 0], [90, 41, 108], .9, precisionMetal, .18),
       ]);
     }
   }
@@ -531,13 +646,22 @@ function buildSecondaryRing({ radius, sectionScale: scale }: City['secondaryRing
   return merge(ringSegments.flatMap(([start, end], index) => {
     const angle = MathUtils.degToRad(MathUtils.lerp(start, end, index % 2 ? .72 : .28));
     const bearingRadius = radius - 56 * scale;
-    const bearing = pier([0, -34, 0], [128 * scale, 115 * scale, 152 * scale], .84, alloy.rail, .20)
+    const bearing = shaft([
+      [0, -34, 0, 128 * scale, 152 * scale],
+      [0, -34 + 38 * scale, 0, 125 * scale, 146 * scale],
+      [0, -34 + 115 * scale, 0, 128 * scale * .84, 152 * scale * .84],
+    ], band => band === 0 ? precisionMetal : structuralIron, .20)
       .rotateY(-angle).translate(Math.cos(angle) * bearingRadius, 0, Math.sin(angle) * bearingRadius);
     return [
       trackArc(radius + 40 * scale, shellDepth / 2 - 28.2, 256 * scale, shellDepth,
-        start, end, segments, alloy.silver, false, 75),
+        start, end, segments, {
+          sides: [structuralIron, satinAlloy, satinAlloy, precisionMetal], end: precisionMetal, bevel: 75,
+          joint: index % 2 === 0 ? { width: 28, floor: precisionMetal } : undefined,
+        }),
       trackArc(radius - 65 * scale, returnDepth / 2 - 36, 106 * scale, returnDepth,
-        start + 2, end - 2, segments, alloy.web, true, 49),
+        start + 2, end - 2, segments, {
+          sides: [precisionMetal, structuralIron, structuralIron, precisionMetal], end: structuralIron, bevel: 49,
+        }, true),
       bearing,
     ];
   }));
