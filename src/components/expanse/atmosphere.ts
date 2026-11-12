@@ -209,12 +209,16 @@ export function applyAerialPerspective(material: Material, atmosphere: Atmospher
             vec3 ray = vAirRay / airDepth;
             ${distant ? `
               float haze = 1.0 - smoothstep(0.0, float(${hazeHeight}), ray.y);
-              fogAmount = mix(fogAmount, 1.0, haze * float(${distantHaze}));
-            ` : ''}
-            vec3 scatter = airRadiance(ray);
+              float lowHaze = haze * float(${distantHaze});
+            ` : skyline ? 'float lowHaze = 0.0;' : ''}
             ${skyline ? `
               float foothill = 1.0 - smoothstep(0.0, ${cityHaze.foothillHeight.toFixed(1)}, cameraPosition.y + vAirRay.y);
-              fogAmount = mix(fogAmount, 1.0, ${cityHaze.foothillDensity.toFixed(2)} * foothill);
+              // The dense city bank grades into the horizon haze as the surface rises.
+              lowHaze = mix(lowHaze, ${cityHaze.foothillDensity.toFixed(2)}, foothill);
+            ` : ''}
+            ${distant || skyline ? 'fogAmount = mix(fogAmount, 1.0, lowHaze);' : ''}
+            vec3 scatter = airRadiance(ray);
+            ${skyline ? `
               scatter = mix(scatter, vec3(0.48, 0.54, 0.63), 0.16 * (1.0 - foothill));
             ` : ''}
             gl_FragColor.rgb = mix(gl_FragColor.rgb, scatter, fogAmount);

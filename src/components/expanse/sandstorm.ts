@@ -37,6 +37,8 @@ export function sandstormAir(mobile: boolean) {
     vec2 cameraStorm(vec3 ray, float surfaceDistance) {
       if (stormDebug || veilStrength < 0.001) return vec2(0.0, 1.0);
       float end = min(surfaceDistance, ${veil.range[1].toFixed(1)});
+      float lift = (1.0 - ${veil.upperDensity.toFixed(2)})
+        * smoothstep(${veil.elevationRange[0].toFixed(2)}, ${veil.elevationRange[1].toFixed(2)}, ray.y);
       float last = 0.0, optical = 0.0, radiance = 0.0, transmit = 1.0;
       for (int i = 0; i < ${nearSamples}; i++) {
         float t = float(i + 1) / ${nearSamples.toFixed(1)};
@@ -49,6 +51,8 @@ export function sandstormAir(mobile: boolean) {
         vec2 eddy = texture(stormNoise, phase + vec3(0.14 * warp.y, 0.22 * warp.x, 0.18 * warp.y)).rg;
         float body = smoothstep(0.19, 0.83, eddy.x * 0.72 + warp.x * 0.28);
         float density = mix(0.51, 1.50, body) * (1.0 - smoothstep(${veil.range[0].toFixed(1)}, ${veil.range[1].toFixed(1)}, depth));
+        // Thin the elevated part of the column on upward rays, keeping the sand near grade.
+        density *= 1.0 - lift * smoothstep(${veil.heightRange[0].toFixed(1)}, ${veil.heightRange[1].toFixed(1)}, p.y);
         float tau = (next - last) * density * ${veil.extinction.toFixed(4)} * veilStrength;
         float pass = exp(-tau);
         float shade = mix(0.72, 1.30, smoothstep(0.18, 0.82, warp.y * 0.32 + eddy.x * 0.42 + eddy.y * 0.26));

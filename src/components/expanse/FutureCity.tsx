@@ -132,7 +132,11 @@ export function FutureCity({ atmosphere, storm, mobile, visible, reduced, debug,
         .replace('#include <common>', `#include <common>\n${skylineEmission}`)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = vCityFinish.x;')
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = vCityFinish.y;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skylineLight(vCityMark);');
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skylineLight(vCityMark);')
+        // Keep the warm key and aerial perspective; give the city less diffuse skylight fill.
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+          reflectedLight.indirectDiffuse *= ${EXPANSE.atmosphere.daylight.cityDiffuseFill.toFixed(2)};
+        `);
     };
     applyAerialPerspective(alloy, { ...atmosphere, distantFade: new Vector4(...city.fog) }, true, storm, mobile, true);
     return alloy;

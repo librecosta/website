@@ -152,6 +152,9 @@ export const EXPANSE = {
     veil: {
       extinction: 0.0115, // per world unit, calibrated against the previous mid-journey look.
       range: [89, 175],
+      heightRange: [54, 126], // world Y over the valley floor
+      elevationRange: [.05, .50], // vertical component of the viewing ray
+      upperDensity: .30,
       tint: '#b19478', windSpeed: 218,
       samples: { desktop: 5, mobile: 4 },
       grains: { desktop: 5200, mobile: 1500 },
@@ -163,8 +166,8 @@ export const EXPANSE = {
     cameraFar: 260000,
     fov: 55,
     fog: [51000, 255000, .30, .94],
-    haze: { foothillHeight: 41000, foothillDensity: .51,
-      crownCenter: [4000, 101000, -113000], crownRadius: [96500, 21900, 37000], crownDensity: 3.25 },
+    haze: { foothillHeight: 28500, foothillDensity: .47,
+      crownCenter: [8500, 116000, -124500], crownRadius: [96500, 17500, 37000], crownDensity: 2.45 },
     lookAtHeights: [49300, 55500],
     retarget: [0.356, 1],
     ring: {
@@ -371,10 +374,12 @@ export const EXPANSE = {
     daylight: {
       sunPosition: [-6250, 2830, 1570], sunColor: '#fff0d6', sunIntensity: 3.9,
       hemisphereSky: '#e3edf5', hemisphereGround: '#b2a694', hemisphereIntensity: 1.48,
-      shadowStrength: 0.95, shadowBounds: [-3120, 2820, 2810, -980, 5600, 16000],
+      cityDiffuseFill: 0.78,
+      shadowStrength: 0.90, shadowBounds: [-3120, 2820, 2810, -980, 5600, 16000],
     },
     shadowResolution: { desktop: 2560, mobile: 1280 },
-    shadowRadius: { desktop: 1.75, mobile: 1.25 },
+    // PCF radius is in shadow texels. The half-resolution tier has the same world-space footprint.
+    shadowRadius: { desktop: 12, mobile: 6 },
     shadowBias: -0.00014, shadowNormalBias: 1.35,
     exposure: 1.03,
   },
