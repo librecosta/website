@@ -138,7 +138,8 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
       <FutureCity atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} visible={visible} reduced={reduced}
         debug={debug} onAnchor={attach.ring} onAirshipAnchor={attach.airship} />
       {entrance && <Suspense fallback={null}>
-        <EntranceRuin ruin={entrance} atmosphere={atmosphere} storm={storm ?? undefined} mobile={mobile} onAnchor={attach.ruin} />
+        <EntranceRuin ruin={entrance} ground={groundHeight} atmosphere={atmosphere}
+          storm={storm ?? undefined} mobile={mobile} onAnchor={attach.ruin} />
       </Suspense>}
       <EnvironmentalDressing ground={groundHeight} mobile={mobile} material={resources.dressing} onAnchor={attach.bones} />
       <Instances items={distantStelae} geometry={stelaGeometry} material={resources.distant} distant />

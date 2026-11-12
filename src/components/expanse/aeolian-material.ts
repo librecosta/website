@@ -13,7 +13,7 @@ export function createAeolianMaterial() {
     duneBedRelief: { value: ripples.bedRelief },
     duneBedTint: { value: ripples.bedTint },
     duneWarpScale: { value: new Vector2(...ripples.warpScale) },
-    duneBend: { value: ripples.bend },
+    duneBedPhase: { value: ripples.bedPhaseWarp },
     duneSpacingWarp: { value: ripples.spacingWarp },
     duneAA: { value: new Vector2(...ripples.antialias) },
     duneRoughness: { value: ripples.roughnessVariation },
@@ -28,7 +28,7 @@ export function createAeolianMaterial() {
         varying vec2 vDuneWorld;
         uniform vec2 duneWind, duneWarpScale, duneAA, duneBedScale, duneBedFade;
         uniform vec4 duneBroad, duneFine;
-        uniform float duneBend, duneSpacingWarp, duneRoughness, duneBedRelief, duneBedTint;
+        uniform float duneBedPhase, duneSpacingWarp, duneRoughness, duneBedRelief, duneBedTint;
 
         float duneFootprint(vec2 phaseGradient, vec2 pixelX, vec2 pixelY) {
           return length(vec2(dot(phaseGradient, pixelX), dot(phaseGradient, pixelY)));
@@ -55,13 +55,11 @@ export function createAeolianMaterial() {
           return vec3(2.0 * mix(lo, hi, t.y) - 1.0, 2.0 * dt * vec2(mix(b - a, d - c, t.y), hi - lo));
         }
 
-        vec3 duneSurface(vec2 q, vec2 pixelX, vec2 pixelY, float depth) {
+        vec3 duneSurface(vec2 q, vec2 pixelX, vec2 pixelY, float depth, vec3 exposure) {
           vec3 warp = duneWarp(q / duneWarpScale + vec2(0.61, 1.87));
-          vec2 bendDirection = (PI2 / 210.0) * vec2(0.14, 1.0);
-          float bendPhase = dot(q, bendDirection);
-          float distance = q.x + duneBend * sin(bendPhase) + duneSpacingWarp * warp.x;
-          vec2 direction = vec2(1.0, 0.0) + duneBend * cos(bendPhase) * bendDirection
-            + duneSpacingWarp * warp.yz / duneWarpScale;
+          // The low-frequency wind bed bends both wavelengths without a repeated arc.
+          float distance = q.x + duneSpacingWarp * warp.x;
+          vec2 direction = vec2(1.0, 0.0) + duneSpacingWarp * warp.yz / duneWarpScale;
 
           // A wind-aligned, irregular bed interrupts the narrow crests.
           const float bedShear = 0.15;
@@ -72,22 +70,22 @@ export function createAeolianMaterial() {
           float bedFilter = (1.0 - smoothstep(duneAA.x, duneAA.y, bedFootprint))
             * (1.0 - smoothstep(duneBedFade.x, duneBedFade.y, depth));
           vec2 bedGradient = bed.y * bedAlong + bed.z * bedCross;
-          vec2 gradient = duneBedRelief * bedFilter * bedGradient;
-          float coverage = smoothstep(-0.36, 0.50, 0.66 * warp.x + 0.83 * bed.x);
-          distance += 2.8 * bed.x;
-          direction += 2.8 * bedGradient;
+          vec2 gradient = exposure.x * duneBedRelief * bedFilter * bedGradient;
+          float coverage = smoothstep(-0.27, 0.59, 0.46 * warp.x + 0.87 * bed.x);
+          distance += duneBedPhase * bed.x;
+          direction += duneBedPhase * bedGradient;
           vec2 broadGradient = direction / duneBroad.x;
           if (depth < duneBroad.w) {
             float broad = cos(PI2 * distance / duneBroad.x)
               * duneFilter(broadGradient, pixelX, pixelY, depth, duneBroad.zw);
-            gradient += PI2 * broadGradient * duneBroad.y * broad * mix(0.05, 1.0, coverage);
+            gradient += exposure.y * PI2 * broadGradient * duneBroad.y * broad * mix(0.06, 1.0, coverage);
           }
           if (depth < duneFine.w) {
             // The finer crests share the wind but fan slightly through the main bed.
             float fine = (distance + 0.075 * q.y) / duneFine.x + 0.27;
             vec2 fineGradient = (direction + vec2(0.0, 0.075)) / duneFine.x;
             float response = cos(PI2 * fine) * duneFilter(fineGradient, pixelX, pixelY, depth, duneFine.zw);
-            gradient += PI2 * fineGradient * duneFine.y * response * mix(0.22, 0.91, coverage);
+            gradient += exposure.z * PI2 * fineGradient * duneFine.y * response * mix(0.12, 1.0, coverage);
           }
           return vec3(bed.x * bedFilter, gradient);
         }`)
@@ -96,21 +94,22 @@ export function createAeolianMaterial() {
         vec2 duneQ = vec2(dot(vDuneWorld, duneWind), dot(vDuneWorld, acrossWind));
         // Evaluate derivatives before branching by depth.
         vec2 pixelX = dFdx(duneQ), pixelY = dFdy(duneQ);
-        float duneDepth = length(vViewPosition);
-        vec3 detail = duneDepth < duneBedFade.y ? duneSurface(duneQ, pixelX, pixelY, duneDepth) : vec3(0.0);
-        roughnessFactor += duneRoughness * detail.x;
-        diffuseColor.rgb *= 1.0 + duneBedTint * detail.x * vec3(0.90, 1.05, 1.22);`)
+        float duneDepth = length(vViewPosition);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         if (duneDepth < duneBedFade.y) {
           float up = clamp(dot(normal, viewMatrix[1].xyz), 0.0, 1.0);
-          float slope = sqrt(max(0.0, 1.0 - up * up));
           vec3 viewWind = mat3(viewMatrix) * vec3(duneWind.x, 0.0, duneWind.y);
-          float lee = dot(normal, viewWind);
-          // Keep more detail on windward slopes, with quiet lee slopes and
-          // the strongest attenuation on steep faces.
-          float exposure = mix(1.33, 0.59, smoothstep(-0.18, 0.24, lee));
-          exposure *= 1.0 - 0.64 * smoothstep(0.28, 0.65, slope);
-          vec2 gradient = exposure * detail.yz;
+          float facing = dot(normal, viewWind);
+          float stoss = 1.0 - smoothstep(-0.29, -0.025, facing);
+          float lee = smoothstep(0.02, 0.25, facing);
+          float slip = smoothstep(0.76, 0.95, up);
+          // Fine crests quiet first in sheltered sand. Flat toes blend both responses.
+          vec3 exposure = vec3(0.80, 0.96, 0.82) + stoss * vec3(0.18, 0.28, 0.48);
+          exposure *= (1.0 - lee * vec3(0.49, 0.64, 0.83)) * mix(0.38, 1.0, slip);
+          vec3 detail = duneSurface(duneQ, pixelX, pixelY, duneDepth, exposure);
+          roughnessFactor += duneRoughness * detail.x * exposure.x;
+          diffuseColor.rgb *= 1.0 + duneBedTint * detail.x * exposure.x * vec3(0.90, 1.05, 1.22);
+          vec2 gradient = detail.yz;
           vec2 xz = duneWind * gradient.x + acrossWind * gradient.y;
           vec3 viewGradient = mat3(viewMatrix) * vec3(xz.x, 0.0, xz.y);
           // The horizontal gradient changes shading, not the dune silhouette.

@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyAerialPerspective, type Atmosphere } from './atmosphere';
 import { CirclingAirship, DockedAirship } from './CityAirships';
 import { CityTraffic } from './CityTraffic';
+import { createEntranceRuinMaterial, finishEntranceRuin } from './entrance-ruin-surface';
 import { EXPANSE } from './parameters';
 import type { SandstormUniforms } from './sandstorm';
 import { buildSkyline, legacyCityFinish, poseSecondaryRing, poseSkylineOrbit, poseSkylineRing } from './skyline';
@@ -64,22 +65,24 @@ function DistrictInstances({ geometry, buildings, material }: District & { mater
   return <instancedMesh ref={mesh} args={[geometry, material, buildings.length]} />;
 }
 
-export function EntranceRuin({ ruin, atmosphere, storm, mobile, onAnchor }: {
+export function EntranceRuin({ ruin, ground, atmosphere, storm, mobile, onAnchor }: {
   ruin: Monument; atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean;
+  ground: (x: number, z: number) => number;
   onAnchor: (object: Object3D | null) => void;
 }) {
   const { nodes } = useLoader(GLTFLoader, '/expanse/entrance-ruin.glb');
-  const geometry = (nodes.Tower as Mesh<BufferGeometry>).geometry;
+  const source = (nodes.Tower as Mesh<BufferGeometry>).geometry;
+  const geometry = useMemo(() => finishEntranceRuin(source, ruin, ground), [source, ruin, ground]);
   const anchor = useMemo(() => {
     // Intersect the solid equipment housing below the antenna in GLB-local space.
     const probe = new Raycaster(new Vector3(0, .22, 1), new Vector3(0, 0, -1));
-    const target = new Mesh(geometry, (nodes.Tower as Mesh).material);
+    const target = new Mesh(source, (nodes.Tower as Mesh).material);
     const hit = probe.intersectObject(target)[0];
     return hit?.point.addScaledVector(hit.normal ?? new Vector3(0, 0, 1), .002);
-  }, [geometry, nodes]);
+  }, [source, nodes]);
   const { gl, invalidate } = useThree();
   const material = useMemo(() => {
-    const stone = new MeshStandardMaterial({ color: '#aa9a84', roughness: .91 });
+    const stone = createEntranceRuinMaterial();
     applyAerialPerspective(stone, atmosphere, false, storm, mobile);
     return stone;
   }, [atmosphere, mobile, storm]);
@@ -87,6 +90,7 @@ export function EntranceRuin({ ruin, atmosphere, storm, mobile, onAnchor }: {
     gl.shadowMap.needsUpdate = true;
     invalidate();
   }, [gl, invalidate]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
   return <mesh geometry={geometry} material={material} position={ruin.position}
     quaternion={ruin.quaternion} scale={ruin.scale} castShadow receiveShadow dispose={null}>

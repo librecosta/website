@@ -33,23 +33,43 @@ export function addRuinDeposits(positions: Float32Array, monuments: Monument[], 
       (Math.abs(right.dot(axis)) * item.scale[0] + Math.abs(front.dot(axis)) * item.scale[2]) / 2;
     const gradient = (ground(contact.x + cross.x * 70, contact.z + cross.z * 70) -
       ground(contact.x - cross.x * 70, contact.z - cross.z * 70)) / 140;
+    // Locate the sheltered shoulder on the downwind edge of the front flange.
+    const footing = item.id === world.futureCity.ruin.id
+      ? right.clone().multiplyScalar(Math.sign(right.dot(wind)) * item.scale[0] * .42)
+        .addScaledVector(front, item.scale[2] * .28)
+      : null;
     return [{ contact, height, tail, length: span(wind), width: span(cross),
-      downslope: MathUtils.clamp(-gradient * 1.2, -0.42, 0.42) }];
+      downslope: MathUtils.clamp(-gradient * 1.2, -0.42, 0.42),
+      shoulder: footing && { along: footing.dot(wind), across: footing.dot(cross) } }];
   });
 
   for (let i = 0; i < positions.length; i += 3) {
-    for (const { contact, height, tail, length, width, downslope } of deposits) {
+    for (const { contact, height, tail, length, width, downslope, shoulder } of deposits) {
       const x = positions[i] - contact.x, z = positions[i + 2] - contact.z;
       const along = x * wind.x + z * wind.z;
       if (along < -length - 70 || along > length + tail) continue;
+      const across = x * cross.x + z * cross.z;
+      if (shoulder) {
+        const downstream = Math.max(0, along - length * .18) * MathUtils.smoothstep(along, length * .18, length * .43);
+        const thinning = MathUtils.smoothstep(along, length * .42, length + tail);
+        const spread = width * MathUtils.lerp(1.08, .61, thinning) + 28;
+        const lateral = Math.abs(across - downstream * downslope);
+        const wake = .82 * MathUtils.smoothstep(along, -length * .72, length * .38) * (1 - thinning)
+          * (1 - MathUtils.smoothstep(lateral, spread * .14, spread));
+        const shoulderDistance = Math.hypot((along - shoulder.along) / (length * .56 + 38),
+          (across - shoulder.across) / (width * .48 + 38));
+        const bank = .45 * (1 - MathUtils.smoothstep(shoulderDistance, .10, 1));
+        positions[i + 1] += height * (wake + bank * (1 - wake));
+        continue;
+      }
       const downstream = Math.max(0, along - length * 0.38);
-      const lateral = Math.abs(x * cross.x + z * cross.z - downstream * downslope);
+      const lateral = Math.abs(across - downstream * downslope);
       // The bank crosses the face near grade, then thins into a downwind tongue.
       const bank = MathUtils.smoothstep(along, -length - 70, -length * 0.42);
       const wake = 1 - MathUtils.smoothstep(along, length * 0.25, length + tail);
       const spread = width + 32 + downstream * 0.13;
-      const shoulder = 1 - MathUtils.smoothstep(lateral, spread * 0.18, spread);
-      positions[i + 1] += height * bank * wake * shoulder;
+      const falloff = 1 - MathUtils.smoothstep(lateral, spread * 0.18, spread);
+      positions[i + 1] += height * bank * wake * falloff;
     }
   }
 }
