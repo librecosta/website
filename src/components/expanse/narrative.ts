@@ -23,13 +23,18 @@ export const expanseBrand = {
   signature: 'LibreCosta · 远岸开物',
 } as const;
 
-export const witnessSequence = [witnessRecords.opening, witnessRecords.passage, witnessRecords.arrival] as const;
-export type SubtitleCue = { index: number; animate: boolean };
-
 export const narrativeTiming = {
-  // Path coordinates. The left ruin clears before the city entry, and the
-  // central axis has settled into its last composition by the arrival entry.
-  city: [.55, .76],
+  city: .55,
   arrival: .965,
   arrivalHoldSeconds: 2,
+  brandSettledPath: .99995,
+  brandExitPixels: 2,
 } as const;
+
+export const witnessSequence = [
+  { ...witnessRecords.opening, path: 0 },
+  { ...witnessRecords.passage, path: narrativeTiming.city },
+  { ...witnessRecords.arrival, path: narrativeTiming.arrival },
+] as const;
+export type WitnessId = typeof witnessSequence[number]['id'];
+export type NarrativeEndpoint = 'away' | 'near' | 'reached';

@@ -12,7 +12,7 @@ import { mapJourneyProgress } from './journey-timing';
 import { ExpanseInstrument, WordmarkStudy } from './ExpanseInstrument';
 import { ExpanseAudioLevels } from './ExpanseAudio';
 import { ExpanseNarrative, ExpanseTranscript } from './ExpanseNarrative';
-import { narrativeTiming, type ObservationId, type SubtitleCue } from './narrative';
+import { narrativeTiming, witnessSequence, type NarrativeEndpoint, type ObservationId, type WitnessId } from './narrative';
 import { ExpanseSignals, SignalReadouts } from './ExpanseSignals';
 import type { ObservationElements } from './ObservationProjection';
 import styles from './expanse.module.css';
@@ -52,10 +52,11 @@ export default function ExpanseLab() {
   const debugOutput = useRef<HTMLOutputElement>(null);
   const progressBar = useRef<HTMLDivElement>(null), progressFill = useRef<HTMLSpanElement>(null);
   const distances = useRef({ intro: 0, travel: 0, hold: 0 });
-  const reachedSubtitle = useRef(-1);
+  const triggeredSubtitles = useRef<readonly WitnessId[]>([]);
   const sceneReady = useRef(false);
   const syncNarrative = useRef<(() => void) | null>(null);
-  const [subtitle, setSubtitle] = useState<SubtitleCue | null>(null);
+  const [subtitles, setSubtitles] = useState<readonly WitnessId[]>([]);
+  const [endpointState, setEndpointState] = useState<NarrativeEndpoint>('away');
   const observationElements = useRef<ObservationElements>({ buttons: {}, readouts: {}, card: null });
   const [observation, setObservation] = useState<ObservationId | null>(null);
   const [read, setRead] = useState<ReadonlySet<ObservationId>>(() => new Set());
@@ -143,7 +144,7 @@ export default function ExpanseLab() {
     };
     const context = gsap.context(() => {
       if (reduced || contextLost) {
-        setSubtitle(null);
+        setEndpointState('away');
         return;
       }
       const entranceEnd = `top+=${intro} top`;
@@ -156,27 +157,32 @@ export default function ExpanseLab() {
         onUpdate: updateEntrance, onRefresh: updateEntrance,
       });
 
-      let activeSubtitle: number | null = null;
       let routeStart = element.offsetTop;
-      const [cityIn, cityOut] = narrativeTiming.city;
+      let furthestRawPath = -1;
+      let lastEndpointState: NarrativeEndpoint = 'away';
+      const endpoint = Math.round(intro + travel);
       updateNarrative = () => {
         if (!sceneReady.current) return;
         const offset = window.scrollY - routeStart;
-        const raw = mapJourneyProgress((offset - intro) / travel, EXPANSE.journey.timing);
+        const raw = offset >= Math.round(intro)
+          ? mapJourneyProgress((offset - intro) / travel, EXPANSE.journey.timing) : -1;
         const path = mapJourneyProgress(signal.current.value, EXPANSE.journey.timing);
-        // Start on the camera's smoothed position. Expire on native scroll so
-        // a fast jump cannot queue captions for shots already left behind.
-        const progress = Math.min(raw, path);
-        const arrived = progress >= narrativeTiming.arrival;
-        const index = arrived ? 2 : progress >= cityIn ? 1 : 0;
-        const earliest = raw >= cityOut ? 2 : raw >= cityIn ? 1 : 0;
-        reachedSubtitle.current = Math.max(reachedSubtitle.current, earliest - 1);
-        const animate = index > reachedSubtitle.current;
-        const next = offset >= intro && index >= earliest && (arrived || index === activeSubtitle || animate) ? index : null;
-        if (next === activeSubtitle) return;
-        activeSubtitle = next;
-        if (next !== null) reachedSubtitle.current = Math.max(reachedSubtitle.current, next);
-        setSubtitle(next === null ? null : { index: next, animate });
+        // Follow the camera on the way in. A reversal still owes every cue
+        // crossed by native scroll while the camera was catching up.
+        furthestRawPath = Math.max(furthestRawPath, raw);
+        const progress = raw < furthestRawPath ? furthestRawPath : Math.min(raw, path);
+        const triggered = triggeredSubtitles.current;
+        const next = witnessSequence.filter(record => record.path <= progress && !triggered.includes(record.id));
+        if (next.length) {
+          triggeredSubtitles.current = [...triggered, ...next.map(record => record.id)];
+          setSubtitles(triggeredSubtitles.current);
+        }
+        const endpointState = offset >= endpoint && path >= narrativeTiming.brandSettledPath ? 'reached'
+          : offset >= endpoint - narrativeTiming.brandExitPixels ? 'near' : 'away';
+        if (endpointState !== lastEndpointState) {
+          lastEndpointState = endpointState;
+          setEndpointState(endpointState);
+        }
       };
       ScrollTrigger.create({
         trigger: element, start: 'top top', end: 'bottom bottom',
@@ -227,12 +233,13 @@ export default function ExpanseLab() {
       <ExpanseSignals elements={observationElements} enabled={ready && !contextLost}
         active={observation} read={read} onSelect={selectObservation}
         invalidate={invalidateScene} />
-      <ExpanseNarrative subtitle={subtitle} ready={ready} reduced={reduced} unavailable={contextLost} />
+      <ExpanseNarrative subtitles={subtitles} endpointState={endpointState}
+        ready={ready} reduced={reduced} unavailable={contextLost} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
       {debug && <aside className={styles.debug} data-editor-open={editorOpen && !contextLost} aria-label="场景调试">
         <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
-        <div>主线 {reachedSubtitle.current + 1} / 3 · 全息卡 {observation ?? '关闭'}</div>
+        <div>主线 {subtitles.length} / {witnessSequence.length} · 全息卡 {observation ?? '关闭'}</div>
         <div>{([['起点 · Passage', 0], ['50%', .5], ['终点', 1]] as const)
           .map(([label, progress]) => <button key={label} type="button" disabled={reduced || contextLost} onClick={() => seek(progress)}>{label}</button>)}</div>
         <button ref={editorToggle} type="button" disabled={!ready || contextLost} aria-expanded={editorOpen && !contextLost}

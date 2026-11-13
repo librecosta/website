@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { expanseBrand, narrativeTiming, observationIds, observationRecords, witnessRecords, witnessSequence,
-  type SubtitleCue } from './narrative';
+  type NarrativeEndpoint, type WitnessId, type WitnessRecord } from './narrative';
 import expanseStyles from './expanse.module.css';
 import styles from './narrative.module.css';
 
@@ -10,60 +10,61 @@ const charactersPerSecond = 14;
 const subtitleHoldSeconds = 2.5;
 const subtitleFadeSeconds = .42;
 
-const entryCharacters = witnessSequence.map(record => record.lines.map(line => Array.from(line)));
+const entryCharacters = Object.fromEntries(witnessSequence.map(record => [record.id, record.lines.map(line => Array.from(line))]));
 
-function WitnessSubtitle({ index, animate, onFinish }: SubtitleCue & { onFinish?: () => void }) {
-  const { cue, stopTextCue } = useSiteAudio();
+function WitnessSubtitle({ record, playing, onFinish }: {
+  record: WitnessRecord & { id: WitnessId }; playing: boolean; onFinish: (id: WitnessId) => void;
+}) {
+  const { cue } = useSiteAudio();
   const element = useRef<HTMLDivElement>(null);
-  const record = witnessSequence[index];
-  const lines = entryCharacters[index];
+  const timeline = useRef<gsap.core.Timeline | null>(null);
+  const lines = entryCharacters[record.id];
   const total = lines.reduce((sum, line) => sum + line.length, 0);
-  const hold = record === witnessRecords.arrival ? narrativeTiming.arrivalHoldSeconds - subtitleFadeSeconds : subtitleHoldSeconds;
-  const [count, setCount] = useState(animate ? 0 : total);
-  const [finished, setFinished] = useState(false);
+  const hold = record.id === witnessRecords.arrival.id ? narrativeTiming.arrivalHoldSeconds - subtitleFadeSeconds : subtitleHoldSeconds;
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
     const node = element.current!;
     const context = gsap.context(() => {
-      const sequence = gsap.timeline();
+      const sequence = gsap.timeline({ paused: true, onComplete: () => onFinish(record.id) });
+      timeline.current = sequence;
+      let at = .20, revealed = 0;
       let lastCharacterAt = 0;
-      if (animate) {
-        let at = .20, revealed = 0;
-        for (const line of lines) {
-          if (revealed) at += .57;
-          let previous = '';
-          for (const character of line) {
-            if ((previous === '…' && character !== '…') || (previous === '.' && character !== '.')) at += .27;
-            const next = ++revealed;
-            sequence.call(() => {
-              setCount(next);
-              cue('text');
-            }, [], at);
-            previous = character;
-            lastCharacterAt = at;
-            at += 1 / charactersPerSecond;
-          }
+      for (const line of lines) {
+        if (revealed) at += .57;
+        let previous = '';
+        for (const character of line) {
+          if ((previous === '…' && character !== '…') || (previous === '.' && character !== '.')) at += .27;
+          const next = ++revealed;
+          sequence.call(() => {
+            setCount(next);
+            cue('text');
+          }, [], at);
+          previous = character;
+          lastCharacterAt = at;
+          at += 1 / charactersPerSecond;
         }
       }
-      sequence.to(node, { opacity: 0, duration: subtitleFadeSeconds, ease: 'sine.inOut',
-        onComplete: onFinish ?? (() => setFinished(true)) },
-        lastCharacterAt + hold);
+      sequence.addLabel('typed', lastCharacterAt)
+        .to(node, { opacity: 0, duration: subtitleFadeSeconds, ease: 'sine.inOut' }, `typed+=${hold}`);
     }, node);
     return () => {
       context.revert();
-      stopTextCue();
+      timeline.current = null;
     };
-  }, [lines, animate, hold, onFinish, cue, stopTextCue]);
+  }, [lines, hold, onFinish, record.id, cue]);
+  useEffect(() => {
+    timeline.current?.paused(!playing);
+  }, [playing]);
 
-  if (finished) return null;
   let remaining = count;
-  return <div className={styles.subtitle} ref={element} data-witness-subtitle={record.id} data-lines={lines.length}>
+  return <div className={styles.subtitle} ref={element} data-witness-subtitle={record.id} data-typed={count === total}>
     {lines.map((line, lineIndex) => {
       const text = line.slice(0, Math.max(0, remaining)).join('');
       remaining -= line.length;
       return text && <p key={lineIndex} aria-hidden="true">{text}</p>;
     })}
-    <span className={expanseStyles.srOnly} role="status">{count === total ? record.lines.join(' ') : ''}</span>
+    <span className={expanseStyles.srOnly} role="status" aria-atomic="true">{count === total ? record.lines.join(' ') : ''}</span>
   </div>;
 }
 
@@ -76,16 +77,37 @@ function BrandReveal({ cinematic = false, active = true }: { cinematic?: boolean
   </section>;
 }
 
-export function ExpanseNarrative({ subtitle, ready, reduced, unavailable }: {
-  subtitle: SubtitleCue | null; ready: boolean; reduced: boolean; unavailable: boolean;
+export function ExpanseNarrative({ subtitles, endpointState, ready, reduced, unavailable }: {
+  subtitles: readonly WitnessId[]; endpointState: NarrativeEndpoint; ready: boolean; reduced: boolean; unavailable: boolean;
 }) {
+  const { stopTextCue } = useSiteAudio();
   const layer = useRef<HTMLDivElement>(null);
   const brandTimeline = useRef<gsap.core.Timeline | null>(null);
-  const [endingComplete, setEndingComplete] = useState(false);
-  const finishEnding = useCallback(() => setEndingComplete(true), []);
+  const [finished, setFinished] = useState<readonly WitnessId[]>([]);
+  const [brandStarted, setBrandStarted] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const finishSubtitle = useCallback((id: WitnessId) => setFinished(previous => [...previous, id]), []);
   const cinematic = ready && !reduced && !unavailable;
-  const arrival = subtitle !== null && witnessSequence[subtitle.index] === witnessRecords.arrival;
-  const brandActive = cinematic && arrival && endingComplete;
+  const playing = cinematic && visible;
+  const active = witnessSequence.filter(record => subtitles.includes(record.id) && !finished.includes(record.id));
+  const canReveal = cinematic && finished.includes(witnessRecords.arrival.id) && !active.length;
+  const brandActive = canReveal && brandStarted && endpointState !== 'away';
+
+  useEffect(() => {
+    // The near band keeps an existing reveal steady but never starts one.
+    setBrandStarted(started => canReveal && (endpointState === 'reached' || (started && endpointState === 'near')));
+  }, [canReveal, endpointState]);
+
+  useEffect(() => {
+    const update = () => setVisible(!document.hidden);
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+  useEffect(() => {
+    if (!playing) stopTextCue();
+  }, [playing, stopTextCue]);
+  useEffect(() => () => stopTextCue(), [stopTextCue]);
 
   useEffect(() => {
     const context = gsap.context(() => {
@@ -102,14 +124,16 @@ export function ExpanseNarrative({ subtitle, ready, reduced, unavailable }: {
     };
   }, []);
   useEffect(() => {
-    if (brandActive) brandTimeline.current?.play();
-    else if (cinematic) brandTimeline.current?.reverse();
-    else brandTimeline.current?.pause(0);
-  }, [brandActive, cinematic]);
+    if (!cinematic) brandTimeline.current?.pause(0);
+    else if (!visible) brandTimeline.current?.pause();
+    else if (brandActive) brandTimeline.current?.play();
+    else brandTimeline.current?.reverse();
+  }, [brandActive, cinematic, visible]);
 
   return <div className={styles.layer} ref={layer} lang="zh-CN">
-    {cinematic && !brandActive && subtitle !== null &&
-      <WitnessSubtitle key={subtitle.index} {...subtitle} onFinish={arrival ? finishEnding : undefined} />}
+    <div className={styles.subtitles} hidden={!cinematic}>
+      {active.map(record => <WitnessSubtitle key={record.id} record={record} playing={playing} onFinish={finishSubtitle} />)}
+    </div>
     <BrandReveal cinematic active={brandActive} />
   </div>;
 }

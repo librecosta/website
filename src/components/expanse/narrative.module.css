@@ -5,10 +5,11 @@
   pointer-events: none;
 }
 
-.subtitle {
+.subtitles {
   position: absolute;
   inset-inline: 0;
-  bottom: 20vh;
+  bottom: max(20dvh, calc(var(--edge-bottom) + var(--rail) + 43px));
+  --subtitle-gap: .56em;
   padding-inline: 24px;
   color: #fff8ea;
   font-size: clamp(16px, 1.22vw, 23px);
@@ -18,7 +19,7 @@
   text-align: center;
   text-shadow: 0 1px 2px #241c14ed, 0 2px 7px #382c22ba;
 }
-.subtitle[data-lines='2'] { min-block-size: 3.1em; }
+.subtitle:has(p) ~ .subtitle:has(p) { margin-block-start: var(--subtitle-gap); }
 .subtitle p { margin: 0; }
 .transcriptSignals summary { cursor: pointer; }
 .transcriptSignals details + details { margin-block-start: .45rem; }
@@ -68,7 +69,11 @@
 .transcript .brandStatic { margin-block-start: 3rem; }
 
 @media (max-width: 940px) {
+  .subtitles { bottom: max(20dvh, calc(var(--edge-bottom) + var(--rail) + 106px)); }
   .brandReveal { --brand-lift: 128px; }
+}
+@media (max-width: 360px), (max-height: 530px) {
+  .subtitles { --subtitle-gap: .42em; padding-inline: 16px; font-size: 15px; line-height: 1.42; }
 }
 @media (max-height: 530px) {
   .brandReveal { --brand-lift: 52px; }
