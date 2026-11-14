@@ -1,8 +1,28 @@
 LibreCosta WORKS assets
 
-The atlas uses Isometria's procedural terrain, camera, lighting, and drag
-interaction under the MIT license. See isometria-license.txt.
-The project facilities and non-official map symbols are LibreCosta artwork.
+The ocean and shoreline shaders, shoreline distance field, and portions of
+the camera, interaction and panel logic are adapted from Wenz Louie Rejas's
+Interactive 3D Portfolio, commit 0319381ab0310cdabaca734d4e9c92bfcee79a49.
+Source: https://github.com/wenzrejas/wenzrejas.github.io
+Copyright (c) 2026 Wenz Louie Rejas. See wenz-license.txt (MIT).
+
+The five modified islands below include original Blender geometry and baked
+lighting textures authored by Wenz Louie Rejas and distributed alongside his
+source under the same MIT license. The glTF subtrees were extracted,
+recompressed, and stripped of unrelated props and project signage.
+
+islands/bay.glb — Cozy Isle, Cozy_Isle subtree without café signage and boat.
+islands/foundry.glb — Buildshore, BeeSigned workshop terrain and honey glass.
+islands/signal.glb — Lumina Point, MainIsland terrain and tower without contact props.
+islands/prism.glb — Tech Grove, Island_Creative terrace, with a LibreCosta landmark.
+islands/wave.glb — Buildshore, Qoves terrain batch without external logo mesh.
+
+The Harvest, Sofaraway and GopherAtlas islands, glass landmark, field archive
+interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
+and JavaScript wrapper come from the installed Three.js r187 distribution and
+are provided under the Apache License 2.0. See draco-license.txt.
+
+Project previews
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 gofurry.webp is a capture of the local GoFurry /start page (f19016b).

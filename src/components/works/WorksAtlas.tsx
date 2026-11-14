@@ -1,43 +1,51 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ProjectMark } from './ProjectMark';
-import { projects, regions, type Project } from './projects';
+import { categories, projects, type Project } from './projects';
 import type { AtlasScene } from './works-scene';
 import styles from './works.module.css';
 
-type Panel = { type: 'index' } | { type: 'project'; project: Project };
+type Panel = { kind: 'index' } | { kind: 'project'; project: Project };
 
 export function WorksAtlas() {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'fallback'>('loading');
-  const [panel, setPanel] = useState<Panel | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
-  const [focused, setFocused] = useState<string | null>(null);
-  const map = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const scene = useRef<AtlasScene | null>(null);
-  const indexToggle = useRef<HTMLButtonElement>(null);
-  const title = useRef<HTMLHeadingElement>(null);
-  const buttons = useRef(new Map<string, HTMLButtonElement>());
-  const nextFocus = useRef<string | null>(null);
-  const indexOpen = panel?.type === 'index';
-  const selected = panel?.type === 'project' ? panel.project : null;
-  const active = selected?.slug ?? (indexOpen ? null : focused ?? hovered);
+  const points = useRef(new Map<string, HTMLButtonElement>());
+  const sheet = useRef<HTMLElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const index = useRef<HTMLButtonElement>(null);
+  const focusReturn = useRef<HTMLElement | null>(null);
+  const markPress = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
+  const [count, setCount] = useState(0);
+  const [error, setError] = useState(false);
+  const [hover, setHover] = useState<Project | null>(null);
+  const [markerHover, setMarkerHover] = useState<Project | null>(null);
+  const [focus, setFocus] = useState<Project | null>(null);
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const selected = panel?.kind === 'project' ? panel.project : null;
+  const active = markerHover ?? focus ?? hover;
+  const ready = count === projects.length && !error;
 
   useEffect(() => {
     const surface = canvas.current;
-    const interaction = map.current;
-    if (!surface || !interaction) return;
+    if (!surface) return;
     let cancelled = false;
+    setMounted(true);
     import('./works-scene').then(({ mountAtlas }) => {
       if (cancelled) return;
-      scene.current = mountAtlas(surface, interaction, projects, buttons.current, available => {
-        setStatus(available ? 'ready' : 'fallback');
+      scene.current = mountAtlas(surface, projects, {
+        points: points.current,
+        hover: setHover,
+        select: project => {
+          focusReturn.current = points.current.get(project.slug) ?? null;
+          setPanel({ kind: 'project', project });
+        },
+        loaded: loaded => { setCount(loaded); setError(false); },
+        failed: () => setError(true),
       });
-      setStatus('ready');
-    }).catch(() => {
-      if (!cancelled) setStatus('fallback');
-    });
+    }).catch(() => { if (!cancelled) setError(true); });
     return () => {
       cancelled = true;
       scene.current?.dispose();
@@ -46,130 +54,163 @@ export function WorksAtlas() {
   }, []);
 
   useLayoutEffect(() => {
-    scene.current?.update(active, panel !== null);
-  }, [active, panel, status]);
+    const node = sheet.current;
+    function update() {
+      const rect = node?.getBoundingClientRect();
+      const isBottom = matchMedia('(max-width: 759px)').matches;
+      scene.current?.update(selected, markerHover ?? focus, rect
+        ? { side: isBottom ? 'bottom' : 'right', size: isBottom ? rect.height : innerWidth - node!.offsetLeft }
+        : null);
+    }
+    update();
+    if (!node) return;
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    window.addEventListener('resize', update);
+    return () => { observer.disconnect(); window.removeEventListener('resize', update); };
+  }, [selected, panel, markerHover, focus, count]);
 
   useLayoutEffect(() => {
-    const target = nextFocus.current;
-    if (!target) return;
-    nextFocus.current = null;
-    if (target === 'panel') {
-      title.current?.focus({ preventScroll: true });
-      title.current?.closest('section')?.scrollIntoView({ block: 'nearest' });
-    } else {
-      (buttons.current.get(target) ?? indexToggle.current)?.focus();
+    if (panel) heading.current?.focus({ preventScroll: true });
+    else if (focusReturn.current) {
+      const target = focusReturn.current;
+      focusReturn.current = null;
+      // The map returns to its previous frame on the next render. Make the
+      // returning landmark focusable before that frame, without scrolling.
+      const landmark = target.dataset.project;
+      if (landmark && ready) target.dataset.outside = 'false';
+      if (target.offsetWidth && !target.matches(':disabled')) target.focus({ preventScroll: true });
+      else index.current?.focus({ preventScroll: true });
     }
   }, [panel]);
 
-  function openProject(project: Project) {
-    nextFocus.current = 'panel';
-    setHovered(null);
-    setFocused(null);
-    setPanel({ type: 'project', project });
+  function openIndex() {
+    focusReturn.current = index.current;
+    setPanel({ kind: 'index' });
   }
 
-  function toggleIndex() {
-    if (indexOpen) {
-      closePanel();
-      return;
+  function openProject(project: Project, source?: HTMLElement) {
+    if (source) focusReturn.current = source;
+    setPanel({ kind: 'project', project });
+  }
+
+  function panelKeys(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setPanel(null);
     }
-    nextFocus.current = 'panel';
-    setHovered(null);
-    setFocused(null);
-    setPanel({ type: 'index' });
+    if (event.key !== 'Tab' || !sheet.current) return;
+    const controls = Array.from(sheet.current.querySelectorAll<HTMLElement>('button, a[href]'));
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (event.shiftKey && (document.activeElement === heading.current || document.activeElement === first)) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
   }
 
-  function closePanel() {
-    nextFocus.current = status === 'ready' && selected ? selected.slug : 'index';
-    setPanel(null);
-  }
+  return <section className={styles.experience} aria-labelledby="works-title" data-world={ready ? 'ready' : error ? 'fallback' : 'loading'}
+    onKeyDown={event => { if (!panel && scene.current?.nudge(event.key)) event.preventDefault(); }}>
+    <canvas className={styles.ocean} aria-hidden="true" ref={canvas} />
+    <div className={styles.hud} inert={!!panel}>
+      <header className={styles.mast}>
+        <a href="/" aria-label="LibreCosta 首页">LibreCosta</a>
+        <h1 id="works-title" lang="en">Works</h1>
+      </header>
+      <div className={styles.tools}>
+        <button type="button" disabled={!ready} onClick={() => scene.current?.overview()}>
+          <span className={styles.crosshair} aria-hidden="true" />世界总览
+        </button>
+        <button type="button" ref={index} onClick={openIndex} hidden={!mounted}
+          aria-haspopup="dialog" aria-expanded={panel?.kind === 'index'}>
+          <span aria-hidden="true" className={styles.indexIcon} />作品索引
+        </button>
+      </div>
+      <div className={styles.markers} aria-label="作品岛屿">
+        {projects.map((project, i) => <button key={project.slug} type="button" className={styles.point}
+          disabled={!ready} data-project={project.slug} aria-haspopup="dialog"
+          aria-label={project.name + ' · ' + project.island.name} aria-describedby={'island-information-' + i}
+          ref={element => { if (element) points.current.set(project.slug, element); else points.current.delete(project.slug); }}
+          onPointerEnter={event => { if (event.pointerType === 'mouse') setMarkerHover(project); }}
+          onPointerLeave={() => setMarkerHover(null)}
+          onPointerDown={event => {
+            markPress.current = { x: event.clientX, y: event.clientY, dragged: false };
+          }}
+          onPointerMove={event => {
+            const press = markPress.current;
+            if (event.buttons && press && Math.hypot(event.clientX - press.x, event.clientY - press.y) >= 8) press.dragged = true;
+          }}
+          onPointerCancel={() => { markPress.current = null; }}
+          onFocus={event => { if (event.currentTarget.matches(':focus-visible')) setFocus(project); }}
+          onBlur={() => setFocus(null)}
+          onClick={event => {
+            if (event.detail && markPress.current?.dragged) return;
+            openProject(project, event.currentTarget);
+          }}>
+          <span className={styles.waypoint}><ProjectMark landmark={project.landmark} /></span>
+          <span className={styles.chartName} aria-hidden="true">{project.name}</span>
+          <span id={'island-information-' + i} className={styles.sr}>{categories[project.category].label}。{project.description}</span>
+          {active === project && !panel && <span className={styles.preview} aria-hidden="true">
+            <span className={styles.previewRegion}>{project.island.name} · {categories[project.category].label}</span>
+            <strong lang="en">{project.name}</strong>
+            <span>{project.description}</span>
+          </span>}
+        </button>)}
+      </div>
+      {ready && <p className={styles.instruction}>拖动海面探索 · 选择岛屿查看作品</p>}
+      {!ready && <div className={styles.fallback}>
+        {mounted && !error && <p role="status">正在绘制群岛 <span>{count} / {projects.length}</span></p>}
+        <details open={error || undefined}>
+          <summary>查看作品列表</summary>
+          <ul>{projects.map(project => <li key={project.slug}>
+            <strong lang="en">{project.name}</strong>
+            <p>{project.description}</p>
+            {project.links.map(link => link && <a key={link.href} href={link.href}>{link.label}</a>)}
+          </li>)}</ul>
+        </details>
+      </div>}
+    </div>
 
-  return <section className={styles.atlas} aria-labelledby="works-title" data-status={status}
-    onKeyDown={event => {
-      if (event.key === 'Escape' && panel) {
-        event.preventDefault();
-        closePanel();
-      }
-    }}>
-    <header className={styles.header}>
-      <a className={styles.wordmark} href="/" aria-label="LibreCosta 首页" lang="en">LibreCosta</a>
-      <button type="button" ref={indexToggle} className={styles.indexToggle} aria-expanded={indexOpen}
-        aria-controls={indexOpen ? 'works-panel' : undefined} onClick={toggleIndex}>
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-          <path d="M6 4h9M6 9h9M6 14h9M2 4h1M2 9h1M2 14h1" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-        项目索引
-      </button>
-    </header>
-
-    <div className={styles.content}>
-      <h1 id="works-title" lang="en">Works</h1>
-      <div className={styles.layout} data-panel={!!panel}>
-        <div className={styles.stage}>
-          <div className={styles.map} ref={map} role="group" aria-label="三维作品沙盘">
-            <canvas className={styles.canvas} aria-hidden="true" ref={canvas} />
-            {projects.map(project => <button key={project.slug} type="button" data-project={project.slug}
-              className={styles.node} aria-label={project.name} aria-expanded={selected === project}
-              aria-controls={selected === project ? 'works-panel' : undefined} tabIndex={panel ? -1 : undefined}
-              ref={element => {
-                if (element) buttons.current.set(project.slug, element);
-                else buttons.current.delete(project.slug);
-              }}
-              onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(project.slug); }}
-              onPointerLeave={() => setHovered(current => current === project.slug ? null : current)}
-              onFocus={event => { if (event.currentTarget.matches(':focus-visible')) setFocused(project.slug); }}
-              onBlur={() => setFocused(current => current === project.slug ? null : current)}
-              onClick={() => openProject(project)}>
-              <ProjectMark landmark={project.landmark} />
-              {active === project.slug && !panel && <span className={styles.tooltip} aria-hidden="true">
-                <strong lang="en">{project.name}</strong>
-                <span>{regions[project.region].label}</span>
-              </span>}
-            </button>)}
-          </div>
-          {status === 'ready' && <p className={styles.hint}>左右拖动旋转 · 选择地标查看作品</p>}
-          {status !== 'ready' && !panel && <details className={styles.fallback}>
-            <summary>作品列表</summary>
-            <ul>{projects.map(project => <li key={project.slug}>
-              <strong lang="en">{project.name}</strong>
-              <p>{project.description}</p>
-              {project.links.map(link => link && <a key={link.href} href={link.href}>{link.label}</a>)}
-            </li>)}</ul>
-          </details>}
-        </div>
-
-        {panel && <section id="works-panel" className={styles.panel} aria-labelledby="works-panel-title"
-          key={selected?.slug ?? 'index'}>
-          <button type="button" className={styles.close} aria-label={indexOpen ? '关闭项目索引' : '关闭项目详情'}
-            onClick={closePanel}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path d="m5 5 10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-          </button>
-
+    {panel && <aside className={styles.sheet} data-panel={panel.kind} ref={sheet} role="dialog"
+      aria-labelledby="works-sheet-title" aria-modal="true" onKeyDown={panelKeys}>
+      <div className={styles.paper} key={selected?.slug ?? 'index'}>
+        <div className={styles.binding} aria-hidden="true" />
+        <button type="button" className={styles.close} aria-label="关闭档案菜单" onClick={() => setPanel(null)}>
+          <span aria-hidden="true">×</span>
+        </button>
+        <div className={styles.sheetScroll}>
           {selected ? <>
-            <p className={styles.region}>{regions[selected.region].label} · <span lang="en">{regions[selected.region].name}</span></p>
-            <h2 id="works-panel-title" tabIndex={-1} ref={title} lang="en">{selected.name}</h2>
-            <p className={styles.description}>{selected.description}</p>
-            <div className={styles.preview}>
+            <header className={styles.plate}>
+              <p>{selected.island.name} <span>{categories[selected.category].label}</span></p>
+              <h2 id="works-sheet-title" tabIndex={-1} ref={heading} lang="en">{selected.name}</h2>
+            </header>
+            <p className={styles.bodyCopy}>{selected.description}</p>
+            <figure className={styles.figure}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={selected.media.src} alt={selected.media.alt} decoding="async" />
-            </div>
+              <figcaption>{selected.media.alt}</figcaption>
+            </figure>
+            {selected.note && <p className={styles.bodyCopy}>{selected.note}</p>}
+            <p className={styles.status}>{selected.status}</p>
             <div className={styles.links}>{selected.links.map(link => link && <a key={link.href} href={link.href}>
-              {link.label}<span aria-hidden="true">↗</span>
+              {link.label} <span aria-hidden="true">↗</span>
             </a>)}</div>
           </> : <>
-            <h2 id="works-panel-title" tabIndex={-1} ref={title}>项目索引</h2>
-            <ul className={styles.indexList}>{projects.map(project => <li key={project.slug}>
-              <button type="button" onClick={() => openProject(project)}>
-                <ProjectMark landmark={project.landmark} />
-                <span><strong lang="en">{project.name}</strong><small>{regions[project.region].label}</small></span>
-                <span aria-hidden="true">›</span>
-              </button>
-            </li>)}</ul>
+            <header className={styles.plate}>
+              <h2 id="works-sheet-title" tabIndex={-1} ref={heading}>群岛索引</h2>
+            </header>
+            <ul className={styles.list}>{projects.map(project => <li key={project.slug}><button type="button"
+              data-destination={project.slug} onClick={() => openProject(project)}>
+              <ProjectMark landmark={project.landmark} />
+              <span><strong lang="en">{project.name}</strong><small>{project.island.name}</small></span>
+              <span aria-hidden="true">↗</span>
+            </button></li>)}</ul>
           </>}
-        </section>}
+        </div>
       </div>
-    </div>
+    </aside>}
   </section>;
 }
