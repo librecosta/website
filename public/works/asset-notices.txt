@@ -1,8 +1,7 @@
 LibreCosta WORKS assets
 
-terrain.webp: original LibreCosta terrain, 106,466 bytes. The source generator
-is scripts/render-works-terrain.py in the website repository. No external
-terrain, map data, or imagery is incorporated.
+The atlas terrain, bathymetry, street layout, and project-symbol illustrations
+are original LibreCosta artwork. The atlas uses no external map data.
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 Sofaraway: shots/play.png from the LibreCosta project workspace, revision 5ca93c6.
