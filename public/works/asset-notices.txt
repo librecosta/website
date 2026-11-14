@@ -1,20 +1,24 @@
 LibreCosta WORKS assets
 
-The atlas terrain, bathymetry, street layout, and project-symbol illustrations
-are original LibreCosta artwork. The atlas uses no external map data.
+The atlas uses Isometria's procedural terrain, camera, lighting, and drag
+interaction under the MIT license. See isometria-license.txt.
+The project facilities and non-official map symbols are LibreCosta artwork.
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
+gofurry.webp is a capture of the local GoFurry /start page (f19016b).
 Sofaraway: shots/play.png from the LibreCosta project workspace, revision 5ca93c6.
 Wavefield: https://github.com/librecosta/wavefield/blob/main/docs/assets/wavefield-preview.webp
 Tool4Furry: public/brand/tool4furry-og.png from the Tool4Furry project workspace.
-tool4furry-mark.webp (1,044 bytes) isolates the mark from the same source.
+tool4furry-mark.webp isolates the mark from the same source.
+Harvest: harvest.webp shows the verbatim output of the local Harvest
+command-line tool's --help (349730b), typeset as a terminal preview.
 LibreCosta Uptime: https://github.com/librecosta/uptime/blob/master/docs/assets/uptime-dashboard.webp
 Liquid Glass: https://github.com/librecosta/liquid-glass/blob/main/docs/playground.webp
 GopherAtlas: https://gopheratlas.com/images/og-default.png (official publication artwork).
 
 BSD 3-Clause License
 
-Copyright (c) 2026, LibreCosta (GoFurry, Sofaraway, Wavefield)
+Copyright (c) 2026, LibreCosta (GoFurry, Harvest, Sofaraway, Wavefield)
 Copyright (c) 2026, Faolan Grey (Tool4Furry)
 
 Redistribution and use in source and binary forms, with or without
