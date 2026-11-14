@@ -1,7 +1,6 @@
 LibreCosta WORKS assets
 
-The ocean and shoreline shaders, shoreline distance field, and portions of
-the camera, interaction and panel logic are adapted from Wenz Louie Rejas's
+Portions of the camera, interaction and panel logic are adapted from Wenz Louie Rejas's
 Interactive 3D Portfolio, commit 0319381ab0310cdabaca734d4e9c92bfcee79a49.
 Source: https://github.com/wenzrejas/wenzrejas.github.io
 Copyright (c) 2026 Wenz Louie Rejas. See wenz-license.txt (MIT).

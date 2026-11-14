@@ -16,7 +16,6 @@ export function WorksAtlas() {
   const heading = useRef<HTMLHeadingElement>(null);
   const index = useRef<HTMLButtonElement>(null);
   const focusReturn = useRef<HTMLElement | null>(null);
-  const markPress = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
   const [count, setCount] = useState(0);
   const [error, setError] = useState(false);
   const [hover, setHover] = useState<Project | null>(null);
@@ -112,55 +111,51 @@ export function WorksAtlas() {
     }
   }
 
-  return <section className={styles.experience} aria-labelledby="works-title" data-world={ready ? 'ready' : error ? 'fallback' : 'loading'}
+  return <section className={styles.experience} aria-labelledby="works-title" data-panel={panel?.kind}
+    data-world={ready ? 'ready' : error ? 'fallback' : 'loading'}
     onKeyDown={event => { if (!panel && scene.current?.nudge(event.key)) event.preventDefault(); }}>
-    <canvas className={styles.ocean} aria-hidden="true" ref={canvas} />
+    {selected && <div className={styles.specimenFrame} aria-hidden="true"><span /></div>}
+    <canvas className={styles.canvas} aria-hidden="true" ref={canvas} />
     <div className={styles.hud} inert={!!panel}>
       <header className={styles.mast}>
-        <a href="/" aria-label="LibreCosta 首页">LibreCosta</a>
-        <h1 id="works-title" lang="en">Works</h1>
+        <a className={styles.brand} href="/" aria-label="LibreCosta 首页" />
+        <h1 id="works-title" lang="en">WORKS</h1>
       </header>
-      <div className={styles.tools}>
+      <div className={styles.tools} aria-label="视图控制">
         <button type="button" disabled={!ready} onClick={() => scene.current?.overview()}>
-          <span className={styles.crosshair} aria-hidden="true" />世界总览
+          <span className={styles.overviewIcon} aria-hidden="true" />世界总览
         </button>
         <button type="button" ref={index} onClick={openIndex} hidden={!mounted}
           aria-haspopup="dialog" aria-expanded={panel?.kind === 'index'}>
           <span aria-hidden="true" className={styles.indexIcon} />作品索引
         </button>
       </div>
+      {ready && !panel && <div className={styles.zoomControls} role="group" aria-label="缩放">
+        <button type="button" aria-label="缩小" onClick={() => scene.current?.adjustZoom(1 / 1.26)}>−</button>
+        <button type="button" aria-label="放大" onClick={() => scene.current?.adjustZoom(1.26)}>+</button>
+      </div>}
       <div className={styles.markers} aria-label="作品岛屿">
         {projects.map((project, i) => <button key={project.slug} type="button" className={styles.point}
-          disabled={!ready} data-project={project.slug} aria-haspopup="dialog"
+          disabled={!ready} data-project={project.slug} data-active={(selected ?? active) === project || undefined}
+          aria-haspopup="dialog"
           aria-label={project.name + ' · ' + project.island.name} aria-describedby={'island-information-' + i}
           ref={element => { if (element) points.current.set(project.slug, element); else points.current.delete(project.slug); }}
           onPointerEnter={event => { if (event.pointerType === 'mouse') setMarkerHover(project); }}
           onPointerLeave={() => setMarkerHover(null)}
-          onPointerDown={event => {
-            markPress.current = { x: event.clientX, y: event.clientY, dragged: false };
-          }}
-          onPointerMove={event => {
-            const press = markPress.current;
-            if (event.buttons && press && Math.hypot(event.clientX - press.x, event.clientY - press.y) >= 8) press.dragged = true;
-          }}
-          onPointerCancel={() => { markPress.current = null; }}
           onFocus={event => { if (event.currentTarget.matches(':focus-visible')) setFocus(project); }}
           onBlur={() => setFocus(null)}
           onClick={event => {
-            if (event.detail && markPress.current?.dragged) return;
-            openProject(project, event.currentTarget);
+            if (!event.detail) openProject(project, event.currentTarget);
           }}>
           <span className={styles.waypoint}><ProjectMark landmark={project.landmark} /></span>
           <span className={styles.chartName} aria-hidden="true">{project.name}</span>
           <span id={'island-information-' + i} className={styles.sr}>{categories[project.category].label}。{project.description}</span>
-          {active === project && !panel && <span className={styles.preview} aria-hidden="true">
-            <span className={styles.previewRegion}>{project.island.name} · {categories[project.category].label}</span>
-            <strong lang="en">{project.name}</strong>
-            <span>{project.description}</span>
-          </span>}
         </button>)}
       </div>
-      {ready && <p className={styles.instruction}>拖动海面探索 · 选择岛屿查看作品</p>}
+      {ready && active && !panel && <div className={styles.inspection} aria-hidden="true">
+        <div><strong lang="en">{active.name}</strong><span>{categories[active.category].label}</span></div>
+        <p>{active.description}</p>
+      </div>}
       {!ready && <div className={styles.fallback}>
         {mounted && !error && <p role="status">正在绘制群岛 <span>{count} / {projects.length}</span></p>}
         <details open={error || undefined}>
@@ -176,16 +171,16 @@ export function WorksAtlas() {
 
     {panel && <aside className={styles.sheet} data-panel={panel.kind} ref={sheet} role="dialog"
       aria-labelledby="works-sheet-title" aria-modal="true" onKeyDown={panelKeys}>
-      <div className={styles.paper} key={selected?.slug ?? 'index'}>
-        <div className={styles.binding} aria-hidden="true" />
+      <div className={styles.archive} key={selected?.slug ?? 'index'}>
         <button type="button" className={styles.close} aria-label="关闭档案菜单" onClick={() => setPanel(null)}>
-          <span aria-hidden="true">×</span>
+          <span className={styles.closeIcon} aria-hidden="true" />
         </button>
         <div className={styles.sheetScroll}>
           {selected ? <>
             <header className={styles.plate}>
               <p>{selected.island.name} <span>{categories[selected.category].label}</span></p>
               <h2 id="works-sheet-title" tabIndex={-1} ref={heading} lang="en">{selected.name}</h2>
+              <span className={styles.status}>{selected.status}</span>
             </header>
             <p className={styles.bodyCopy}>{selected.description}</p>
             <figure className={styles.figure}>
@@ -194,10 +189,6 @@ export function WorksAtlas() {
               <figcaption>{selected.media.alt}</figcaption>
             </figure>
             {selected.note && <p className={styles.bodyCopy}>{selected.note}</p>}
-            <p className={styles.status}>{selected.status}</p>
-            <div className={styles.links}>{selected.links.map(link => link && <a key={link.href} href={link.href}>
-              {link.label} <span aria-hidden="true">↗</span>
-            </a>)}</div>
           </> : <>
             <header className={styles.plate}>
               <h2 id="works-sheet-title" tabIndex={-1} ref={heading}>群岛索引</h2>
@@ -210,6 +201,9 @@ export function WorksAtlas() {
             </button></li>)}</ul>
           </>}
         </div>
+        {selected && <div className={styles.links}>{selected.links.map(link => link && <a key={link.href} href={link.href}>
+          {link.label} <span aria-hidden="true">↗</span>
+        </a>)}</div>}
       </div>
     </aside>}
   </section>;

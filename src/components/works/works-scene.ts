@@ -7,8 +7,6 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Project } from './projects';
 import { glassLandmark, originalIsland } from './island-craft';
-import { buildWaterlineField } from './shore-field';
-import { oceanMaterial, oceanSurfaceMaterial, shoreMesh } from './water';
 
 const OFFSET = new T.Vector3(200, 120, 200);
 const RIGHT = new T.Vector3(1, 0, -1).normalize();
@@ -16,7 +14,7 @@ const FORWARD = new T.Vector3(1, 0, 1).normalize();
 const RISE = OFFSET.y / OFFSET.length();
 const VERTICAL = 200 * Math.SQRT2 / OFFSET.length();
 const CRAFT = { collector: 'fields', gates: 'gates', archive: 'archive' } as const;
-const SHORE_MARGIN = 3.7;
+const cameraAxes = ['x', 'y', 'scale'] as const;
 
 type Island = {
   project: Project;
@@ -25,8 +23,7 @@ type Island = {
   marker: T.Vector3;
   center: T.Vector3;
   tints: { material: T.MeshStandardMaterial; base: T.Color }[];
-  shore: T.Mesh<T.PlaneGeometry, T.ShaderMaterial> | null;
-  hoverBlend: number;
+  displayTint: number;
 };
 
 type Input = {
@@ -48,11 +45,6 @@ function dispose(object: T.Object3D) {
     for (const material of meshMaterials) {
       materials.add(material);
       for (const value of Object.values(material)) if (value instanceof T.Texture) textures.add(value);
-      if (material instanceof T.ShaderMaterial) {
-        for (const { value } of Object.values(material.uniforms) as T.IUniform[]) {
-          if (value instanceof T.Texture) textures.add(value);
-        }
-      }
     }
   });
   for (const texture of textures) {
@@ -76,7 +68,7 @@ function prepareIsland(project: Project, model: T.Object3D): Island {
   carrier.position.copy(RIGHT).multiplyScalar(across).addScaledVector(FORWARD, -depth);
   carrier.position.x -= pivot.x * scale;
   carrier.position.z -= pivot.z * scale;
-  // The original models and authored islands share a water plane at Y=0.
+  // Preserve the models' original height and their lower terrain geometry.
   carrier.position.y = project.island.model === 'signal' ? 0.3 : 0;
   carrier.updateMatrixWorld(true);
   const bounds = new T.Box3().setFromObject(carrier, true);
@@ -115,30 +107,18 @@ function prepareIsland(project: Project, model: T.Object3D): Island {
       tints.push({ material, base: material.color.clone() });
     }
   });
-  const field = buildWaterlineField(carrier, 0.04, SHORE_MARGIN, 144);
-  return { project, model: carrier, bounds, center, marker, tints, hoverBlend: 0,
-    shore: field ? shoreMesh(field, SHORE_MARGIN) : null };
+  return { project, model: carrier, bounds, center, marker, tints, displayTint: 1 };
 }
 
 export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project[], input: Input) {
-  const renderer = new T.WebGLRenderer({ canvas, alpha: false, antialias: true, powerPreference: 'high-performance' });
+  const renderer = new T.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+  renderer.setClearColor(0x000000, 0);
   const scene = new T.Scene();
-  scene.background = new T.Color('#28778b');
-  const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 4200);
+  const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 900);
   const hemisphere = new T.HemisphereLight('#f0f2dd', '#7b9185', 2.1);
   const sun = new T.DirectionalLight('#fff1cb', 2.05);
   sun.position.set(-70, 120, 48);
   scene.add(hemisphere, sun);
-  const sea = new T.Mesh(new T.PlaneGeometry(4400, 4400, 96, 96), oceanMaterial());
-  sea.rotation.x = -Math.PI / 2;
-  sea.position.y = -0.055;
-  sea.layers.set(1);
-  // Render the soft ocean pattern at a lower resolution than the island models.
-  const waterTarget = new T.WebGLRenderTarget(1, 1, { depthBuffer: false });
-  const surface = new T.Mesh(new T.PlaneGeometry(4400, 4400), oceanSurfaceMaterial(waterTarget.texture));
-  surface.rotation.copy(sea.rotation);
-  surface.position.copy(sea.position);
-  scene.add(sea, surface);
 
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const debug = new URLSearchParams(location.search).has('worksDebug');
@@ -156,12 +136,14 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
   let presented = false;
   let dead = false;
   let lost = false;
+  let loadFailed = false;
   let hasFocus = document.hasFocus();
   let frame = 0;
   let lastDraw = 0;
-  let time = 0;
   let frames = 0;
   let pixelRatio = 1;
+  let dirty = true;
+  let pointerChanged = false;
   const intervals: number[] = [];
   let overviewScale = 1;
   let overviewX = 0;
@@ -173,7 +155,10 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
   let hover: Project | null = null;
   let focused: Project | null = null;
   let mouse: { x: number; y: number } | null = null;
-  let drag: { id: number; x: number; y: number; originX: number; originY: number; project: Project | null; moved: boolean } | null = null;
+  let drag: { id: number; x: number; y: number; originX: number; originY: number } | null = null;
+  let pointerMoved = false;
+  const touches = new Map<number, { x: number; y: number }>();
+  let pinch: { distance: number; scale: number; x: number; y: number; centerX: number; centerY: number } | null = null;
 
   function projectedBounds() {
     let left = -73, right = 73, top = 60, bottom = -49;
@@ -200,12 +185,9 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
       pixelRatio = nextRatio;
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(viewport.x, viewport.y, false);
-      const buffer = renderer.getDrawingBufferSize(new T.Vector2());
-      const waterScale = Math.min(.5, 640 / Math.max(buffer.x, buffer.y));
-      waterTarget.setSize(Math.ceil(buffer.x * waterScale), Math.ceil(buffer.y * waterScale));
-      surface.material.uniforms.uBufferSize.value.copy(buffer);
       projectedBounds();
       if (!frames) current = { x: overviewX, y: overviewY, scale: overviewScale };
+      dirty = true;
     }
     request();
   }
@@ -221,8 +203,8 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
     // Reported panel size defines the visible area, like IslandPanel upstream.
     const freeWidth = viewport.x - (panel?.side === 'right' ? panel.size : 0);
     const freeHeight = viewport.y - (panel?.side === 'bottom' ? panel.size : 0);
-    const islandHeight = selected.bounds.max.y * VERTICAL + wide * RISE;
-    const scale = Math.min(freeWidth * 0.58 / wide, Math.max(78, freeHeight - 86) * 0.79 / islandHeight, 17);
+    const islandHeight = (selected.bounds.max.y - selected.bounds.min.y) * VERTICAL + wide * RISE;
+    const scale = Math.min(freeWidth * 0.63 / wide, Math.max(72, freeHeight - 82) * 0.82 / islandHeight, 18);
     return {
       x: x + (viewport.x - freeWidth) / (2 * scale),
       y: y - (viewport.y - freeHeight + (panel?.side === 'bottom' ? -45 : 0)) / (2 * scale),
@@ -233,8 +215,7 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
   function setCamera() {
     const { x, y, scale } = current;
     cameraTarget.copy(RIGHT).multiplyScalar(x).addScaledVector(FORWARD, -y / RISE);
-    // Keep the full water plane in front of the camera on tall portrait viewports.
-    camera.position.copy(cameraTarget).addScaledVector(OFFSET, 6);
+    camera.position.copy(cameraTarget).add(OFFSET);
     camera.lookAt(cameraTarget);
     camera.left = -viewport.x / (2 * scale);
     camera.right = -camera.left;
@@ -261,7 +242,7 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
       if (!picker.ray.intersectsBox(island.bounds)) continue;
       hits.length = 0;
       picker.intersectObject(island.model, true, hits);
-      const hit = hits.find(item => item.point.y >= -0.15);
+      const hit = hits[0];
       if (hit && hit.distance < gap) {
         gap = hit.distance;
         nearest = island.project;
@@ -278,8 +259,6 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
     const y = (1 - projected.y) * viewport.y / 2;
     button.style.setProperty('--x', x + 'px');
     button.style.setProperty('--y', y + 'px');
-    button.style.setProperty('--tip-x', T.MathUtils.clamp(x, 136, viewport.x - 136) - x + 'px');
-    button.dataset.below = String(y < 134);
     button.dataset.outside = String(x < 15 || x > viewport.x - 15 || y < 68 || y > viewport.y - 46);
   }
 
@@ -289,8 +268,7 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
 
   function render(now: number) {
     frame = 0;
-    const stepping = !motion.matches && hasFocus;
-    const animateWater = stepping && !panel && loaded === projects.length;
+    const stepping = !motion.matches && hasFocus && presented;
     const period = viewport.x < 760 ? 1000 / 24 : 1000 / 30;
     const elapsed = lastDraw ? now - lastDraw : 0;
     if (stepping && elapsed > 0 && elapsed < period - 2) {
@@ -299,44 +277,38 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
     }
     const delta = elapsed ? Math.min(elapsed / 1000, 0.2) : 1 / 30;
     const desired = target();
-    const ease = stepping ? 1 - Math.exp(-6 * delta) : 1;
+    const ease = stepping ? 1 - Math.exp(-12 * delta) : 1;
+    let cameraChanged = false;
     let moving = false;
-    for (const key of ['x', 'y', 'scale'] as const) {
+    for (const key of cameraAxes) {
       const gap = desired[key] - current[key];
-      if (Math.abs(gap) < 0.008) current[key] = desired[key];
-      else {
-        current[key] += gap * ease;
-        moving = ease < 1;
-      }
+      if (!gap) continue;
+      cameraChanged = true;
+      const snap = key === 'scale' ? 0.015 : 0.08;
+      current[key] = Math.abs(gap) < snap ? desired[key] : current[key] + gap * ease;
+      moving ||= current[key] !== desired[key];
     }
-    setCamera();
+    if (cameraChanged || dirty) setCamera();
 
-    if (mouse && !drag && !panel && moving) setHover(pick(mouse.x, mouse.y));
+    if (mouse && !drag && !panel && (pointerChanged || cameraChanged)) setHover(pick(mouse.x, mouse.y));
+    pointerChanged = false;
     const active = selected?.project ?? focused ?? hover;
-    if (animateWater) time += delta * 0.75;
-    sea.material.uniforms.uTime.value = time;
+    let highlightChanged = false;
     for (const island of islands.values()) {
-      const aim = Number(island.project === active);
+      const aim = selected ? (island === selected ? 1.1 : .57) : (island.project === active ? 1.16 : 1);
+      if (cameraChanged || dirty) placeButton(island);
+      if (aim === island.displayTint) continue;
       // Upstream's easeHover with a snap at rest.
-      const blend = island.hoverBlend + (aim - island.hoverBlend) * (stepping ? Math.min(1, 7 * delta) : 1);
-      island.hoverBlend = Math.abs(aim - blend) < 0.012 ? aim : blend;
-      moving ||= island.hoverBlend !== aim;
+      const blend = island.displayTint + (aim - island.displayTint) * (stepping ? Math.min(1, 15 * delta) : 1);
+      island.displayTint = Math.abs(aim - blend) < 0.012 ? aim : blend;
+      moving ||= island.displayTint !== aim;
+      highlightChanged = true;
       for (const { material, base } of island.tints) {
-        material.color.copy(base).multiplyScalar(1 + island.hoverBlend * 0.22);
+        material.color.copy(base).multiplyScalar(island.displayTint);
       }
-      if (island.shore) {
-        island.shore.material.uniforms.uHighlight.value = island.hoverBlend;
-        island.shore.material.uniforms.uTime.value = time;
-      }
-      placeButton(island);
     }
-    camera.layers.set(1);
-    renderer.setRenderTarget(waterTarget);
-    renderer.render(scene, camera);
-    const waterCalls = renderer.info.render.calls;
-    const waterTriangles = renderer.info.render.triangles;
-    renderer.setRenderTarget(null);
-    camera.layers.set(0);
+    if (!dirty && !cameraChanged && !highlightChanged) return;
+    dirty = false;
     renderer.render(scene, camera);
     if (!presented && loaded === projects.length) {
       presented = true;
@@ -349,25 +321,50 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
         if (intervals.length > 90) intervals.shift();
       }
       canvas.dataset.sceneStats = JSON.stringify({
-        frames, islands: islands.size, shorelines: [...islands.values()].filter(i => i.shore).length,
-        calls: renderer.info.render.calls + waterCalls, triangles: renderer.info.render.triangles + waterTriangles,
+        frames, islands: islands.size, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
         geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures,
-        pixelRatio, waterSize: [waterTarget.width, waterTarget.height], target: current, frameIntervalsMs: intervals,
+        pixelRatio, target: current, frameIntervalsMs: intervals,
       });
     }
-    lastDraw = moving || animateWater ? now : 0;
-    if (moving || animateWater) request();
+    lastDraw = moving ? now : 0;
+    if (moving) request();
+  }
+
+  function markerAt(element: Element | null) {
+    const button = element?.closest<HTMLButtonElement>('button[data-project]:enabled');
+    return button ? islands.get(button.dataset.project ?? '')?.project : undefined;
   }
 
   function start(event: PointerEvent) {
-    if (panel || drag || !event.isPrimary || event.button !== 0) return;
+    if (panel || event.button !== 0) return;
+    const marker = markerAt(event.target instanceof Element ? event.target : null);
+    if (event.target !== canvas && !marker) return;
+    pointerMoved = false;
+    if (event.pointerType === 'touch') {
+      if (touches.size >= 2) return;
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (touches.size === 2) {
+        const [a, b] = touches.values();
+        pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), scale: current.scale / overviewScale,
+          x: current.x, y: current.y, centerX: (a.x + b.x - viewport.x) / 2, centerY: (viewport.y - a.y - b.y) / 2 };
+        drag = null;
+        pointerMoved = true;
+        canvas.setPointerCapture(event.pointerId);
+        return;
+      }
+    }
+    if (drag || !event.isPrimary) return;
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY,
-      originX: exploration.x, originY: exploration.y, project: pick(event.clientX, event.clientY), moved: false };
+      originX: exploration.x, originY: exploration.y };
     canvas.setPointerCapture(event.pointerId);
   }
 
   function nudge(key: string) {
     if (panel || !loaded) return false;
+    if (key === '+' || key === '=' || key === '-') {
+      adjustZoom(key === '-' ? 0.87 : 1.15);
+      return true;
+    }
     const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[key];
     if (!direction) return false;
     exploration.x = T.MathUtils.clamp(exploration.x + direction[0] * 8, -40, 40);
@@ -378,18 +375,32 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
 
   function move(event: PointerEvent) {
     if (panel) return;
-    if (!drag) {
-      if (event.pointerType === 'mouse') {
-        mouse = { x: event.clientX, y: event.clientY };
-        setHover(pick(mouse.x, mouse.y));
+    if (touches.has(event.pointerId)) {
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pinch && touches.size === 2) {
+        const [a, b] = touches.values();
+        exploration.scale = T.MathUtils.clamp(pinch.scale * Math.hypot(a.x - b.x, a.y - b.y) / pinch.distance, .86, 2.5);
+        const scale = exploration.scale * overviewScale;
+        const x = pinch.x + pinch.centerX / (pinch.scale * overviewScale) - (a.x + b.x - viewport.x) / (2 * scale);
+        const y = pinch.y + pinch.centerY / (pinch.scale * overviewScale) - (viewport.y - a.y - b.y) / (2 * scale);
+        exploration.x = T.MathUtils.clamp(x - overviewX, -40, 40);
+        exploration.y = T.MathUtils.clamp(y - overviewY, -38, 38);
+        request();
+        return;
       }
-      request();
+    }
+    if (!drag) {
+      if (event.pointerType === 'mouse' && event.target === canvas) {
+        mouse = { x: event.clientX, y: event.clientY };
+        pointerChanged = true;
+        request();
+      }
       return;
     }
     if (event.pointerId !== drag.id) return;
     const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
-    if (!drag.moved && Math.hypot(dx, dy) < 8) return;
-    drag.moved = true;
+    if (!pointerMoved && Math.hypot(dx, dy) < 8) return;
+    pointerMoved = true;
     mouse = null;
     setHover(null);
     canvas.style.cursor = 'grabbing';
@@ -399,21 +410,39 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
   }
 
   function cancel() {
-    const id = drag?.id;
+    const ids = [...touches.keys()];
+    if (drag && !ids.includes(drag.id)) ids.push(drag.id);
     drag = null;
-    if (id !== undefined && canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+    pinch = null;
+    touches.clear();
+    for (const id of ids) if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
     canvas.style.cursor = hover ? 'pointer' : 'grab';
   }
 
   function finish(event: PointerEvent) {
+    if (pinch && touches.has(event.pointerId)) {
+      touches.delete(event.pointerId);
+      if (!touches.size) cancel();
+      return;
+    }
     if (!drag || drag.id !== event.pointerId) return;
-    const project = !drag.moved && drag.project && pick(event.clientX, event.clientY) === drag.project ? drag.project : null;
     cancel();
-    if (project) input.select(project);
+  }
+
+  function click(event: MouseEvent) {
+    if (!event.detail || pointerMoved || panel || !(event.target instanceof Element)) return;
+    const marker = markerAt(event.target);
+    if (!marker && event.target !== canvas) return;
+    const { clientX: x, clientY: y } = event;
+    const project = marker ?? markerAt(document.elementFromPoint(x, y)) ?? pick(x, y);
+    if (!project) return;
+    event.preventDefault();
+    input.select(project);
   }
 
   function leave() {
     mouse = null;
+    if (!hover) return;
     setHover(null);
     request();
   }
@@ -421,7 +450,12 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
   function zoom(event: WheelEvent) {
     if (panel || !loaded) return;
     event.preventDefault();
-    exploration.scale = T.MathUtils.clamp(exploration.scale * Math.exp(-event.deltaY * 0.0011), 0.86, 2.5);
+    adjustZoom(Math.exp(-event.deltaY * 0.0011));
+  }
+
+  function adjustZoom(factor: number) {
+    if (panel || !presented) return;
+    exploration.scale = T.MathUtils.clamp(exploration.scale * factor, .86, 2.5);
     request();
   }
 
@@ -437,17 +471,34 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
     else request();
   }
 
+  function unmount() {
+    if (dead) return;
+    dead = true;
+    abort.abort();
+    pause();
+    observer.disconnect();
+    dispose(scene);
+    renderer.dispose();
+    renderer.forceContextLoss();
+    // Outstanding Draco reads release their workers when their promises settle.
+  }
+
   const listen = { signal: abort.signal };
-  canvas.addEventListener('pointerdown', start, listen);
-  canvas.addEventListener('pointermove', move, listen);
-  canvas.addEventListener('pointerup', finish, listen);
-  canvas.addEventListener('pointercancel', cancel, listen);
-  canvas.addEventListener('lostpointercapture', cancel, listen);
+  const stage = canvas.parentElement;
+  stage?.addEventListener('pointerdown', start, listen);
+  stage?.addEventListener('pointermove', move, listen);
+  stage?.addEventListener('pointerup', finish, listen);
+  stage?.addEventListener('pointercancel', cancel, listen);
+  stage?.addEventListener('click', click, { ...listen, capture: true });
+  canvas.addEventListener('lostpointercapture', event => {
+    if (event.pointerId === drag?.id || touches.has(event.pointerId)) cancel();
+  }, listen);
   canvas.addEventListener('pointerleave', leave, listen);
   canvas.addEventListener('wheel', zoom, { ...listen, passive: false });
   window.addEventListener('resize', resize, listen);
-  window.addEventListener('blur', () => { hasFocus = false; pause(); leave(); }, listen);
+  window.addEventListener('blur', () => { hasFocus = false; pause(); mouse = null; setHover(null); }, listen);
   window.addEventListener('focus', () => { hasFocus = true; request(); }, listen);
+  window.addEventListener('pagehide', event => { if (!event.persisted) unmount(); }, listen);
   document.addEventListener('visibilitychange', visible, listen);
   motion.addEventListener('change', request, listen);
   canvas.addEventListener('webglcontextlost', event => {
@@ -458,7 +509,8 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
   }, listen);
   canvas.addEventListener('webglcontextrestored', () => {
     lost = false;
-    if (presented) input.loaded(loaded);
+    dirty = true;
+    if (!loadFailed) input.loaded(presented ? loaded : Math.min(loaded, projects.length - 1));
     request();
   }, listen);
 
@@ -492,15 +544,16 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
     const island = prepareIsland(project, model);
     islands.set(project.slug, island);
     scene.add(island.model);
-    if (island.shore) scene.add(island.shore);
     projectedBounds();
+    dirty = true;
     loaded++;
     if (loaded < projects.length && !lost) input.loaded(loaded);
     request();
   }
   Promise.allSettled(projects.map(load)).then(results => {
     decoder.dispose();
-    if (!dead && results.some(result => result.status === 'rejected')) input.failed();
+    loadFailed = results.some(result => result.status === 'rejected');
+    if (!dead && loadFailed) input.failed();
   });
 
   return {
@@ -508,7 +561,7 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
       selected = project ? islands.get(project.slug) ?? null : null;
       focused = preview;
       panel = sheet;
-      if (panel) leave();
+      if (panel) { cancel(); leave(); }
       request();
     },
     overview() {
@@ -516,16 +569,8 @@ export function mountAtlas(canvas: HTMLCanvasElement, projects: readonly Project
       request();
     },
     nudge,
-    dispose() {
-      dead = true;
-      abort.abort();
-      pause();
-      observer.disconnect();
-      dispose(scene);
-      waterTarget.dispose();
-      renderer.dispose();
-      // Outstanding Draco reads release their workers when their promises settle.
-    },
+    adjustZoom,
+    dispose: unmount,
   };
 }
 
