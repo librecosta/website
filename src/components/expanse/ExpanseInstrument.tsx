@@ -3,7 +3,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
-import { EncryptedLabel, useEncryptedText } from './EncryptedText';
+import { useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
 
 // Hand-drawn centerlines. The short diagonal cuts are shared across the wordmark.
@@ -50,12 +50,6 @@ function Wordmark({ pixel = false, noise }: { pixel?: boolean; noise?: string[] 
 }
 
 const corners = [styles.topLeft, styles.topRight, styles.bottomLeft, styles.bottomRight];
-
-function ReservedLabel({ text, reduced }: { text: string; reduced: boolean }) {
-  const { play, noise } = useEncryptedText(text, reduced);
-  return <EncryptedLabel text={text} noise={noise}
-    onPointerEnter={event => { if (event.pointerType === 'mouse') play(); }} />;
-}
 
 export function WordmarkStudy() {
   return <details className={styles.wordmarkStudy}>
@@ -127,21 +121,24 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
           onClick={() => cue('click')}><Wordmark noise={brand.noise} /></Link>
         <span className={styles.soundIndicator} role="img" aria-label={enabled ? '声音开启' : '声音关闭'} data-enabled={enabled} />
       </div>
-      <div className={styles.instrumentRight}>
-        <ExpanseSoundToggle stage={stage} showPrompt={ready && !reduced && !unavailable} reduced={reduced} />
-        <div className={styles.reservedNav} lang="en" aria-hidden="true" data-audio-ui>
-          <ReservedLabel text="WORKS" reduced={reduced} /><ReservedLabel text="ABOUT" reduced={reduced} />
-        </div>
-        <div className={styles.chapterGauge}>
-          <svg viewBox="0 0 65 16" aria-hidden="true" fill="none" stroke="currentColor">
-            <path d="M1.5 4 4.5 1h54l2 2v10l-2 2h-54l-3-3Z M61 5h3v6h-3" />
-            <path d="M6 4h8v8H6z" fill="currentColor" stroke="none" />
-            <path className={styles.unlitCells} d="M17 4h8v8h-8z M28 4h8v8h-8z M39 4h8v8h-8z M50 4h8v8h-8z"
-              fill="currentColor" stroke="none" />
-          </svg>
-          <span className={styles.srOnly}>第 1 章，共 5 章</span>
-          <span aria-hidden="true">01 <span className={styles.gaugeSlash}>/</span> 05</span>
-        </div>
+      <ExpanseSoundToggle stage={stage} showPrompt={ready && !reduced && !unavailable} reduced={reduced} />
+      <nav className={styles.instrumentNav} aria-label="站点导航" data-audio-ui>
+        <Link href="/works" prefetch={false} lang="en">WORKS</Link>
+        <Link href="/about" prefetch={false} lang="en">ABOUT</Link>
+        <a href="https://gopheratlas.com/" target="_blank" rel="noopener noreferrer">
+          <span lang="en">BLOG</span><span className={styles.srOnly}>（在新标签页打开）</span>
+        </a>
+        <Link href="/contact" prefetch={false} lang="en">CONTACT</Link>
+      </nav>
+      <div className={styles.chapterGauge}>
+        <svg viewBox="0 0 65 16" aria-hidden="true" fill="none" stroke="currentColor">
+          <path d="M1.5 4 4.5 1h54l2 2v10l-2 2h-54l-3-3Z M61 5h3v6h-3" />
+          <path d="M6 4h8v8H6z" fill="currentColor" stroke="none" />
+          <path className={styles.unlitCells} d="M17 4h8v8h-8z M28 4h8v8h-8z M39 4h8v8h-8z M50 4h8v8h-8z"
+            fill="currentColor" stroke="none" />
+        </svg>
+        <span className={styles.srOnly}>第 1 章，共 5 章</span>
+        <span aria-hidden="true">01 <span className={styles.gaugeSlash}>/</span> 05</span>
       </div>
     </header>
     {ready && <svg className={styles.reticle} viewBox="0 0 22 22" aria-hidden="true" fill="none">
@@ -150,14 +147,22 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
       <path d="M10.3 10.3h1.4v1.4h-1.4z" fill="currentColor" />
     </svg>}
     {!unavailable && <ObservationReadout cameraRef={cameraRef} />}
-    <a className={styles.bilibiliMark} href="https://space.bilibili.com/37124259" target="_blank" rel="noopener noreferrer"
-      aria-label="Bilibili（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}
-      onClick={() => cue('click')}>
-      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5"
-        strokeLinecap="round" strokeLinejoin="round">
-        <path d="m7.5 3.5 3.4 4m5.6-4-3.4 4M5 7.5h14l2 2v9.5l-2 2H5l-2-2V9.5Z M7 13.5l3-1m4 0 3 1" />
-      </svg>
-    </a>
+    <nav className={styles.socialLinks} aria-label="社交媒体" onClick={() => cue('click')}>
+      <a href="https://x.com/LibreCostaHQ" target="_blank" rel="noopener noreferrer"
+        aria-label="X（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
+        <svg viewBox="-100 -86.5 1400 1400" aria-hidden="true" fill="currentColor">
+          {/* X's official monochrome mark, framed to match the Bilibili icon. */}
+          <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z" />
+        </svg>
+      </a>
+      <a href="https://space.bilibili.com/37124259" target="_blank" rel="noopener noreferrer"
+        aria-label="Bilibili（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5"
+          strokeLinecap="round" strokeLinejoin="round">
+          <path d="m7.5 3.5 3.4 4m5.6-4-3.4 4M5 7.5h14l2 2v9.5l-2 2H5l-2-2V9.5Z M7 13.5l3-1m4 0 3 1" />
+        </svg>
+      </a>
+    </nav>
     {!unavailable && <div className={styles.readout}>
       {reduced ? <p className={styles.staticNote}>静态观览 · <a href="#expanse-transcript">阅读本幕</a></p> : <>
         <p ref={hint} className={styles.hint} lang="en">
