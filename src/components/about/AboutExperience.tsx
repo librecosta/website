@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
-  LazyMotion, domAnimation, m, stagger, useAnimate, useReducedMotion, useScroll, useSpring, useTransform,
+  LazyMotion, animate, cubicBezier, domAnimation, m, stagger, useAnimate, useMotionValue,
+  useReducedMotion, useScroll, useSpring, useTransform,
   type MotionValue,
 } from 'motion/react';
 import {
@@ -129,15 +130,44 @@ function ChapterTitle({ id, lines, reduced, className }: {
 }
 
 const studioLines = ['FROM THE TOOLS', 'WE USE TO THE WORLDS', 'WE IMAGINE.'] as const;
+const studioEase = cubicBezier(.35, .05, .26, 1);
+const studioTransition = { ease: studioEase };
 
-function StudioLine({ children, progress, index, reduced }: {
-  children: string; progress: MotionValue<number>; index: number; reduced: boolean;
+function useStudioEntrance(target: RefObject<HTMLElement | null>, amount: number, reduced: boolean) {
+  const entrance = useMotionValue(0);
+
+  useEffect(() => {
+    if (reduced) { entrance.jump(0); return; }
+    const element = target.current;
+    if (!element) return;
+    let destination = 0;
+    let animation: ReturnType<typeof animate> | undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      // Keep the entrance settled throughout the scroll-driven exit.
+      const next = entry.intersectionRatio >= amount ? 1 : entry.isIntersecting ? destination : 0;
+      if (next === destination) return;
+      destination = next;
+      animation?.stop();
+      animation = animate(entrance, destination, { duration: destination ? 1.45 : .35, ease: 'linear' });
+    }, { threshold: [0, amount] });
+    observer.observe(element);
+    return () => { observer.disconnect(); animation?.stop(); };
+  }, [amount, entrance, reduced, target]);
+
+  return entrance;
+}
+
+function StudioLine({ children, entrance, progress, index, reduced }: {
+  children: string; entrance: MotionValue<number>; progress: MotionValue<number>; index: number; reduced: boolean;
 }) {
-  const delay = index * .055;
-  const x = useTransform(progress, [.08 + delay, .275 + delay], [[-16, 22, -10][index], 0]);
-  const y = useTransform(progress, [.08 + delay, .275 + delay, .63 + delay / 2, .85], ['106%', '0%', '0%', '-32%']);
-  const opacity = useTransform(progress, [.63 + delay / 2, .82 + delay / 2], [1, 0]);
-  const mobileOffset = useTransform(y, value => `${Number.parseFloat(value) * .055}px`);
+  const delay = index * .1;
+  const x = useTransform(entrance, [delay, .78 + delay], [[-16, 22, -10][index], 0], studioTransition);
+  const revealY = useTransform(entrance, [delay, .78 + delay], [106, 0], studioTransition);
+  const exitDelay = index * .018;
+  const exitY = useTransform(progress, [.67 + exitDelay, .92 + exitDelay], [0, -32]);
+  const y = useTransform(() => `${revealY.get() + exitY.get()}%`);
+  const opacity = useTransform(progress, [.69 + exitDelay, .93 + exitDelay], [1, 0]);
+  const mobileOffset = useTransform(revealY, value => `${value * .055}px`);
   const style = { x, y, opacity, '--studio-offset': mobileOffset };
   return <span className={styles.lineMask}>
     <m.span style={reduced ? undefined : style} data-about-motion>{children}</m.span>
@@ -146,16 +176,21 @@ function StudioLine({ children, progress, index, reduced }: {
 
 function Studio({ reduced }: { reduced: boolean }) {
   const statement = useRef<HTMLDivElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
+  const entrance = useStudioEntrance(title, .72, reduced);
   const { scrollYProgress } = useScroll({ target: statement, offset: ['start end', 'end start'] });
 
   return <section id="studio" aria-labelledby="studio-statement">
     <div className={styles.statement} ref={statement}>
       <div>
         <p className={styles.label}>从实用软件，到创意体验</p>
-        <h2 className={`${styles.display} ${styles.studioTitle}`} id="studio-statement" lang="en" aria-label={studioLines.join(' ')}>
-          {studioLines.map((line, index) => <StudioLine key={line} progress={scrollYProgress} index={index} reduced={reduced}>{line}</StudioLine>)}
+        <h2 ref={title} className={`${styles.display} ${styles.studioTitle}`} id="studio-statement" lang="en" aria-label={studioLines.join(' ')}>
+          {studioLines.map((line, index) => <StudioLine key={line} entrance={entrance} progress={scrollYProgress} index={index} reduced={reduced}>{line}</StudioLine>)}
         </h2>
-        <p className={styles.statementCopy}>我们从真实的需求出发，也始终为好奇心留下空间。每一个工具、每一次实验，都是让想法成为现实的更进一步。</p>
+        <p className={styles.statementCopy}>
+          我们从真实的需求出发，也始终为好奇心留下空间。<br />
+          每一个工具、每一次实验，都是让想法成为现实的更进一步。
+        </p>
       </div>
     </div>
     <StudioProfile reduced={reduced} />
@@ -164,11 +199,11 @@ function Studio({ reduced }: { reduced: boolean }) {
 
 function StudioProfile({ reduced }: { reduced: boolean }) {
   const profile = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: profile, offset: ['start end', 'end start'] });
-  const identityX = useTransform(scrollYProgress, [.11, .44], [-16, 0]);
-  const identityY = useTransform(scrollYProgress, [.11, .44, .82, 1], [26, 0, 0, -14]);
-  const copyX = useTransform(scrollYProgress, [.21, .55], [22, 0]);
-  const copyY = useTransform(scrollYProgress, [.21, .55, .86, 1], [52, 0, 0, -23]);
+  const entrance = useStudioEntrance(profile, .47, reduced);
+  const identityX = useTransform(entrance, [0, .77], [-16, 0], studioTransition);
+  const identityY = useTransform(entrance, [0, .77], [26, 0], studioTransition);
+  const copyX = useTransform(entrance, [.18, 1], [22, 0], studioTransition);
+  const copyY = useTransform(entrance, [.18, 1], [52, 0], studioTransition);
   const identityStyle = { x: identityX, y: identityY, '--studio-offset': useTransform(identityY, value => `${value * .17}px`) };
   const copyStyle = { x: copyX, y: copyY, '--studio-offset': useTransform(copyY, value => `${value * .13}px`) };
 

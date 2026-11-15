@@ -231,6 +231,19 @@
 .action svg { width: 16px; height: 16px; }
 .about a:focus-visible, .explore:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
 
+@media (max-width: 1024px) {
+  .statement { min-height: 50svh; padding-block: clamp(96px, 13svh, 148px) clamp(28px, 4svh, 42px); }
+  .profile {
+    width: min(84%, 640px);
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(24px, 4svh, 38px);
+    padding-block: clamp(24px, 4.6svh, 46px) clamp(56px, 10svh, 88px);
+  }
+  .profile .details { margin-top: 18px; }
+  .profile .profileCopy { width: 100%; }
+}
+
 @media (max-width: 900px) {
   .opening { --opening-bottom: calc(var(--edge-bottom) + var(--rail) + 65px); }
 }
@@ -248,7 +261,7 @@
   .statement .label { margin-bottom: 21px; }
   .studioTitle { font-size: clamp(21px, min(7.3vw, 11svh), 53px); }
   .studioTitle .lineMask { overflow: visible; }
-  .statementCopy { max-width: 27em; margin-top: 21px; font-size: 14px; }
+  .statementCopy { max-width: 27em; margin-top: 21px; font-size: clamp(12px, 3.3vw, 14px); }
   .contentWidth { width: calc(100% - 2 * (var(--inset) + var(--rail))); }
   .profile, .practiceIntro { grid-template-columns: minmax(0, 1fr); align-content: center; gap: 34px; }
   .profile { min-height: auto; gap: 26px; padding-block: clamp(24px, 6svh, 48px) clamp(54px, 10svh, 86px); }
