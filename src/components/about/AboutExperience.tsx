@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  LazyMotion, domAnimation, m, useAnimate, useReducedMotion, useScroll, useSpring, useTransform,
+  LazyMotion, domAnimation, m, stagger, useAnimate, useReducedMotion, useScroll, useSpring, useTransform,
   type MotionValue,
 } from 'motion/react';
 import {
@@ -23,6 +23,7 @@ const principles = [
 ] as const;
 
 const travelSpring = { stiffness: 165, damping: 31, mass: .75, restDelta: .001, skipInitialAnimation: true };
+const openingEase = [.22, .66, .24, 1] as const;
 
 function AboutFrame({ progress, reduced }: { progress: MotionValue<number>; reduced: boolean }) {
   return <div className={`${instrument.instrument} ${styles.frame}`}>
@@ -37,31 +38,62 @@ function AboutFrame({ progress, reduced }: { progress: MotionValue<number>; redu
 function Opening({ reduced }: { reduced: boolean }) {
   const [scope, animate] = useAnimate<HTMLElement>();
   const { scrollYProgress } = useScroll({ target: scope, offset: ['start start', 'end start'] });
-  const y = useTransform(scrollYProgress, [0, .18, 1], [0, 0, -64]);
-  const opacity = useTransform(scrollYProgress, [0, .44, .92], [1, 1, .16]);
+  const opacity = useTransform(scrollYProgress, [0, .22, .59], [1, 1, 0]);
+  const firstLineY = useTransform(scrollYProgress, [0, .1, .72, 1], ['0%', '0%', '-20%', '-42%']);
+  const secondLineY = useTransform(scrollYProgress, [0, .17, .76, 1], ['0%', '0%', '-12%', '-36%']);
+  const captionY = useTransform(scrollYProgress, [0, .23, .82], [0, 0, -18]);
+  const dossierOpacity = useTransform(scrollYProgress, [0, .035, .28], [1, 1, 0]);
 
   useEffect(() => {
     if (reduced || window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.scrollY > 40) return;
-    const animation = animate('[data-opening-line]', { y: ['102%', '0%'] }, {
-      duration: .82, delay: index => index * .105, ease: [.22, .66, .24, 1],
+    const animation = animate([
+      ['[data-opening-line="first"]', { y: ['105%', '0%'], x: ['-.28em', '0em'] }, { duration: .83, ease: openingEase }],
+      ['[data-opening-line="second"]', { y: ['105%', '0%'], x: ['.22em', '0em'] }, { at: .13, duration: .89, ease: openingEase }],
+      ['[data-opening-brand]', { y: ['105%', '0%'] }, { at: .48, duration: .43, ease: openingEase }],
+      ['[data-opening-description]', { y: ['105%', '0%'] }, { at: .61, duration: .45, ease: openingEase }],
+      ['[data-dossier-line]', { clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], y: [5, 0] },
+        { at: .57, delay: stagger(.065), duration: .37, ease: openingEase }],
+    ]);
+    const stopWatching = scrollYProgress.on('change', progress => {
+      if (progress > .14) animation.complete();
     });
-    return () => animation.cancel();
-  }, [animate, reduced]);
+    void animation.then(stopWatching);
+    return () => { stopWatching(); animation.cancel(); };
+  }, [animate, reduced, scrollYProgress]);
 
   return <section className={styles.opening} ref={scope} id="opening" aria-labelledby="about-title">
-    <m.div className={styles.openingContent} style={reduced ? undefined : { y, opacity }} data-about-motion>
-      <h1 className={`${styles.display} ${styles.openingTitle}`} id="about-title" lang="en">
-        <span className={styles.srOnly}>LibreCosta · </span>
-        <span className={styles.lineMask}><span data-opening-line>Build with</span></span>
-        <span className={styles.lineMask}><span data-opening-line>Purpose</span></span>
+    <m.div className={styles.openingContent} style={reduced ? undefined : { opacity }} data-about-motion>
+      <h1 className={styles.openingTitle} id="about-title" lang="en">
+        <span className={styles.lineMask}>
+          <m.span style={reduced ? undefined : { y: firstLineY }} data-about-motion>
+            <span data-opening-line="first">Independent software,</span>
+          </m.span>
+        </span>
+        <span className={styles.lineMask}>
+          <m.span style={reduced ? undefined : { y: secondLineY }} data-about-motion>
+            <span data-opening-line="second">Thoughtfully built.</span>
+          </m.span>
+        </span>
       </h1>
-      <p className={styles.openingCaption}><strong>LibreCosta · 远岸开物</strong><span>独立软件、开发工具与数字体验</span></p>
+      <m.p className={styles.openingCaption} style={reduced ? undefined : { y: captionY }} data-about-motion>
+        <span className={styles.captionMask}><strong data-opening-brand>LibreCosta · 远岸开物</strong></span>
+        <span className={styles.captionMask}><span data-opening-description>独立软件、效率工具与数字体验</span></span>
+      </m.p>
     </m.div>
     <m.button type="button" className={styles.explore} aria-controls="studio"
       onClick={() => scrollToAboutSection('studio', reduced)} whileTap={reduced ? undefined : { scale: .96 }}>
       <svg viewBox="0 0 10 12" aria-hidden="true" fill="currentColor"><path d="M1 2h8L5 6zm0 5h8l-4 4z" /></svg>
       探索 LibreCosta
     </m.button>
+    <m.aside className={`${instrument.observationData} ${styles.dossier}`} lang="en" aria-label="LibreCosta dossier"
+      style={reduced ? undefined : { opacity: dossierOpacity }} data-about-motion>
+      <p className={instrument.observationSite} data-dossier-line>DOSSIER / LC-01</p>
+      <p data-dossier-line>LIBRECOSTA · ABOUT</p>
+      <dl>
+        <div data-dossier-line><dt>FIELD</dt><dd>SOFTWARE / TOOLS</dd></div>
+        <div data-dossier-line><dt>PRACTICE</dt><dd>OPEN SOURCE / DESIGN</dd></div>
+      </dl>
+    </m.aside>
   </section>;
 }
 
