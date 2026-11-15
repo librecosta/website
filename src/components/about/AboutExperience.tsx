@@ -128,24 +128,63 @@ function ChapterTitle({ id, lines, reduced, className }: {
   </h2>;
 }
 
-function Profile({ reduced }: { reduced: boolean }) {
-  const profile = useRef<HTMLElement>(null);
+const studioLines = ['FROM THE TOOLS', 'WE USE TO THE WORLDS', 'WE IMAGINE.'] as const;
+
+function StudioLine({ children, progress, index, reduced }: {
+  children: string; progress: MotionValue<number>; index: number; reduced: boolean;
+}) {
+  const delay = index * .055;
+  const x = useTransform(progress, [.08 + delay, .275 + delay], [[-16, 22, -10][index], 0]);
+  const y = useTransform(progress, [.08 + delay, .275 + delay, .63 + delay / 2, .85], ['106%', '0%', '0%', '-32%']);
+  const opacity = useTransform(progress, [.63 + delay / 2, .82 + delay / 2], [1, 0]);
+  const mobileOffset = useTransform(y, value => `${Number.parseFloat(value) * .055}px`);
+  const style = { x, y, opacity, '--studio-offset': mobileOffset };
+  return <span className={styles.lineMask}>
+    <m.span style={reduced ? undefined : style} data-about-motion>{children}</m.span>
+  </span>;
+}
+
+function Studio({ reduced }: { reduced: boolean }) {
+  const statement = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: statement, offset: ['start end', 'end start'] });
+
+  return <section id="studio" aria-labelledby="studio-statement">
+    <div className={styles.statement} ref={statement}>
+      <div>
+        <p className={styles.label}>从实用软件，到创意体验</p>
+        <h2 className={`${styles.display} ${styles.studioTitle}`} id="studio-statement" lang="en" aria-label={studioLines.join(' ')}>
+          {studioLines.map((line, index) => <StudioLine key={line} progress={scrollYProgress} index={index} reduced={reduced}>{line}</StudioLine>)}
+        </h2>
+        <p className={styles.statementCopy}>我们从真实的需求出发，也始终为好奇心留下空间。每一个工具、每一次实验，都是让想法成为现实的更进一步。</p>
+      </div>
+    </div>
+    <StudioProfile reduced={reduced} />
+  </section>;
+}
+
+function StudioProfile({ reduced }: { reduced: boolean }) {
+  const profile = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: profile, offset: ['start end', 'end start'] });
-  const y = useTransform(scrollYProgress, [0, 1], [42, -42]);
-  const detailY = useTransform(scrollYProgress, [0, 1], [84, -84]);
-  return <section className={`${styles.contentWidth} ${styles.profile}`} ref={profile} id="profile" aria-labelledby="studio-title">
-    <m.div style={reduced ? undefined : { y }} data-about-motion>
-      <h2 className={styles.label} id="studio-title" lang="en">About LibreCosta</h2>
+  const identityX = useTransform(scrollYProgress, [.11, .44], [-16, 0]);
+  const identityY = useTransform(scrollYProgress, [.11, .44, .82, 1], [26, 0, 0, -14]);
+  const copyX = useTransform(scrollYProgress, [.21, .55], [22, 0]);
+  const copyY = useTransform(scrollYProgress, [.21, .55, .86, 1], [52, 0, 0, -23]);
+  const identityStyle = { x: identityX, y: identityY, '--studio-offset': useTransform(identityY, value => `${value * .17}px`) };
+  const copyStyle = { x: copyX, y: copyY, '--studio-offset': useTransform(copyY, value => `${value * .13}px`) };
+
+  return <div className={`${styles.contentWidth} ${styles.profile}`} ref={profile}>
+    <m.div style={reduced ? undefined : identityStyle} data-about-motion>
+      <h3 className={styles.label} lang="en">About LibreCosta</h3>
       <dl className={styles.details}>
         <div><dt>品牌</dt><dd>LibreCosta · 远岸开物</dd></div>
         <div><dt>运营主体</dt><dd>成都远岸开物科技有限公司</dd></div>
       </dl>
     </m.div>
-    <m.div className={styles.profileCopy} style={reduced ? undefined : { y: detailY }} data-about-motion>
+    <m.div className={styles.profileCopy} style={reduced ? undefined : copyStyle} data-about-motion>
       <p className={styles.lead}>远岸开物制作独立软件、在线服务和开发工具，也探索网页上的互动叙事与视觉计算。</p>
       <p>我们发布面向创作者的浏览器工具和可自行部署的服务，在 GitHub 维护开源项目，并通过 GopherAtlas 分享开发与实验记录。</p>
     </m.div>
-  </section>;
+  </div>;
 }
 
 function GlassPanel({ children, className, index, alternating = false, reduced }: {
@@ -171,41 +210,32 @@ function GlassPanel({ children, className, index, alternating = false, reduced }
 function AboutContents({ collections, reduced }: { collections: readonly Collection[]; reduced: boolean }) {
   return <>
     <Opening reduced={reduced} />
-    <section className={styles.statement} id="studio" aria-labelledby="studio-statement">
-      <div>
-        <p className={styles.label}>独立软件与开发工具</p>
-        <ChapterTitle id="studio-statement" lines={['We build software', 'for people who want', 'to make things', 'of their own.']} reduced={reduced} />
-        <p className={styles.statementCopy}>做可以上手使用的工具，也给想法留出成为作品的空间。</p>
-      </div>
-    </section>
-    <div className={styles.editorial}>
-      <Profile reduced={reduced} />
-      <section className={styles.collections} id="collections" aria-labelledby="collections-title">
-        <div className={styles.collectionInner}>
-          <h2 className={styles.label} id="collections-title">作品索引</h2>
-          <div className={styles.collectionGrid}>
-            {collections.map(({ label, items }, index) => <GlassPanel key={label} className={styles.collectionPanel} index={index} reduced={reduced}>
-              <h3 className={styles.label}>{label}</h3>
-              <p className={styles.quantity} aria-label={`${items.length} 项作品`}>{String(items.length).padStart(2, '0')}</p>
-              <p className={styles.indexNames} lang="en">{items.join(' / ')}</p>
-            </GlassPanel>)}
-          </div>
-          <div className={styles.indexLink}><Action href="/works" reduced={reduced}>查看作品</Action></div>
-        </div>
-      </section>
-      <section className={styles.practice} id="practice" aria-labelledby="practice-title">
-        <div className={`${styles.contentWidth} ${styles.practiceIntro}`}>
-          <ChapterTitle id="practice-title" lines={['How we', 'build']} reduced={reduced} className={styles.practiceTitle} />
-          <p className={`${styles.profileCopy} ${styles.lead}`}>我们重视清晰、可靠和长期价值。工具应解决实际问题，界面与交互也应服务于它的用途。</p>
-        </div>
-        <div className={styles.principles}>
-          {principles.map(({ title, body }, index) => <GlassPanel key={title} className={styles.principlePanel} index={index} alternating reduced={reduced}>
-            <h3>{title}</h3>
-            <p>{body}</p>
+    <Studio reduced={reduced} />
+    <section className={styles.collections} id="collections" aria-labelledby="collections-title">
+      <div className={styles.collectionInner}>
+        <h2 className={styles.label} id="collections-title">作品索引</h2>
+        <div className={styles.collectionGrid}>
+          {collections.map(({ label, items }, index) => <GlassPanel key={label} className={styles.collectionPanel} index={index} reduced={reduced}>
+            <h3 className={styles.label}>{label}</h3>
+            <p className={styles.quantity} aria-label={`${items.length} 项作品`}>{String(items.length).padStart(2, '0')}</p>
+            <p className={styles.indexNames} lang="en">{items.join(' / ')}</p>
           </GlassPanel>)}
         </div>
-      </section>
-    </div>
+        <div className={styles.indexLink}><Action href="/works" reduced={reduced}>查看作品</Action></div>
+      </div>
+    </section>
+    <section className={styles.practice} id="practice" aria-labelledby="practice-title">
+      <div className={`${styles.contentWidth} ${styles.practiceIntro}`}>
+        <ChapterTitle id="practice-title" lines={['How we', 'build']} reduced={reduced} className={styles.practiceTitle} />
+        <p className={`${styles.profileCopy} ${styles.lead}`}>我们重视清晰、可靠和长期价值。工具应解决实际问题，界面与交互也应服务于它的用途。</p>
+      </div>
+      <div className={styles.principles}>
+        {principles.map(({ title, body }, index) => <GlassPanel key={title} className={styles.principlePanel} index={index} alternating reduced={reduced}>
+          <h3>{title}</h3>
+          <p>{body}</p>
+        </GlassPanel>)}
+      </div>
+    </section>
     <section className={styles.closing} id="closing" aria-labelledby="closing-title">
       <ChapterTitle id="closing-title" lines={['Let’s', 'talk.']} className={styles.closingTitle} reduced={reduced} />
       <p>想交流软件、开源或交互设计，欢迎联系我们。</p>

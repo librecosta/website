@@ -2,7 +2,6 @@
   composes: fixedWorkshop from '../workshop.module.css';
   --color: #d6dff7;
   --secondary: #a1aec7;
-  --line: #a2b6e028;
   --panel-line: #8fa5cc37;
   --inset: clamp(12px, 2.7vw, 38px);
   --rail: clamp(14px, 1.6vw, 24px);
@@ -133,22 +132,25 @@
   display: grid;
   min-height: 100svh;
   place-items: center;
-  padding: clamp(96px, 14svh, 180px) 7%;
+  padding: clamp(66px, 11svh, 132px) 6%;
   text-align: center;
 }
 
-.statement .label { margin-bottom: clamp(28px, 7svh, 70px); color: var(--secondary); }
-.statement .display { font-size: clamp(38px, 6vw, 120px); }
-.statementCopy { max-width: 35em; margin: clamp(24px, 5svh, 52px) auto 0; color: var(--secondary); }
+.statement .label { margin-bottom: clamp(24px, 4.8svh, 52px); color: var(--secondary); }
+.studioTitle {
+  font-size: clamp(36px, min(7.05vw, 13.5svh), 136px);
+  line-height: .91;
+  letter-spacing: -.032em;
+  white-space: nowrap;
+}
 
-.editorial { position: relative; isolation: isolate; }
-.editorial::before {
-  position: absolute;
-  inset: 0 auto 0 50%;
-  z-index: -1;
-  width: 1px;
-  background: linear-gradient(transparent, var(--line) 12%, var(--line) 92%, transparent);
-  content: '';
+.studioTitle .lineMask { padding-inline: .05em; }
+.statementCopy {
+  max-width: 36em;
+  margin: clamp(23px, 4.2svh, 48px) auto 0;
+  color: var(--secondary);
+  line-height: 1.75;
+  text-wrap: balance;
 }
 
 .contentWidth { width: min(80%, 1520px); margin-inline: auto; }
@@ -159,7 +161,7 @@
   gap: 8%;
 }
 
-.profile { min-height: 70svh; padding-block: 15svh; }
+.profile { min-height: 62svh; padding-block: clamp(64px, 12svh, 136px); }
 .details { display: grid; gap: 9px; margin-top: 28px; font-size: 13px; }
 .details > div { display: flex; flex-wrap: wrap; column-gap: 12px; }
 .details dt { flex: 0 0 5em; color: var(--secondary); }
@@ -168,23 +170,7 @@
 .profileCopy p + p { margin-top: 19px; }
 .lead { color: var(--color); font-size: 17px; font-weight: 600; line-height: 1.75; }
 
-.collections, .principles, .closing { border-top: 1px solid var(--line); }
-.collections {
-  position: relative;
-  padding: clamp(75px, 12svh, 136px) 0 clamp(108px, 15svh, 170px);
-}
-
-.collections::before, .principles::before {
-  position: absolute;
-  top: -.5px;
-  left: 50%;
-  width: 9px;
-  height: 9px;
-  transform: translate(-50%, -50%);
-  background: linear-gradient(var(--secondary), var(--secondary)) center / 1px 100% no-repeat,
-    linear-gradient(var(--secondary), var(--secondary)) center / 100% 1px no-repeat;
-  content: '';
-}
+.collections { padding: clamp(75px, 12svh, 136px) 0 clamp(108px, 15svh, 170px); }
 
 .collectionInner { width: min(76%, 1130px); margin-inline: auto; }
 .collectionInner > .label { color: var(--secondary); }
@@ -213,7 +199,7 @@
 
 .practiceIntro { min-height: 53svh; padding-block: clamp(72px, 12svh, 136px); }
 .practiceTitle { justify-self: start; font-size: clamp(54px, 6.4vw, 124px); }
-.principles { position: relative; display: grid; padding: clamp(82px, 16svh, 160px) 0 clamp(100px, 14svh, 150px); }
+.principles { display: grid; padding: clamp(82px, 16svh, 160px) 0 clamp(100px, 14svh, 150px); }
 .principlePanel { --cut: 30px; width: min(35vw, 450px); justify-self: end; margin-right: calc(50% + 9px); text-align: right; }
 .principlePanel:nth-child(even) { justify-self: start; margin-right: 0; margin-left: calc(50% + 9px); text-align: left; }
 .principlePanel + .principlePanel { margin-top: 14px; }
@@ -258,15 +244,20 @@
   }
   .opening { --opening-top: calc(var(--edge-top) + var(--rail) + 62px); padding-inline: 5%; }
   .openingTitle { font-size: clamp(20px, min(8.25vw, var(--opening-type-height)), 57px); }
-  .statement { min-height: 86svh; padding-inline: 5%; }
-  .statement .display { font-size: clamp(28px, 6.7vw, 52px); }
-  .statementCopy { max-width: 26em; font-size: 14px; }
+  .statement { min-height: auto; padding: clamp(98px, 14svh, 116px) 5% 24px; }
+  .statement .label { margin-bottom: 21px; }
+  .studioTitle { font-size: clamp(21px, min(7.3vw, 11svh), 53px); }
+  .studioTitle .lineMask { overflow: visible; }
+  .statementCopy { max-width: 27em; margin-top: 21px; font-size: 14px; }
   .contentWidth { width: calc(100% - 2 * (var(--inset) + var(--rail))); }
   .profile, .practiceIntro { grid-template-columns: minmax(0, 1fr); align-content: center; gap: 34px; }
-  .profile { min-height: auto; padding-block: 15svh 17svh; }
+  .profile { min-height: auto; gap: 26px; padding-block: clamp(24px, 6svh, 48px) clamp(54px, 10svh, 86px); }
+  .profile .details { margin-top: 16px; }
   .profileCopy { width: 100%; }
-  .editorial::before { left: calc(var(--inset) + var(--rail) - 9px); }
-  .collections::before, .principles::before { left: calc(var(--inset) + var(--rail) - 9px); }
+  .statement [data-about-motion], .profile [data-about-motion] {
+    transform: translateY(var(--studio-offset, 0px)) !important;
+    opacity: 1 !important;
+  }
   .collectionInner { width: calc(100% - 2 * (var(--inset) + var(--rail))); }
   .collectionGrid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .collectionPanel { width: min(86%, 385px); }

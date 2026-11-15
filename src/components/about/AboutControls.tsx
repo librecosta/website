@@ -6,7 +6,6 @@ import { createSidebarField, sectionOffset, sidebarEase } from './sidebar-field'
 const sections = [
   { id: 'opening', label: '序幕' },
   { id: 'studio', label: '创作宣言' },
-  { id: 'profile', label: '公司介绍' },
   { id: 'collections', label: '作品索引' },
   { id: 'practice', label: '创作方法' },
   { id: 'closing', label: '联系我们' },
