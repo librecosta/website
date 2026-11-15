@@ -51,7 +51,7 @@
   position: absolute;
   width: clamp(68px, 8vw, 103px);
   height: auto;
-  color: #34453ccc;
+  color: var(--instrument-corner, #34453ccc);
 }
 .cornerInlay { opacity: .19; }
 .topLeft { top: var(--edge-top); left: var(--edge-left); }
@@ -122,7 +122,7 @@
 }
 .soundIndicator[data-enabled='true']::before { opacity: 1; transform: scale(1); }
 .brand:focus-visible, .instrumentNav a:focus-visible, .socialLinks a:focus-visible, .debug :focus-visible {
-  outline: 2px solid #476254;
+  outline: 2px solid var(--instrument-focus, #476254);
   outline-offset: 4px;
 }
 .chapterGauge {
@@ -233,7 +233,7 @@
 .progress {
   position: relative;
   height: 3px;
-  background: #283b3340;
+  background: var(--instrument-track, #283b3340);
   box-shadow: inset 0 1px var(--instrument-glint);
 }
 .progress::before, .progress::after {
@@ -246,7 +246,7 @@
 }
 .progress::before { left: -1px; }
 .progress::after { right: -1px; opacity: .62; }
-.progress span { display: block; height: 100%; background: linear-gradient(90deg, #476458, #263a32); transform: scaleX(0); transform-origin: left center; }
+.progress span { display: block; height: 100%; background: var(--instrument-fill, linear-gradient(90deg, #476458, #263a32)); transform: scaleX(0); transform-origin: left center; }
 .observationData {
   position: absolute;
   bottom: calc(var(--edge-bottom) + var(--rail) - 4px);
