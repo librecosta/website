@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { useRef, useSyncExternalStore, type CSSProperties } from 'react';
 import { m, useMotionValueEvent, useScroll, useTransform, type MotionValue } from 'motion/react';
 import styles from './project-archive.module.css';
 
@@ -8,7 +8,6 @@ type ProjectCard = {
   title: string;
   summary: string;
   status: string;
-  release?: 'uptime';
   entry?: { href: string; label: string };
   source?: string;
 };
@@ -43,7 +42,6 @@ const cards: readonly ProjectCard[] = [
     title: 'LibreCosta Uptime',
     summary: '轻量、可自托管的 HTTP/HTTPS 可用性监测与告警工具。',
     status: '已发布',
-    release: 'uptime',
     entry: { href: 'https://github.com/librecosta/uptime/releases', label: '查看发布版' },
     preview: { src: '/about/uptime-dashboard.webp', alt: 'LibreCosta Uptime 仪表盘，显示服务状态、可用率和监测时间线', width: 1672, height: 941, background: '#f1f6fd' },
   },
@@ -57,42 +55,6 @@ const cards: readonly ProjectCard[] = [
 ];
 const pairQuery = '(min-width: 1280px)';
 const hold = .28;
-const uptimeReleaseApi = 'https://api.github.com/repos/librecosta/uptime/releases/latest';
-const releaseTag = /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
-
-function useUptimeVersion() {
-  const [version, setVersion] = useState<string | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const { signal } = controller;
-    const timeout = window.setTimeout(() => controller.abort(), 4000);
-
-    async function loadRelease() {
-      if (signal.aborted) return;
-      try {
-        const response = await fetch(uptimeReleaseApi, { signal });
-        if (!response.ok) return;
-        const release: { tag_name?: unknown } | null = await response.json();
-        const tag = release?.tag_name;
-        if (!signal.aborted && typeof tag === 'string' && tag === tag.trim() && releaseTag.test(tag)) setVersion(tag);
-      } catch {
-        // The published status is already shown when GitHub is unavailable.
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    }
-
-    // Let React's development effect replay cancel before starting the request.
-    queueMicrotask(() => { void loadRelease(); });
-    return () => {
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
-  }, []);
-
-  return version;
-}
 
 function subscribeToPairLayout(notify: () => void) {
   const query = window.matchMedia(pairQuery);
@@ -104,18 +66,13 @@ function getPairLayout() { return window.matchMedia(pairQuery).matches; }
 function getServerPairLayout() { return false; }
 function clampProgress(value: number) { return Math.min(1, Math.max(0, value)); }
 
-function ArchiveCard({ card, linksInert, uptimeVersion }: {
-  card: ProjectCard;
-  linksInert: MotionValue<boolean>;
-  uptimeVersion: string | null;
-}) {
+function ArchiveCard({ card, linksInert }: { card: ProjectCard; linksInert: MotionValue<boolean> }) {
   const entries = useRef<HTMLDivElement>(null);
   useMotionValueEvent(linksInert, 'change', inert => {
     if (entries.current) entries.current.inert = inert;
   });
 
   const { preview } = card;
-  const version = card.release === 'uptime' ? uptimeVersion : null;
 
   return <article className={styles.card} aria-label={card.title}>
     <header className={styles.cardHeader}><span>{card.number}</span></header>
@@ -130,7 +87,7 @@ function ArchiveCard({ card, linksInert, uptimeVersion }: {
       <p>{card.summary}</p>
     </div>
     <footer className={styles.cardFooter}>
-      <span className={card.release ? styles.releaseStatus : undefined}>{card.status}{version && ` · ${version}`}</span>
+      <span>{card.status}</span>
       <div className={styles.entries} ref={entries} inert={linksInert.get()}>
         {card.entry && <a href={card.entry.href} target="_blank" rel="noopener noreferrer" aria-label={`${card.entry.label} · ${card.title}`}>{card.entry.label}</a>}
         {card.source && <a href={card.source} target="_blank" rel="noopener noreferrer" aria-label={`${card.title} GitHub 源码`}>GitHub 源码</a>}
@@ -139,13 +96,12 @@ function ArchiveCard({ card, linksInert, uptimeVersion }: {
   </article>;
 }
 
-function ArchiveGroup({ group, index, count, progress, reduced, uptimeVersion }: {
+function ArchiveGroup({ group, index, count, progress, reduced }: {
   group: readonly ProjectCard[];
   index: number;
   count: number;
   progress: MotionValue<number>;
   reduced: boolean;
-  uptimeVersion: string | null;
 }) {
   // Skiper-16 group geometry. See /License/tuneshape-skiper-16.txt.
   const start = index / (count - 1);
@@ -168,13 +124,12 @@ function ArchiveGroup({ group, index, count, progress, reduced, uptimeVersion }:
     ...(reduced ? {} : { scale, y, opacity, filter, '--archive-detail-opacity': detailOpacity }),
   };
   return <m.div className={styles.group} style={style}>
-    {group.map(card => <ArchiveCard key={card.number} card={card} linksInert={linksInert} uptimeVersion={uptimeVersion} />)}
+    {group.map(card => <ArchiveCard key={card.number} card={card} linksInert={linksInert} />)}
   </m.div>;
 }
 
 export function ProjectArchive({ reduced }: { reduced: boolean }) {
   const section = useRef<HTMLElement>(null);
-  const uptimeVersion = useUptimeVersion();
   const paired = useSyncExternalStore(subscribeToPairLayout, getPairLayout, getServerPairLayout);
   const columns = paired ? 2 : 1;
   const groups = Array.from({ length: Math.ceil(cards.length / columns) }, (_, index) =>
@@ -197,7 +152,7 @@ export function ProjectArchive({ reduced }: { reduced: boolean }) {
         <h2 className={styles.heading} id="collections-title" tabIndex={0}>作品索引</h2>
         <div className={styles.deck}>
           {groups.map((group, index) => <ArchiveGroup key={group[0].number} group={group} index={index}
-            count={groups.length} progress={progress} reduced={reduced} uptimeVersion={uptimeVersion} />)}
+            count={groups.length} progress={progress} reduced={reduced} />)}
         </div>
       </div>
     </div>

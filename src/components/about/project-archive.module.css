@@ -125,7 +125,7 @@
 .description > *, .cardFooter { opacity: var(--archive-detail-opacity, 1); }
 .description h3 { font-size: 1.15rem; line-height: 1.2; }
 .description p { font-size: .9rem; line-height: 1.45; }
-.section[data-paired='true'] .group:has(.releaseStatus) .description p {
+.section[data-paired='true'] .group:nth-child(2) .description p {
   min-block-size: 2lh;
   text-wrap: pretty;
 }
@@ -140,7 +140,6 @@
   font: 600 11px/1.4 var(--instrument-type);
 }
 
-.releaseStatus { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .entries { display: flex; flex-shrink: 0; align-items: center; gap: 9px; }
 .entries a {
   display: inline-flex;
