@@ -1,0 +1,163 @@
+.language {
+  grid-area: locale;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8b9bb2;
+  font: 600 11px/1 var(--instrument-type);
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.language [aria-current='true'] {
+  border-bottom: 1px solid #a5bcdb;
+  padding-block: 3px;
+  color: var(--instrument-ink);
+}
+
+.language button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 1;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.sectionNav {
+  position: absolute;
+  top: calc(var(--edge-top) + var(--rail) + 46px);
+  right: calc(var(--edge-right) + var(--rail));
+  z-index: 1;
+  width: 201px;
+  height: 112px;
+  pointer-events: auto;
+}
+
+.sectionRail { position: absolute; inset: 0; pointer-events: none; }
+.sectionMark {
+  position: absolute;
+  top: calc(50% - 5px);
+  right: 2px;
+  display: flex;
+  width: 56px;
+  height: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--instrument-ink);
+  pointer-events: auto;
+}
+
+.sectionMark > span {
+  flex: 0 0 80px;
+  height: 2px;
+  background: currentColor;
+  opacity: .2;
+  transform: scale(.1, .76);
+  transform-origin: right center;
+  pointer-events: none;
+}
+
+.sectionMark[aria-current='location'] > span { height: 3px; opacity: .96; transform: scale(.225, .76); }
+.sectionLabel {
+  position: absolute;
+  top: calc(50% - 25px);
+  right: 55px;
+  display: flex;
+  width: 144px;
+  height: 50px;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid #849abc55;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--workshop-base, var(--paper, #11151a)) 93%, #8fa7c8);
+  box-shadow: 0 12px 30px #0004, 0 2px 7px #0003;
+  color: var(--instrument-ink);
+  font: 600 12px/1.4 var(--instrument-type);
+  letter-spacing: .08em;
+  transform-origin: right center;
+  pointer-events: none;
+}
+
+.sectionNav .sectionMark:focus-visible, .scrollControl:focus-visible { outline: 1px solid var(--instrument-focus); outline-offset: 2px; }
+
+.scrollControl {
+  position: absolute;
+  right: calc(var(--edge-right) + var(--rail) - 8px);
+  bottom: calc(var(--edge-bottom) + var(--rail) + 47px);
+  width: 44px;
+  height: clamp(86px, 19svh, 168px);
+  touch-action: none;
+  pointer-events: auto;
+  user-select: none;
+  cursor: grab;
+}
+
+.scrollControl[data-dragging='true'] { cursor: grabbing; }
+.scrollTrack {
+  position: absolute;
+  inset: 9px auto 9px calc(50% - 5px);
+  width: 10px;
+  border: 1px solid #8ba0bd94;
+  border-radius: 5px;
+  background: #080d1466;
+}
+
+.scrollTicks {
+  position: absolute;
+  inset: 0 auto 0 calc(100% + 4px);
+  width: 6px;
+  background:
+    linear-gradient(#9fb3cc9c 1px, transparent 0) 0 0 / 100% 25%,
+    linear-gradient(#9fb3cc9c, #9fb3cc9c) left bottom / 100% 1px no-repeat,
+    linear-gradient(#8196b263 1px, transparent 0) 0 0 / 50% 5% repeat-y;
+  pointer-events: none;
+}
+
+.scrollFill {
+  position: absolute;
+  inset: 0 1px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #647a96, #a7bad2 65%, #8098b3);
+  transform-origin: center bottom;
+  pointer-events: none;
+}
+
+.scrollPosition { position: absolute; left: 0; width: 100%; height: 1px; }
+.scrollMarker {
+  position: absolute;
+  inset: -1px -1px auto;
+  height: 2px;
+  border-radius: 1px;
+  background: #c8d8ee;
+  transition: background-color 170ms ease;
+}
+
+.scrollControl:is(:hover, :focus-visible, [data-dragging='true']) .scrollMarker { background: #f2f7ff; }
+.scrollPercent {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 8px);
+  padding: 3px 4px 2px;
+  translate: 0 -50%;
+  background: color-mix(in srgb, var(--workshop-base, var(--paper, #11151a)) 85%, transparent);
+  color: var(--instrument-ink);
+  font: 600 11px/1 var(--instrument-type);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .language { align-self: start; justify-self: start; font-size: 10px; }
+  .sectionNav { top: calc(var(--edge-top) + var(--rail) + 57px); }
+  .scrollControl { right: var(--edge-right); }
+}
+
+@media (max-height: 460px) {
+  .scrollControl { bottom: calc(var(--edge-bottom) + var(--rail) + 36px); }
+}
+
+@media (pointer: coarse) { .sectionNav { touch-action: none; } }
+
+@media (prefers-reduced-motion: reduce) { .scrollMarker { transition: none; } }

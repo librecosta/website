@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  LazyMotion, domAnimation, m, useAnimate, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform,
+  LazyMotion, domAnimation, m, useAnimate, useReducedMotion, useScroll, useSpring, useTransform,
   type MotionValue,
 } from 'motion/react';
 import {
-  InstrumentCorners, InstrumentHeader, InstrumentProgress, InstrumentSocialLinks,
+  InstrumentCorners, InstrumentHeader, InstrumentSocialLinks,
 } from '@/components/expanse/ExpanseInstrument';
 import instrument from '@/components/expanse/expanse.module.css';
+import { AboutLanguage, AboutSectionNav, AboutScrollGauge } from './AboutControls';
 import styles from './about.module.css';
 
 type Collection = { label: string; items: readonly string[] };
@@ -24,27 +25,11 @@ const principles = [
 const travelSpring = { stiffness: 165, damping: 31, mass: .75, restDelta: .001, skipInitialAnimation: true };
 
 function AboutFrame({ progress, reduced }: { progress: MotionValue<number>; reduced: boolean }) {
-  const meter = useRef<HTMLDivElement>(null);
-  const fill = useRef<HTMLSpanElement>(null);
-  const percent = useRef<HTMLSpanElement>(null);
-  const paint = (value: number) => {
-    const integer = String(Math.round(value * 100));
-    if (fill.current) fill.current.style.transform = `scaleX(${value})`;
-    if (meter.current?.getAttribute('aria-valuenow') !== integer) {
-      meter.current?.setAttribute('aria-valuenow', integer);
-      if (percent.current) percent.current.textContent = `${integer}%`;
-    }
-  };
-  useMotionValueEvent(progress, 'change', paint);
-  useEffect(() => { paint(progress.get()); }, [progress]);
-
   return <div className={`${instrument.instrument} ${styles.frame}`}>
     <InstrumentCorners />
-    <InstrumentHeader about reduced={reduced} className={styles.header} />
-    <div className={`${instrument.readout} ${styles.readout}`}>
-      <div className={instrument.trackLabel} lang="en" aria-hidden="true"><span>About</span><span ref={percent}>0%</span></div>
-      <InstrumentProgress progressBar={meter} progressFill={fill} label="关于页面阅读进度" />
-    </div>
+    <InstrumentHeader about reduced={reduced} className={styles.header} navigationPrefix={<AboutLanguage />} />
+    <AboutSectionNav progress={progress} reduced={reduced} />
+    <AboutScrollGauge progress={progress} reduced={reduced} />
     <InstrumentSocialLinks />
   </div>;
 }
@@ -63,7 +48,7 @@ function Opening({ reduced }: { reduced: boolean }) {
     return () => animation.cancel();
   }, [animate, reduced]);
 
-  return <section className={styles.opening} ref={scope} aria-labelledby="about-title">
+  return <section className={styles.opening} ref={scope} id="opening" aria-labelledby="about-title">
     <m.div className={styles.openingContent} style={reduced ? undefined : { y, opacity }} data-about-motion>
       <h1 className={`${styles.display} ${styles.openingTitle}`} id="about-title" lang="en">
         <span className={styles.srOnly}>LibreCosta · </span>
@@ -105,7 +90,7 @@ function Profile({ reduced }: { reduced: boolean }) {
   const { scrollYProgress } = useScroll({ target: profile, offset: ['start end', 'end start'] });
   const y = useTransform(scrollYProgress, [0, 1], [42, -42]);
   const detailY = useTransform(scrollYProgress, [0, 1], [84, -84]);
-  return <section className={`${styles.contentWidth} ${styles.profile}`} ref={profile} aria-labelledby="studio-title">
+  return <section className={`${styles.contentWidth} ${styles.profile}`} ref={profile} id="profile" aria-labelledby="studio-title">
     <m.div style={reduced ? undefined : { y }} data-about-motion>
       <h2 className={styles.label} id="studio-title" lang="en">About LibreCosta</h2>
       <dl className={styles.details}>
@@ -152,7 +137,7 @@ function AboutContents({ collections, reduced }: { collections: readonly Collect
     </section>
     <div className={styles.editorial}>
       <Profile reduced={reduced} />
-      <section className={styles.collections} aria-labelledby="collections-title">
+      <section className={styles.collections} id="collections" aria-labelledby="collections-title">
         <div className={styles.collectionInner}>
           <h2 className={styles.label} id="collections-title">作品索引</h2>
           <div className={styles.collectionGrid}>
@@ -165,7 +150,7 @@ function AboutContents({ collections, reduced }: { collections: readonly Collect
           <div className={styles.indexLink}><Action href="/works" reduced={reduced}>查看作品</Action></div>
         </div>
       </section>
-      <section className={styles.practice} aria-labelledby="practice-title">
+      <section className={styles.practice} id="practice" aria-labelledby="practice-title">
         <div className={`${styles.contentWidth} ${styles.practiceIntro}`}>
           <ChapterTitle id="practice-title" lines={['How we', 'build']} reduced={reduced} className={styles.practiceTitle} />
           <p className={`${styles.profileCopy} ${styles.lead}`}>我们重视清晰、可靠和长期价值。工具应解决实际问题，界面与交互也应服务于它的用途。</p>
@@ -178,7 +163,7 @@ function AboutContents({ collections, reduced }: { collections: readonly Collect
         </div>
       </section>
     </div>
-    <section className={styles.closing} aria-labelledby="closing-title">
+    <section className={styles.closing} id="closing" aria-labelledby="closing-title">
       <ChapterTitle id="closing-title" lines={['Let’s', 'talk.']} className={styles.closingTitle} reduced={reduced} />
       <p>想交流软件、开源或交互设计，欢迎联系我们。</p>
       <Action href="/contact" reduced={reduced}>联系我们</Action>

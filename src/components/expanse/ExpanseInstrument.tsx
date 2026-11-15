@@ -129,8 +129,8 @@ export function InstrumentCorners() {
   </svg>)}</>;
 }
 
-export function InstrumentHeader({ reduced, soundToggle, gauge, about = false, className }: {
-  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; about?: boolean; className?: string;
+export function InstrumentHeader({ reduced, soundToggle, gauge, about = false, className, navigationPrefix }: {
+  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; about?: boolean; className?: string; navigationPrefix?: ReactNode;
 }) {
   const { enabled, cue } = useSiteAudio();
   const brand = useEncryptedText('LIBRECOSTA', reduced);
@@ -143,6 +143,7 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, about = false, c
       {soundToggle && <span className={styles.soundIndicator} role="img" aria-label={enabled ? '声音开启' : '声音关闭'} data-enabled={enabled} />}
     </div>
     {soundToggle}
+    {navigationPrefix}
     <nav className={styles.instrumentNav} aria-label="站点导航" data-audio-ui>
       <InstrumentLink href="/works" text="WORKS" reduced={reduced} />
       <InstrumentLink href="/about" text="ABOUT" reduced={reduced} current={about} />
