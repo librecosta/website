@@ -1,10 +1,10 @@
 import { useRef, useSyncExternalStore, type CSSProperties } from 'react';
-import { m, useScroll, useTransform, type MotionValue } from 'motion/react';
+import { m, useMotionValueEvent, useScroll, useTransform, type MotionValue } from 'motion/react';
 import styles from './project-archive.module.css';
 
 type ProjectCard = {
   number: string;
-  preview?: { src: string; alt: string };
+  preview?: { src: string; alt: string; background: string };
   title?: string;
   summary?: string;
   status?: string;
@@ -12,9 +12,27 @@ type ProjectCard = {
   source?: string;
 };
 
-const cards: readonly ProjectCard[] = Array.from({ length: 5 }, (_, index) => ({
-  number: String(index + 1).padStart(2, '0'),
-}));
+const cards: readonly ProjectCard[] = [
+  {
+    number: '01',
+    title: 'GoFurry',
+    summary: '面向 Furry 社群的浏览器起始页与资源发现平台。',
+    status: '开发中',
+    source: 'https://github.com/librecosta/gofurry',
+    preview: { src: '/about/gofurry-og.png', alt: '浅橙色背景上的 GoFurry 标志与字标', background: '#ffdec2' },
+  },
+  {
+    number: '02',
+    title: 'Tool4Furry',
+    summary: '面向 Furry 创作者的开源浏览器工具箱。',
+    status: '开发中',
+    source: 'https://github.com/librecosta/tool4furry',
+    preview: { src: '/about/tool4furry-og.png', alt: '深灰背景上的白色 Tool4Furry 标志与字标', background: '#30343a' },
+  },
+  { number: '03' },
+  { number: '04' },
+  { number: '05' },
+];
 const pairQuery = '(min-width: 1280px)';
 const hold = .28;
 
@@ -28,11 +46,16 @@ function getPairLayout() { return window.matchMedia(pairQuery).matches; }
 function getServerPairLayout() { return false; }
 function clampProgress(value: number) { return Math.min(1, Math.max(0, value)); }
 
-function ArchiveCard({ card }: { card: ProjectCard }) {
-  return <article className={styles.card} aria-label={card.title ?? `项目档案 ${card.number}`}>
+function ArchiveCard({ card, linksInert }: { card: ProjectCard; linksInert: MotionValue<boolean> }) {
+  const entries = useRef<HTMLDivElement>(null);
+  useMotionValueEvent(linksInert, 'change', inert => {
+    if (entries.current) entries.current.inert = inert;
+  });
+
+  return <article className={styles.card} data-filled={Boolean(card.title)} aria-label={card.title ?? `项目档案 ${card.number}`}>
     <header className={styles.cardHeader}><span>{card.number}</span></header>
-    <div className={styles.preview}>
-      {card.preview ? <img src={card.preview.src} alt={card.preview.alt} /> : <svg viewBox="0 0 96 80" fill="none" aria-hidden="true">
+    <div className={styles.preview} style={card.preview ? { background: card.preview.background } : undefined}>
+      {card.preview ? <img src={card.preview.src} alt={card.preview.alt} width={1200} height={630} /> : <svg viewBox="0 0 96 80" fill="none" aria-hidden="true">
         <path className={styles.drawingGuide} d="M10 40h76M48 6v68M13 13h8m-8 0v8m70 46h-8m8 0v-8" />
         <path className={styles.drawingOutline} d="M48 15 74 40 48 65 22 40Z M48 27 62 40 48 53 34 40Z" />
       </svg>}
@@ -43,9 +66,10 @@ function ArchiveCard({ card }: { card: ProjectCard }) {
     </div>
     <footer className={styles.cardFooter}>
       {card.status ? <span>{card.status}</span> : <span className={styles.statusPlaceholder} aria-hidden="true" />}
-      <div className={styles.entries}>
-        {card.website ? <a href={card.website}>访问项目</a> : <span className={styles.entryPlaceholder} aria-hidden="true" />}
-        {card.source && <a href={card.source}>源码</a>}
+      <div className={styles.entries} ref={entries} inert={linksInert.get()}>
+        {card.website && <a href={card.website} target="_blank" rel="noopener noreferrer">访问项目</a>}
+        {card.source && <a href={card.source} target="_blank" rel="noopener noreferrer" aria-label={`${card.title} GitHub 源码`}>GitHub 源码</a>}
+        {!card.website && !card.source && <span className={styles.entryPlaceholder} aria-hidden="true" />}
       </div>
     </footer>
   </article>;
@@ -69,12 +93,14 @@ function ArchiveGroup({ group, index, count, progress, reduced }: {
   const y = useTransform(distance, value => `${Math.max(0, -value) * 100}%`);
   const opacity = useTransform(distance, [-1, -.68, 0, 1, 2], [0, 1, 1, .9, .62]);
   const filter = useTransform(distance, [0, 1, 2], ['brightness(1)', 'brightness(.38)', 'brightness(.28)']);
+  // Keep source links out of the focus order while their group is concealed by the stack.
+  const linksInert = useTransform(distance, value => !reduced && Math.abs(value) > .015);
   const style = {
     '--group-index': index,
     ...(reduced ? {} : { scale, y, opacity, filter }),
   };
   return <m.div className={styles.group} style={style}>
-    {group.map(card => <ArchiveCard key={card.number} card={card} />)}
+    {group.map(card => <ArchiveCard key={card.number} card={card} linksInert={linksInert} />)}
   </m.div>;
 }
 
