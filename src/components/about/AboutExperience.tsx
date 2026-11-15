@@ -12,9 +12,8 @@ import {
 } from '@/components/expanse/ExpanseInstrument';
 import instrument from '@/components/expanse/expanse.module.css';
 import { AboutLanguage, AboutSectionNav, AboutScrollGauge, scrollToAboutSection } from './AboutControls';
+import { ProjectArchive } from './ProjectArchive';
 import styles from './about.module.css';
-
-type Collection = { label: string; items: readonly string[] };
 
 const principles = [
   { title: '从实际用途出发', body: 'Tool4Furry 把常用创作操作带到浏览器。LibreCosta Uptime 提供可自托管的站点监测和状态页。' },
@@ -250,23 +249,11 @@ function GlassPanel({ children, className, index, alternating = false, reduced }
   </div>;
 }
 
-function AboutContents({ collections, reduced }: { collections: readonly Collection[]; reduced: boolean }) {
+function AboutContents({ reduced }: { reduced: boolean }) {
   return <>
     <Opening reduced={reduced} />
     <Studio reduced={reduced} />
-    <section className={styles.collections} id="collections" aria-labelledby="collections-title">
-      <div className={styles.collectionInner}>
-        <h2 className={styles.label} id="collections-title">作品索引</h2>
-        <div className={styles.collectionGrid}>
-          {collections.map(({ label, items }, index) => <GlassPanel key={label} className={styles.collectionPanel} index={index} reduced={reduced}>
-            <h3 className={styles.label}>{label}</h3>
-            <p className={styles.quantity} aria-label={`${items.length} 项作品`}>{String(items.length).padStart(2, '0')}</p>
-            <p className={styles.indexNames} lang="en">{items.join(' / ')}</p>
-          </GlassPanel>)}
-        </div>
-        <div className={styles.indexLink}><Action href="/works" reduced={reduced}>查看作品</Action></div>
-      </div>
-    </section>
+    <ProjectArchive reduced={reduced} />
     <section className={styles.practice} id="practice" aria-labelledby="practice-title">
       <div className={`${styles.contentWidth} ${styles.practiceIntro}`}>
         <ChapterTitle id="practice-title" lines={['How we', 'build']} reduced={reduced} className={styles.practiceTitle} />
@@ -301,7 +288,7 @@ function Action({ href, children, reduced }: { href: string; children: ReactNode
   </m.div>;
 }
 
-export function AboutExperience({ collections }: { collections: readonly Collection[] }) {
+export function AboutExperience() {
   const [ready, setReady] = useState(false);
   const reducedMotion = useReducedMotion();
   const reduced = !ready || reducedMotion === true;
@@ -312,7 +299,7 @@ export function AboutExperience({ collections }: { collections: readonly Collect
     <div className={styles.about}>
       <AboutFrame progress={scrollYProgress} reduced={reduced} />
       <main className={styles.main}>
-        <AboutContents collections={collections} reduced={reduced} />
+        <AboutContents reduced={reduced} />
       </main>
     </div>
   </LazyMotion>;

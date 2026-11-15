@@ -208,15 +208,6 @@
 .profileCopy p + p { margin-top: 19px; }
 .lead { color: var(--color); font-size: 17px; font-weight: 600; line-height: 1.75; }
 
-.collections { padding: clamp(75px, 12svh, 136px) 0 clamp(108px, 15svh, 170px); }
-
-.collectionInner { width: min(76%, 1130px); margin-inline: auto; }
-.collectionInner > .label { color: var(--secondary); }
-.collectionGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 2.8vw, 54px); margin-top: 30px; }
-.collectionPanel { --cut: 25px; align-self: start; }
-.collectionPanel:nth-child(2) { margin-top: clamp(54px, 10svh, 140px); }
-.collectionPanel:nth-child(3) { margin-top: clamp(108px, 20svh, 280px); }
-
 .glass {
   --shape: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
   position: relative;
@@ -229,11 +220,6 @@
 .glass::before, .glass::after { position: absolute; z-index: -1; clip-path: var(--shape); content: ''; }
 .glass::before { inset: 0; background: var(--panel-line); }
 .glass::after { inset: 1px; background: linear-gradient(156deg, #142035e8, #0e1525ed 73%); }
-.collectionPanel .glass { min-height: clamp(285px, 40svh, 434px); padding: clamp(16px, 2.05vw, 30px); }
-.collectionPanel .label { min-height: 2em; padding-right: var(--cut); }
-.quantity { margin: auto 0 22px; font: 500 clamp(76px, 6.5vw, 124px)/.96 Consolas, ui-monospace, monospace; letter-spacing: -.07em; }
-.indexNames { min-height: 3.3em; color: var(--secondary); font-size: 14px; line-height: 1.55; }
-.indexLink { display: flex; justify-content: flex-end; margin-top: 32px; }
 
 .practiceIntro { min-height: 53svh; padding-block: clamp(72px, 12svh, 136px); }
 .practiceTitle { justify-self: start; font-size: clamp(54px, 6.4vw, 124px); }
@@ -338,14 +324,6 @@
     transform: translateY(var(--studio-offset, 0px)) !important;
     opacity: 1 !important;
   }
-  .collectionInner { width: calc(100% - 2 * (var(--inset) + var(--rail))); }
-  .collectionGrid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .collectionPanel { width: min(86%, 385px); }
-  .collectionPanel:nth-child(n) { margin-top: 0; }
-  .collectionPanel:nth-child(even) { justify-self: end; }
-  .collectionPanel .glass { min-height: 230px; padding: 20px; }
-  .indexNames { min-height: 0; }
-  .quantity { margin-bottom: 13px; }
   .practiceIntro { min-height: auto; }
   .principles { padding-inline: calc(var(--inset) + var(--rail)); }
   .principlePanel:nth-child(n) { width: min(88%, 420px); margin-inline: 0; }
