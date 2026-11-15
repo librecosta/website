@@ -103,16 +103,13 @@
 .captionMask > * { display: block; }
 .openingCaption [data-opening-description] { color: var(--secondary); font-size: .92em; }
 
-.opening .dossier {
+.frame .dossier {
   --instrument-ink: var(--color);
   --instrument-muted: var(--secondary);
-  z-index: 6;
-  text-align: left;
-  pointer-events: none;
+  text-shadow: none;
 }
 
-.dossier::before { width: 24px; height: 1px; margin-bottom: 2px; background: var(--secondary); opacity: .46; content: ''; }
-.opening .dossier dl > div { grid-template-columns: 9ch auto; }
+.frame .dossier dl > div { grid-template-columns: 9ch auto; }
 
 .explore {
   display: flex;
@@ -240,7 +237,7 @@
 
 .closingTitle { font-size: clamp(76px, 8.4vw, 160px); }
 .closing p { color: var(--secondary); }
-.closingLinks { position: absolute; bottom: calc(var(--edge-bottom) + var(--rail) + 40px); left: max(10%, calc(var(--edge-left) + var(--rail))); display: flex; gap: 16px; }
+.closingLinks { position: absolute; bottom: calc(var(--edge-bottom) + var(--rail) + 60px); left: max(10%, calc(var(--edge-left) + var(--rail))); display: flex; gap: 16px; }
 .closingLinks a, .action a { color: var(--secondary); font: 600 12px/1.1 var(--instrument-type); letter-spacing: .095em; text-decoration: none; }
 .closingLinks a { display: inline-flex; align-items: center; min-height: 38px; }
 .closingLinks a:hover, .action a:hover { color: var(--color); }
@@ -290,7 +287,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .about [data-about-motion], .opening :is([data-opening-line], [data-opening-brand], [data-opening-description], [data-dossier-line]) {
+  .about [data-about-motion], .opening :is([data-opening-line], [data-opening-brand], [data-opening-description]), .dossier [data-dossier-line] {
     transform: none !important;
     opacity: 1 !important;
     clip-path: none !important;

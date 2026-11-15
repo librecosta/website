@@ -25,11 +25,33 @@ const principles = [
 const travelSpring = { stiffness: 165, damping: 31, mass: .75, restDelta: .001, skipInitialAnimation: true };
 const openingEase = [.22, .66, .24, 1] as const;
 
+function Dossier({ reduced }: { reduced: boolean }) {
+  const [scope, animate] = useAnimate<HTMLElement>();
+
+  useEffect(() => {
+    if (reduced || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const animation = animate('[data-dossier-line]', {
+      clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], y: [5, 0],
+    }, { delay: stagger(.065, { startDelay: .57 }), duration: .37, ease: openingEase });
+    return () => animation.cancel();
+  }, [animate, reduced]);
+
+  return <aside ref={scope} className={`${instrument.observationData} ${styles.dossier}`} lang="en" aria-label="LibreCosta dossier">
+    <p className={instrument.observationSite} data-dossier-line>DOSSIER / LC-01</p>
+    <p data-dossier-line>LIBRECOSTA · ABOUT</p>
+    <dl>
+      <div data-dossier-line><dt>FIELD</dt><dd>SOFTWARE / TOOLS</dd></div>
+      <div data-dossier-line><dt>PRACTICE</dt><dd>OPEN SOURCE / DESIGN</dd></div>
+    </dl>
+  </aside>;
+}
+
 function AboutFrame({ progress, reduced }: { progress: MotionValue<number>; reduced: boolean }) {
   return <div className={`${instrument.instrument} ${styles.frame}`}>
     <InstrumentCorners />
     <InstrumentHeader about reduced={reduced} className={styles.header} navigationPrefix={<AboutLanguage />} />
     <AboutSectionNav progress={progress} reduced={reduced} />
+    <Dossier reduced={reduced} />
     <AboutScrollGauge progress={progress} reduced={reduced} />
     <InstrumentSocialLinks />
   </div>;
@@ -42,7 +64,6 @@ function Opening({ reduced }: { reduced: boolean }) {
   const firstLineY = useTransform(scrollYProgress, [0, .1, .72, 1], ['0%', '0%', '-20%', '-42%']);
   const secondLineY = useTransform(scrollYProgress, [0, .17, .76, 1], ['0%', '0%', '-12%', '-36%']);
   const captionY = useTransform(scrollYProgress, [0, .23, .82], [0, 0, -18]);
-  const dossierOpacity = useTransform(scrollYProgress, [0, .035, .28], [1, 1, 0]);
 
   useEffect(() => {
     if (reduced || window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.scrollY > 40) return;
@@ -51,8 +72,6 @@ function Opening({ reduced }: { reduced: boolean }) {
       ['[data-opening-line="second"]', { y: ['105%', '0%'], x: ['.22em', '0em'] }, { at: .13, duration: .89, ease: openingEase }],
       ['[data-opening-brand]', { y: ['105%', '0%'] }, { at: .48, duration: .43, ease: openingEase }],
       ['[data-opening-description]', { y: ['105%', '0%'] }, { at: .61, duration: .45, ease: openingEase }],
-      ['[data-dossier-line]', { clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], y: [5, 0] },
-        { at: .57, delay: stagger(.065), duration: .37, ease: openingEase }],
     ]);
     const stopWatching = scrollYProgress.on('change', progress => {
       if (progress > .14) animation.complete();
@@ -85,15 +104,6 @@ function Opening({ reduced }: { reduced: boolean }) {
       <svg viewBox="0 0 10 12" aria-hidden="true" fill="currentColor"><path d="M1 2h8L5 6zm0 5h8l-4 4z" /></svg>
       探索 LibreCosta
     </m.button>
-    <m.aside className={`${instrument.observationData} ${styles.dossier}`} lang="en" aria-label="LibreCosta dossier"
-      style={reduced ? undefined : { opacity: dossierOpacity }} data-about-motion>
-      <p className={instrument.observationSite} data-dossier-line>DOSSIER / LC-01</p>
-      <p data-dossier-line>LIBRECOSTA · ABOUT</p>
-      <dl>
-        <div data-dossier-line><dt>FIELD</dt><dd>SOFTWARE / TOOLS</dd></div>
-        <div data-dossier-line><dt>PRACTICE</dt><dd>OPEN SOURCE / DESIGN</dd></div>
-      </dl>
-    </m.aside>
   </section>;
 }
 
