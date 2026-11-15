@@ -87,7 +87,7 @@ export function ExpanseSoundToggle({ stage, showPrompt, reduced }: {
 
   return <>
     <button type="button" className={styles.soundToggle} lang="en" aria-label="Scene sound" aria-pressed={enabled}
-      title={failed ? 'Audio could not start' : windStatus === 'missing' ? 'Local wind audio is unavailable' : undefined}
+      aria-description={failed ? 'Audio could not start' : windStatus === 'missing' ? 'Local wind audio is unavailable' : undefined}
       onPointerEnter={event => { if (event.pointerType === 'mouse') { cue('hover'); play(); } }}
       onFocus={event => { if (event.currentTarget.matches(':focus-visible')) play(); }}
       onClick={() => void setSound(!enabled)}>

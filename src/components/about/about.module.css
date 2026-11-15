@@ -1,7 +1,7 @@
 .about {
+  composes: fixedWorkshop from '../workshop.module.css';
   --color: #d6dff7;
   --secondary: #a1aec7;
-  --paper: #060b17;
   --line: #a2b6e028;
   --panel-line: #8fa5cc37;
   --inset: clamp(12px, 2.7vw, 38px);
@@ -12,7 +12,6 @@
   --edge-right: max(var(--inset), env(safe-area-inset-right));
   --instrument-type: Oxanium, 'Bahnschrift', 'Segoe UI', sans-serif;
   color: var(--color);
-  background: var(--paper);
   font-family: Arial, 'Microsoft YaHei', system-ui, sans-serif;
   line-height: 1.65;
   overflow-x: clip;
@@ -43,8 +42,8 @@
   content: '';
 }
 
-.frame::before { top: 0; height: calc(var(--edge-top) + 82px); background: linear-gradient(#060b17 60%, #060b1700); }
-.frame::after { bottom: 0; height: calc(var(--edge-bottom) + 65px); background: linear-gradient(0deg, #060b17 48%, #060b1700); }
+.frame::before { top: 0; height: calc(var(--edge-top) + 82px); background: linear-gradient(var(--workshop-base) 60%, transparent); }
+.frame::after { bottom: 0; height: calc(var(--edge-bottom) + 65px); background: linear-gradient(0deg, var(--workshop-base) 48%, transparent); }
 .frame .header { grid-template-areas: 'brand locale nav'; grid-template-columns: minmax(0, 1fr) auto auto; }
 .header a[aria-current='page'] { color: var(--instrument-ink); }
 
@@ -76,35 +75,36 @@
 }
 
 .opening {
-  position: relative;
+  --opening-top: calc(var(--edge-top) + var(--rail) + 52px);
+  --opening-bottom: calc(var(--edge-bottom) + var(--rail) + 28px);
+  --opening-type-height: calc((100svh - var(--opening-top) - var(--opening-bottom) - 76px) * .24);
   display: grid;
+  grid-template-rows: minmax(min-content, 1fr) auto;
   min-height: 100svh;
-  align-items: end;
+  align-items: center;
   justify-items: center;
-  padding: clamp(120px, 21svh, 240px) 7% clamp(120px, 17svh, 190px);
+  row-gap: clamp(8px, 2svh, 24px);
+  padding: var(--opening-top) 7% var(--opening-bottom);
   text-align: center;
-  background: radial-gradient(ellipse at 51% 53%, #132039 0%, #0c1528 40%, transparent 79%);
 }
 
-.openingTitle { font-size: clamp(52px, 9.5vw, 182px); }
-.openingCaption { display: grid; gap: 6px; margin-top: clamp(24px, 4.7svh, 54px); font-size: 14px; letter-spacing: .055em; }
+.openingTitle { font-size: clamp(28px, min(9.5vw, var(--opening-type-height)), 182px); }
+.openingCaption { display: grid; gap: 6px; margin-top: clamp(12px, 3.4svh, 42px); font-size: 14px; letter-spacing: .055em; }
 .openingCaption span { color: var(--secondary); }
 
 .explore {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--edge-bottom) + var(--rail) + 24px);
   display: flex;
   align-items: center;
   gap: 9px;
   min-height: 42px;
   padding-inline: 12px;
-  translate: -50% 0;
+  border: 0;
+  background: none;
   color: var(--secondary);
   font: 600 11px/1.1 var(--instrument-type);
   letter-spacing: .12em;
-  text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .explore svg { width: 8px; height: 12px; }
@@ -116,7 +116,6 @@
   place-items: center;
   padding: clamp(96px, 14svh, 180px) 7%;
   text-align: center;
-  background: radial-gradient(ellipse at 48% 34%, #0e1b30 0%, transparent 72%);
 }
 
 .statement .label { margin-bottom: clamp(28px, 7svh, 70px); color: var(--secondary); }
@@ -154,7 +153,6 @@
 .collections {
   position: relative;
   padding: clamp(75px, 12svh, 136px) 0 clamp(108px, 15svh, 170px);
-  background: radial-gradient(ellipse at 57% 45%, #12203963 0%, transparent 71%);
 }
 
 .collections::before, .principles::before {
@@ -215,7 +213,6 @@
   justify-content: center;
   gap: clamp(19px, 4svh, 40px);
   padding: 14svh 8% 18svh;
-  background: radial-gradient(ellipse at 44% 22%, #101c31, transparent 68%);
   text-align: center;
 }
 
@@ -227,7 +224,7 @@
 .closingLinks a:hover, .action a:hover { color: var(--color); }
 .action a { display: inline-flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 22px; padding: 0 2px; border-bottom: 1px solid var(--panel-line); }
 .action svg { width: 16px; height: 16px; }
-.about a:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
+.about a:focus-visible, .explore:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
 
 @media (max-width: 720px) {
   .frame::before { height: calc(var(--edge-top) + 104px); }
@@ -236,8 +233,8 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
   }
-  .opening { padding-inline: 5%; padding-bottom: max(128px, 28svh); }
-  .openingTitle { font-size: clamp(42px, 12vw, 84px); }
+  .opening { --opening-top: calc(var(--edge-top) + var(--rail) + 62px); padding-inline: 5%; }
+  .openingTitle { font-size: clamp(28px, min(12vw, var(--opening-type-height)), 84px); }
   .openingCaption { font-size: 13px; }
   .statement { min-height: 86svh; padding-inline: 5%; }
   .statement .display { font-size: clamp(28px, 6.7vw, 52px); }

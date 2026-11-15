@@ -119,7 +119,7 @@ export function mountTransformInspector(host: HTMLElement, editor: TransformInsp
     <section aria-label="物体变换调试">
       <header>
         <h2><button type="button" id="move-panel" class="grab" aria-label="移动物体变换面板"
-          title="拖动面板，或用方向键移动">
+          aria-description="拖动面板，或用方向键移动">
           <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true">
             <path d="M2 2h6M2 6h6M2 10h6" stroke="currentColor" fill="none"/>
           </svg>

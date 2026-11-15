@@ -10,7 +10,7 @@ import {
   InstrumentCorners, InstrumentHeader, InstrumentSocialLinks,
 } from '@/components/expanse/ExpanseInstrument';
 import instrument from '@/components/expanse/expanse.module.css';
-import { AboutLanguage, AboutSectionNav, AboutScrollGauge } from './AboutControls';
+import { AboutLanguage, AboutSectionNav, AboutScrollGauge, scrollToAboutSection } from './AboutControls';
 import styles from './about.module.css';
 
 type Collection = { label: string; items: readonly string[] };
@@ -57,10 +57,11 @@ function Opening({ reduced }: { reduced: boolean }) {
       </h1>
       <p className={styles.openingCaption}><strong>LibreCosta · 远岸开物</strong><span>独立软件、开发工具与数字体验</span></p>
     </m.div>
-    <m.a className={styles.explore} href="#studio" whileTap={reduced ? undefined : { scale: .96 }}>
+    <m.button type="button" className={styles.explore} aria-controls="studio"
+      onClick={() => scrollToAboutSection('studio', reduced)} whileTap={reduced ? undefined : { scale: .96 }}>
       <svg viewBox="0 0 10 12" aria-hidden="true" fill="currentColor"><path d="M1 2h8L5 6zm0 5h8l-4 4z" /></svg>
       探索 LibreCosta
-    </m.a>
+    </m.button>
   </section>;
 }
 
