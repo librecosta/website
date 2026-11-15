@@ -31,7 +31,8 @@ type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySi
   editor?: ExpanseEditorMount; editorDragging: RefObject<boolean>;
   windView: WindView; onReady: () => void; onContextLost: () => void };
 
-const ExpanseTransformEditor = lazy(() => import('./ExpanseTransformEditor'));
+const ExpanseTransformEditor = process.env.NODE_ENV === 'development'
+  ? lazy(() => import('./ExpanseTransformEditor')) : null;
 
 function indexedGeometry(data: { positions: Float32Array; indices: Uint16Array | Uint32Array; normals?: Float32Array }) {
   const g = new BufferGeometry();
@@ -147,7 +148,7 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
     <object3D ref={attach.dune} position={[duneX, groundHeight(duneX, duneZ) + duneOffset, duneZ]} />
     <ObservationProjection anchors={anchors.current} elements={observationElements} opaque={opaque} mobile={mobile} reduced={reduced}
       terrain={terrain.geometry.boundingBox!} ground={groundHeight} previews={previews} />
-    {editor && <Suspense fallback={null}>
+    {ExpanseTransformEditor && editor && <Suspense fallback={null}>
       <ExpanseTransformEditor mount={editor} stage={stage} signal={signal} reduced={reduced}
         previews={previews} anchors={anchors.current} dragging={editorDragging} />
     </Suspense>}

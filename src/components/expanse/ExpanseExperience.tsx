@@ -44,7 +44,7 @@ class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void 
   render() { return this.state.failed ? <Unavailable /> : this.props.children; }
 }
 
-export default function ExpanseLab() {
+export default function ExpanseExperience() {
   const root = useRef<HTMLElement>(null), hint = useRef<HTMLParagraphElement>(null);
   const stage = useRef<HTMLElement>(null);
   const editorHost = useRef<HTMLDivElement>(null), editorDragging = useRef(false);
@@ -119,11 +119,13 @@ export default function ExpanseLab() {
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => { setMobile(narrow.matches); setMediaReduced(motion.matches); };
     update();
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('debug') === '1') {
-      setDebug(true);
-      const wind = params.get('wind');
-      if (wind === 'static' || wind === 'concentration') setWindView(wind);
+    if (process.env.NODE_ENV === 'development') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('debug') === '1') {
+        setDebug(true);
+        const wind = params.get('wind');
+        if (wind === 'static' || wind === 'concentration') setWindView(wind);
+      }
     }
     narrow.addEventListener('change', update); motion.addEventListener('change', update);
     return () => { narrow.removeEventListener('change', update); motion.removeEventListener('change', update); };
@@ -237,7 +239,7 @@ export default function ExpanseLab() {
         ready={ready} reduced={reduced} unavailable={contextLost} />
       <h1 className={styles.srOnly}>The Expanse — 荒原</h1>
       <noscript><div className={styles.unavailable}><p>连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。</p></div></noscript>
-      {debug && <aside className={styles.debug} data-editor-open={editorOpen && !contextLost} aria-label="场景调试">
+      {process.env.NODE_ENV === 'development' && debug && <aside className={styles.debug} data-editor-open={editorOpen && !contextLost} aria-label="场景调试">
         <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
         <div>主线 {subtitles.length} / {witnessSequence.length} · 全息卡 {observation ?? '关闭'}</div>
         <div>{([['起点 · Passage', 0], ['50%', .5], ['终点', 1]] as const)
@@ -259,7 +261,7 @@ export default function ExpanseLab() {
         <SignalReadouts elements={observationElements} />
         <ExpanseAudioLevels />
       </aside>}
-      {debug && editorStarted && <div ref={editorHost} id="expanse-transform-inspector"
+      {process.env.NODE_ENV === 'development' && debug && editorStarted && <div ref={editorHost} id="expanse-transform-inspector"
         className={styles.transformEditor} data-transform-inspector
         hidden={!editorOpen || contextLost} />}
       <figcaption className={styles.srOnly}>以页面滚动走近遗落巨构。随时停止，向上滚动可以原路返回。</figcaption>

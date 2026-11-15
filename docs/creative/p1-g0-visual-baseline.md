@@ -15,7 +15,7 @@
 | S4 | 终点全城，终句正在写入，品牌尚未揭示 | 1 / 1.00000 | 4860 / 4558 | (−139.133, 66.993, −4040) | 2.00 / 2.08–2.23 |
 | S5 | S4 同机位，品牌标题、说明和署名全部可见 | 1 / 1.00000 | 4860 / 4558 | (−139.133, 66.993, −4040) | 4.75–5.25 / 5.06–5.32 |
 
-复拍时执行 `pnpm check` 生成静态导出，再用 `pnpm preview` 打开 `/lab/expanse?debug=1`。页面从顶部载入，镜头保持中性指针偏移，天空用最终合成，风沙用默认输运，关闭声音和观测卡。首次可见后约 1.1 s 定位。除 S0 保持顶部外，滚到 `round(innerHeight × (0.4 + 5 × p))`，等调试面板的平滑进度追上原始进度。S0–S3 稳定后再等约 0.4 s，S4 在终句阶段取样，S5 等三个品牌元素的透明度都达到 0.999。复拍时只隐藏调试面板，保留实际页面构图。风沙读数以约 0.25 s 间隔更新，运动对比用截图前后的城市时钟范围匹配相位。
+在基线提交 `4e5be92` 复拍时，执行 `pnpm check` 生成静态导出，再用 `pnpm preview` 打开该版本的荒原调试视图。页面从顶部载入，镜头保持中性指针偏移，天空用最终合成，风沙用默认输运，关闭声音和观测卡。首次可见后约 1.1 s 定位。除 S0 保持顶部外，滚到 `round(innerHeight × (0.4 + 5 × p))`，等调试面板的平滑进度追上原始进度。S0–S3 稳定后再等约 0.4 s，S4 在终句阶段取样，S5 等三个品牌元素的透明度都达到 0.999。复拍时只隐藏调试面板，保留实际页面构图。风沙读数以约 0.25 s 间隔更新，运动对比用截图前后的城市时钟范围匹配相位。
 
 本地 `.local/p1-g0/` 保存 `desktop-S0–S5.jpg`、`mobile-S0/S2/S4/S5.jpg`、两档总览和对应 JSON。JSON 包含原始与平滑进度、相机 XYZ、XYZW 四元数、FOV、缓冲区尺寸、动态时钟、品牌状态及采样前后统计。移动端 S2 实测 `u=.45634`，S4 截图期间 `u=.99998–.99999`。另有 S0–S2 同机位关风对照，以及 S3 同机位约 6 s 后的运动对照。
 
@@ -62,7 +62,7 @@
 
 轴塔、巨环和街区由程序生成，本次未请求城市 GLB。冷启动未请求音频，MP3 回退未触发。上表取浏览器 Resource Timing，排除本地采集脚本，线上压缩与缓存收益另计。原始逐帧、GPU、冷加载和资源数据分别位于 `.local/p1-g0/{desktop,mobile}-{perf,gpu,cold1,cold2,cold3}.json` 与 `desktop-audio.json`。
 
-本机复测可从仓库根目录运行 `node .local/p1-g0/preview.mjs`，在 4320 端口的 `/lab/expanse?debug=1` 依次加上 `&mode=perf`、`&mode=gpu`、`&mode=cold&capture=cold1`（重复至 `cold3`）。音频用 `&mode=audio`，场景可见后点击声音开关。每次保持被测标签在前台。没有本地采样脚本时，也可通过 `data-frames` 变化读出同一帧的 `data-frame-at`、`data-draw-calls`、`data-triangles`、`data-geometries` 和 `data-textures`。
+在同一基线提交中，本机复测可从仓库根目录运行 `node .local/p1-g0/preview.mjs`，在 4320 端口的荒原调试视图依次加上 `&mode=perf`、`&mode=gpu`、`&mode=cold&capture=cold1`（重复至 `cold3`）。音频用 `&mode=audio`，场景可见后点击声音开关。每次保持被测标签在前台。没有本地采样脚本时，也可通过 `data-frames` 变化读出同一帧的 `data-frame-at`、`data-draw-calls`、`data-triangles`、`data-geometries` 和 `data-textures`。
 
 ## G1 多结构组合方案
 

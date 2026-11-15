@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-LibreCosta's website uses a static Next.js export. Its first interactive act, **The Expanse**, follows a pale desert valley toward a distant city and its segmented ring. The root page is a basic site placeholder. The independent cube surface lab contains a rendering study.
+LibreCosta's website uses a static Next.js export. The home page presents **The Expanse**, its first interactive act, which follows a pale desert valley toward a distant city and its segmented ring.
 
 ## Run locally
 
@@ -13,9 +13,8 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-- [The Expanse](http://127.0.0.1:3000/lab/expanse) is the main interactive preview. Scroll to explore and scroll back to retrace the journey.
-- [Expanse debug view](http://127.0.0.1:3000/lab/expanse?debug=1) exposes camera stops and progress, reduced motion, sky and wind layers, observation anchors, the transform inspector, and audio levels.
-- [Cube surface lab](http://127.0.0.1:3000/lab/cube-surface) is a separate material study.
+- [The Expanse](http://127.0.0.1:3000/) is the home page. Scroll to explore and scroll back to retrace the journey.
+- With `pnpm dev`, the [Expanse debug view](http://127.0.0.1:3000/?debug=1) exposes camera stops and progress, reduced motion, sky and wind layers, observation anchors, the transform inspector, and audio levels.
 
 Sound starts after user activation. The original ambient track ships with the site. Optional local wind preparation is described in [the audio notes](docs/research/audio.md).
 

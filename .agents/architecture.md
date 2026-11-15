@@ -2,8 +2,8 @@
 
 ## Static site and scene ownership
 
-- App Router owns route metadata and the HTML shell. `next.config.ts` sets static export, and the root layout owns the shared audio provider. Keep the root placeholder and independent cube lab separate from The Expanse. [Routes](../src/app/) · [Next.js config](../next.config.ts)
-- `ExpanseLab` owns native scroll, ScrollTrigger progress, reduced motion, debug UI, and the HTML fallback. It lazy-loads a single client-only Canvas. Keep the instrument and narrative HTML independent of WebGL initialization. [ExpanseLab](../src/components/expanse/ExpanseLab.tsx)
+- App Router owns route metadata and the HTML shell. `/` hosts The Expanse. The other public pages live at `/works`, `/about`, and `/contact`. `next.config.ts` sets static export, and the root layout owns the shared audio provider. [Routes](../src/app/) · [Next.js config](../next.config.ts)
+- `ExpanseExperience` owns native scroll, ScrollTrigger progress, reduced motion, and the HTML fallback. It lazy-loads a single client-only Canvas. Keep the instrument and narrative HTML independent of WebGL initialization. `/?debug=1` enables diagnostics in development. The transform inspector loads when opened. [ExpanseExperience](../src/components/expanse/ExpanseExperience.tsx)
 - `ExpanseCanvas` maps the smoothed progress into the configured camera path and composes the local pointer offset. The R3F frame callback is the sole camera writer. The Canvas uses demand rendering, with a capped scheduler for live world effects and no rendering in hidden tabs. Reuse that scheduler and refs for per-frame work. [ExpanseCanvas](../src/components/expanse/ExpanseCanvas.tsx) · [Journey mapping](../src/components/expanse/journey-timing.ts)
 
 ## Sources of truth

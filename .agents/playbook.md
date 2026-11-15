@@ -9,7 +9,7 @@
 ## Verify and hand off
 
 - Use `pnpm check` as the repository-wide verification command. `pnpm check:world` is the fast check for deterministic geometry, travel clearance, and transport or city layout changes. [Command definitions](../package.json) · [World checks](../scripts/check-expanse.mjs)
-- For visual or interaction changes, use the normal [Expanse preview](http://127.0.0.1:3000/lab/expanse) and the [debug view](http://127.0.0.1:3000/lab/expanse?debug=1) as appropriate. Check the relevant camera stops and viewport sizes. Exercise forward and reverse scrolling, reduced motion, and HTML fallback when the change touches them.
+- For visual or interaction changes, use the [home page](http://127.0.0.1:3000/) and the [development debug view](http://127.0.0.1:3000/?debug=1) as appropriate. Check the relevant camera stops and viewport sizes. Exercise forward and reverse scrolling, reduced motion, and HTML fallback when the change touches them.
 - Report what changed, the checks that ran, and any decisions or limits the reviewer should know. Review the diff and any staged file list before committing. When the task calls for a review first, hand off the working tree without committing or pushing.
 
 ## Assets and history

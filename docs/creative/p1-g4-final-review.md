@@ -2,7 +2,7 @@
 
 **P1 — The Expanse / Content Frozen**
 
-2026-11-13 在 `develop` 的 G4-B `448c544` 上验收 `/lab/expanse`。G1 建筑与巨构、[G2 材质与地表](p1-g2-final-review.md)、[G3 大气、光照与动态](p1-g3-final-review.md)、[G4-A 镜头](p1-g4-a-camera.md)和 [G4-B 字幕与品牌揭示](p1-g4-b-narrative.md)均达到内容集成条件。本轮提交验收记录，生产构建内容沿用 G4-B。正式首页迁移和部署验收由 WEB 阶段负责。
+2026-11-13 在 `develop` 的 G4-B `448c544` 上验收 The Expanse。G1 建筑与巨构、[G2 材质与地表](p1-g2-final-review.md)、[G3 大气、光照与动态](p1-g3-final-review.md)、[G4-A 镜头](p1-g4-a-camera.md)和 [G4-B 字幕与品牌揭示](p1-g4-b-narrative.md)均达到内容集成条件。本轮提交验收记录，生产构建内容沿用 G4-B。正式首页迁移和部署验收由 WEB 阶段负责。
 
 ## 视觉
 

@@ -19,9 +19,9 @@
 
 Animorio 的文章另有对移动噪声、AO、网格、细节层、Fresnel 与辉光的说明。本文的资源名、UV、纹理尺寸及参数来自以上自行核对；作者的可视化拆解是独立的第三方材料。[Animorio 拆解](https://animorio.com/en/journal/hubtown-how-its-made/)
 
-## 独立重建
+## 独立重建（已退役）
 
-运行 `pnpm dev` 后打开 `/lab/cube-surface`。固定三分之四机位可查看完整合成、Base Color、Panel Mask、Fine Lines、Fresnel、Emissive 与 Bloom Only，亦可在合成视图开关 Bloom、调节发光。每个视图只在设置或尺寸变化时重绘。
+独立实验的实现保存在 Git 提交 `c3ead56`。固定三分之四机位可查看完整合成、Base Color、Panel Mask、Fine Lines、Fresnel、Emissive 与 Bloom Only，亦可在合成视图开关 Bloom、调节发光。每个视图只在设置或尺寸变化时重绘。
 
 原创矩形、折线路径与局部强调区绘制为 3 张 1024 × 1024 的 RGB 数据掩码，供 6 面复用。R 控制低对比面板，G 控制二维细线，B 控制局部发光，颜色在 Shader 内线性混合。掩码使用 mipmap 与各向异性采样。箱体平面保持完整，细线没有位移、凹槽或法线偏移。HDR 合成经过可关闭的 `UnrealBloomPass`，最终由 `OutputPass` 做 ACES 映射和显示转换。[Three.js UnrealBloomPass](https://threejs.org/docs/pages/UnrealBloomPass.html)
 
@@ -46,6 +46,6 @@ Chromium 157（Windows 内置浏览器），AMD Radeon 集显／ANGLE D3D11，DP
 
 沿用立方体实验的分层方法，布局为主碑重新绘制。启动时按需将三个面写入一组带 mipmap 的 `384 × 960 × 3` 数据纹理：R 是面板，G 是细线，B 是局部发光。基底保持 `#a69e91`；面板只微调反射颜色和粗糙度，纹样不写入位移、法线或凹槽遮蔽。少数线段带低强度暖白发光，掠射方向略微提亮。Bloom 只在近处对发光遮罩做约 1.7 渲染像素的局部扩散，无额外绘制，也不会越过碑体轮廓；此效果不能替代跨物体的镜头辉光。
 
-该阶段曾在主碑调试页提供材质与通道切换。单槽图稿及相应调试项随四面双槽基线退役，画面与原因见 [历史归档](../archive/expanse-legacy/README.md)。后续四面图稿见 [静默巨碑展开记录](../archive/expanse-legacy/monument-surface.md)。通道拆解仍可在独立 `/lab/cube-surface` 查看。
+该阶段曾在主碑调试视图提供材质与通道切换。单槽图稿及相应调试项随四面双槽基线退役，画面与原因见 [历史归档](../archive/expanse-legacy/README.md)。后续四面图稿见 [静默巨碑展开记录](../archive/expanse-legacy/monument-surface.md)。
 
 在 Windows Chromium／AMD Radeon 集显（ANGLE D3D11）以 1280 × 720、DPR 1、静态风沙基线采集三组画面。同一机位的新旧版本拥有相同的相机姿态与 FOV，均为 5 次绘制和 353,277 个三角面，像素差异仅在主碑。远景细线随空气透视弱化，中景主要读到面板与纵缝，终点可辨认对向符号；受光侧面的纹样仍比正面更淡。未单独测量 GPU 时间。对照截图与分层截图留在本地 `.local/monument-transfer/`。

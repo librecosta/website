@@ -18,7 +18,7 @@ python scripts/prepare-audio.py --wind /path/to/mixkit-arctic-winds-1154.wav --s
 pnpm dev
 ```
 
-A 是项目原创合成的正式背景曲。Opus 和 MP3 回退存放在 `public/audio/`，供静态站点在用户开启声音后加载。B 和风声输出到被 Git 忽略的 `public/audio/local/`。普通模式初始静音。打开 `/lab/expanse?debug=1`，展开「声音音量」可单独调节风声、背景曲和界面提示音。默认风声与背景曲增益各降低三分之一，界面提示音增益提高三分之一。第三方来源和使用条件见 [Mixkit 许可记录](../../public/License/mixkit-arctic-winds.txt)。
+A 是项目原创合成的正式背景曲。Opus 和 MP3 回退存放在 `public/audio/`，供静态站点在用户开启声音后加载。B 和风声输出到被 Git 忽略的 `public/audio/local/`。普通模式初始静音。运行 `pnpm dev` 后打开 `/?debug=1`，展开「声音音量」可单独调节风声、背景曲和界面提示音。默认风声与背景曲增益各降低三分之一，界面提示音增益提高三分之一。第三方来源和使用条件见 [Mixkit 许可记录](../../public/License/mixkit-arctic-winds.txt)。
 
 | 声轨 | 有效循环 | Opus（字节） | MP3（字节） |
 | --- | ---: | ---: | ---: |

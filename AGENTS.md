@@ -1,6 +1,6 @@
 # LibreCosta Website
 
-This repository contains the LibreCosta site and The Expanse, its first interactive act. The current scene lives at `/lab/expanse`. The root route is a basic site placeholder.
+This repository contains the LibreCosta site. The Expanse, its first interactive act, is the home page at `/`.
 
 ## Find the right context
 
@@ -18,6 +18,7 @@ Read the relevant source and configuration for current behavior. Use the creativ
 ## Working rules
 
 - Keep the site statically exportable with Next.js App Router, React, TypeScript, Three.js, React Three Fiber, GSAP / ScrollTrigger, and pnpm. Preserve the lockfile. Keep backend, database, CMS, authentication, Astro, and speculative framework work out of scope.
+- Develop on the published route paths. Keep scene diagnostics gated to local development on the same page.
 - Preserve native, reversible scroll and a single camera writer in the render loop. Keep reduced motion and readable HTML fallback available. Clean up listeners, animation handles, and GPU resources.
 - Follow Monumental Precision and World First, Detail Later. Judge form, scale, composition, and light in a real browser before investing in fine assets. Keep the interface a restrained Silent Instrument and preserve the approved Witness Core narrative.
 - Run `pnpm check` for repository verification. Use the browser for interaction and visual changes, and include the relevant evidence in the handoff.
