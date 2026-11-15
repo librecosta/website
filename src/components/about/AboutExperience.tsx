@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   LazyMotion, animate, cubicBezier, domAnimation, m, stagger, useAnimate, useMotionValue,
-  useReducedMotion, useScroll, useSpring, useTransform,
+  useReducedMotion, useScroll, useTransform,
   type MotionValue,
 } from 'motion/react';
 import {
@@ -13,16 +13,9 @@ import {
 import instrument from '@/components/expanse/expanse.module.css';
 import { AboutLanguage, AboutSectionNav, AboutScrollGauge, scrollToAboutSection } from './AboutControls';
 import { ProjectArchive } from './ProjectArchive';
+import { PracticeSection } from './PracticeSection';
 import styles from './about.module.css';
 
-const principles = [
-  { title: '从实际用途出发', body: 'Tool4Furry 把常用创作操作带到浏览器。LibreCosta Uptime 提供可自托管的站点监测和状态页。' },
-  { title: '把实现公开', body: '我们在 GitHub 发布开源项目和文档，让使用者可以阅读实现、自行运行，也可以提交改动。' },
-  { title: '让结论可复现', body: '我们在 GopherAtlas 记录实现与验证过程，包括从图形效果拆解到 WebGPU 重建 Wavefield 的过程。' },
-  { title: '给探索留空间', body: 'The Expanse 用滚动展开一段荒原旅程。Wavefield 与 Sofaraway 分别从程序化地形和节奏玩法探索网页交互。' },
-] as const;
-
-const travelSpring = { stiffness: 165, damping: 31, mass: .75, restDelta: .001, skipInitialAnimation: true };
 const openingEase = [.22, .66, .24, 1] as const;
 
 function Dossier({ reduced }: { reduced: boolean }) {
@@ -229,43 +222,12 @@ function StudioProfile({ reduced }: { reduced: boolean }) {
   </div>;
 }
 
-function GlassPanel({ children, className, index, alternating = false, reduced }: {
-  children: ReactNode; className: string; index: number; alternating?: boolean; reduced: boolean;
-}) {
-  const panel = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: panel, offset: ['start end', 'end start'] });
-  const smooth = useSpring(scrollYProgress, travelSpring);
-  const alternatingSide = index % 2 === 0 ? -1 : 1;
-  const side = alternating ? alternatingSide : index - 1;
-  const x = useTransform(smooth, [0, .42, .71, 1], [side * 20, 0, 0, side * -12]);
-  const y = useTransform(smooth, [0, .42, .67, 1], [36 + (index % 3) * 14, 0, 0, -34]);
-  const clipPath = useTransform(scrollYProgress, [0, .32, .81, 1], [
-    'inset(0% 0% 30% 0%)', 'inset(0% 0% 0% 0%)', 'inset(0% 0% 0% 0%)', 'inset(12% 0% 0% 0%)',
-  ]);
-  return <div className={className} ref={panel}>
-    <m.article className={styles.glass} style={reduced ? undefined : { x, y, clipPath }} data-about-motion>
-      {children}
-    </m.article>
-  </div>;
-}
-
 function AboutContents({ reduced }: { reduced: boolean }) {
   return <>
     <Opening reduced={reduced} />
     <Studio reduced={reduced} />
     <ProjectArchive reduced={reduced} />
-    <section className={styles.practice} id="practice" aria-labelledby="practice-title">
-      <div className={`${styles.contentWidth} ${styles.practiceIntro}`}>
-        <ChapterTitle id="practice-title" lines={['How we', 'build']} reduced={reduced} className={styles.practiceTitle} />
-        <p className={`${styles.profileCopy} ${styles.lead}`}>我们重视清晰、可靠和长期价值。工具应解决实际问题，界面与交互也应服务于它的用途。</p>
-      </div>
-      <div className={styles.principles}>
-        {principles.map(({ title, body }, index) => <GlassPanel key={title} className={styles.principlePanel} index={index} alternating reduced={reduced}>
-          <h3>{title}</h3>
-          <p>{body}</p>
-        </GlassPanel>)}
-      </div>
-    </section>
+    <PracticeSection reduced={reduced} />
     <section className={styles.closing} id="closing" aria-labelledby="closing-title">
       <ChapterTitle id="closing-title" lines={['Let’s', 'talk.']} className={styles.closingTitle} reduced={reduced} />
       <p>想交流软件、开源或交互设计，欢迎联系我们。</p>
