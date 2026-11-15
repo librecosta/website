@@ -208,7 +208,7 @@ function StudioProfile({ reduced }: { reduced: boolean }) {
   const copyStyle = { x: copyX, y: copyY, '--studio-offset': useTransform(copyY, value => `${value * .13}px`) };
 
   return <div className={`${styles.contentWidth} ${styles.profile}`} ref={profile}>
-    <m.div style={reduced ? undefined : identityStyle} data-about-motion>
+    <m.div className={styles.profileIdentity} style={reduced ? undefined : identityStyle} data-about-motion>
       <h3 className={styles.label} lang="en">About LibreCosta</h3>
       <dl className={styles.details}>
         <div><dt>品牌</dt><dd>LibreCosta · 远岸开物</dd></div>
@@ -216,8 +216,8 @@ function StudioProfile({ reduced }: { reduced: boolean }) {
       </dl>
     </m.div>
     <m.div className={styles.profileCopy} style={reduced ? undefined : copyStyle} data-about-motion>
-      <p className={styles.lead}>远岸开物制作独立软件、在线服务和开发工具，也探索网页上的互动叙事与视觉计算。</p>
-      <p>我们发布面向创作者的浏览器工具和可自行部署的服务，在 GitHub 维护开源项目，并通过 GopherAtlas 分享开发与实验记录。</p>
+      <p className={styles.lead}>LibreCosta 开发面向社群、创作者和开发者的软件产品，包括在线服务、效率工具和可自行部署的开源系统。同时，我们也投入网页交互、图形技术与数字体验的创作。</p>
+      <p>我们在 GitHub 维护开源项目，并通过 GopherAtlas 分享技术文章、实验记录与工程实践。从软件的实际用途到实现过程中的设计取舍，这些作品与记录都是我们持续探索的一部分。</p>
     </m.div>
   </div>;
 }

@@ -231,6 +231,42 @@
 .action svg { width: 16px; height: 16px; }
 .about a:focus-visible, .explore:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
 
+@media (min-width: 1280px) {
+  .profile {
+    --profile-copy-width: clamp(460px, 37vw, 600px);
+    width: min(82%, 1440px);
+    grid-template-columns: minmax(0, 1fr) var(--profile-copy-width);
+    align-content: center;
+    align-items: start;
+    column-gap: clamp(100px, 14vw, 250px);
+    padding-block: clamp(66px, 8svh, 100px) clamp(92px, 12svh, 138px);
+  }
+
+  .profileIdentity { max-width: 280px; margin-top: clamp(16px, 2.6svh, 28px); }
+  .profile .profileCopy { width: 100%; font-size: clamp(15px, 1.02vw, 17px); line-height: 1.75; }
+  .profile .lead { font-size: clamp(18px, 1.38vw, 22px); line-height: 1.65; text-wrap: pretty; }
+}
+
+@media (min-width: 1440px) {
+  .profile {
+    position: relative;
+  }
+
+  .profile::before {
+    position: absolute;
+    inset-inline: 308px calc(var(--profile-copy-width) + 28px);
+    inset-block-start: 49%;
+    inline-size: min(360px, calc(100% - 336px - var(--profile-copy-width)));
+    aspect-ratio: 302 / 113;
+    margin-inline: auto;
+    transform: translateY(-50%);
+    background: url("./studio-wavefield.svg") center / contain no-repeat;
+    mask-image: linear-gradient(90deg, transparent, #000 17%, #000 83%, transparent);
+    pointer-events: none;
+    content: "";
+  }
+}
+
 @media (max-width: 1024px) {
   .statement { min-height: 50svh; padding-block: clamp(96px, 13svh, 148px) clamp(28px, 4svh, 42px); }
   .profile {
