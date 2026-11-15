@@ -153,11 +153,7 @@
   white-space: nowrap;
   pointer-events: auto;
 }
-.instrumentNav a:is(:hover, :focus-visible) {
-  color: var(--instrument-ink);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
+.instrumentNav .encryptedLabel { pointer-events: none; }
 .instrumentNav a:focus-visible, .socialLinks a:focus-visible { outline-offset: -2px; }
 .soundToggle {
   grid-area: sound;
@@ -352,14 +348,20 @@
     grid-template-areas:
       'brand chapter'
       'brand sound'
-      'nav nav';
+      '. nav';
     gap: 0 8px;
   }
   .brandCluster { align-self: start; }
   .chapterGauge { justify-self: end; min-height: 24px; }
   .soundToggle { justify-self: end; min-height: 30px; font-size: 10px; }
   .soundToggle > span { inline-size: auto; }
-  .instrumentNav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .instrumentNav {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    justify-self: end;
+    gap: 0 10px;
+  }
+  .instrumentNav a { min-width: 44px; min-height: 28px; justify-items: end; }
   .instrumentNav, .chapterGauge { font-size: 10px; }
 }
 @media (max-width: 400px) {

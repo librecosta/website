@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, type ComponentPropsWithoutRef, type RefObject } from 'react';
 import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
-import { useEncryptedText } from './EncryptedText';
+import { EncryptedLabel, useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
 
 // Hand-drawn centerlines. The short diagonal cuts are shared across the wordmark.
@@ -50,6 +50,29 @@ function Wordmark({ pixel = false, noise }: { pixel?: boolean; noise?: string[] 
 }
 
 const corners = [styles.topLeft, styles.topRight, styles.bottomLeft, styles.bottomRight];
+
+function InstrumentLink({ href, text, reduced, external = false }: {
+  href: string; text: string; reduced: boolean; external?: boolean;
+}) {
+  const { cue } = useSiteAudio();
+  const { play, noise } = useEncryptedText(text, reduced);
+  const props: ComponentPropsWithoutRef<'a'> = {
+    lang: 'en',
+    'aria-label': external ? `${text} (opens in a new tab)` : text,
+    onPointerEnter: event => {
+      if (event.pointerType === 'mouse') {
+        cue('hover');
+        play();
+      }
+    },
+    onFocus: event => { if (event.currentTarget.matches(':focus-visible')) play(); },
+    onClick: () => cue('click'),
+  };
+  const label = <EncryptedLabel text={text} noise={noise} />;
+  return external
+    ? <a {...props} href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+    : <Link {...props} href={href} prefetch={false}>{label}</Link>;
+}
 
 export function WordmarkStudy() {
   return <details className={styles.wordmarkStudy}>
@@ -123,12 +146,10 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
       </div>
       <ExpanseSoundToggle stage={stage} showPrompt={ready && !reduced && !unavailable} reduced={reduced} />
       <nav className={styles.instrumentNav} aria-label="站点导航" data-audio-ui>
-        <Link href="/works" prefetch={false} lang="en">WORKS</Link>
-        <Link href="/about" prefetch={false} lang="en">ABOUT</Link>
-        <a href="https://gopheratlas.com/" target="_blank" rel="noopener noreferrer">
-          <span lang="en">BLOG</span><span className={styles.srOnly}>（在新标签页打开）</span>
-        </a>
-        <Link href="/contact" prefetch={false} lang="en">CONTACT</Link>
+        <InstrumentLink href="/works" text="WORKS" reduced={reduced} />
+        <InstrumentLink href="/about" text="ABOUT" reduced={reduced} />
+        <InstrumentLink href="https://gopheratlas.com/" text="BLOG" reduced={reduced} external />
+        <InstrumentLink href="/contact" text="CONTACT" reduced={reduced} />
       </nav>
       <div className={styles.chapterGauge}>
         <svg viewBox="0 0 65 16" aria-hidden="true" fill="none" stroke="currentColor">
