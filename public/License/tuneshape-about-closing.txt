@@ -8,8 +8,8 @@ Closing preview images:
   captured in Chromium and downsampled. See /works/asset-notices.txt for
   the depicted world's asset credits.
 - /about/gopheratlas-og.png: existing official GopherAtlas Open Graph image.
-- /about/closing/librecosta-github.webp: LibreCosta's organisation avatar
-  from https://github.com/librecosta, resized and encoded as WebP.
+- /about/closing/librecosta-github.webp: LibreCosta's stacked charcoal-on-white
+  lockup from the supplied brand kit, resized and encoded as WebP.
 
 MIT License
 
