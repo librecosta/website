@@ -1,30 +1,3 @@
-.language {
-  grid-area: locale;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #8b9bb2;
-  font: 600 11px/1 var(--instrument-type);
-  letter-spacing: .08em;
-  white-space: nowrap;
-}
-
-.language [aria-current='true'] {
-  border-bottom: 1px solid #a5bcdb;
-  padding-block: 3px;
-  color: var(--instrument-ink);
-}
-
-.language button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  opacity: 1;
-  font: inherit;
-  letter-spacing: inherit;
-}
-
 .sectionNav {
   position: absolute;
   top: calc(var(--edge-top) + var(--rail) + 46px);
@@ -127,7 +100,6 @@
 .scrollControl:focus-visible .scrollPercent { text-decoration: underline; text-underline-offset: 3px; }
 
 @media (max-width: 720px) {
-  .language { align-self: start; justify-self: start; font-size: 10px; }
   .sectionNav { top: calc(var(--edge-top) + var(--rail) + 57px); }
   .scrollControl { right: var(--edge-right); }
 }

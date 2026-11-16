@@ -129,8 +129,9 @@ export function InstrumentCorners() {
   </svg>)}</>;
 }
 
-export function InstrumentHeader({ reduced, soundToggle, gauge, about = false, className, navigationPrefix }: {
-  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; about?: boolean; className?: string; navigationPrefix?: ReactNode;
+export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage, className, navigationPrefix }: {
+  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: '/about' | '/contact';
+  className?: string; navigationPrefix?: ReactNode;
 }) {
   const { enabled, cue } = useSiteAudio();
   const brand = useEncryptedText('LIBRECOSTA', reduced);
@@ -145,10 +146,11 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, about = false, c
     {soundToggle}
     {navigationPrefix}
     <nav className={styles.instrumentNav} aria-label="站点导航" data-audio-ui>
+      {currentPage && <InstrumentLink href="/" text="WORLD" reduced={reduced} />}
       <InstrumentLink href="/works" text="WORKS" reduced={reduced} />
-      <InstrumentLink href="/about" text="ABOUT" reduced={reduced} current={about} />
+      <InstrumentLink href="/about" text="ABOUT" reduced={reduced} current={currentPage === '/about'} />
       <InstrumentLink href="https://gopheratlas.com/" text="BLOG" reduced={reduced} external />
-      <InstrumentLink href="/contact" text="CONTACT" reduced={reduced} />
+      <InstrumentLink href="/contact" text="CONTACT" reduced={reduced} current={currentPage === '/contact'} />
     </nav>
     {gauge}
   </header>;
@@ -170,18 +172,18 @@ function ChapterGauge() {
 export function InstrumentSocialLinks() {
   const { cue } = useSiteAudio();
   return <nav className={styles.socialLinks} aria-label="社交媒体" onClick={() => cue('click')}>
-    <a href="https://x.com/LibreCostaHQ" target="_blank" rel="noopener noreferrer"
-      aria-label="X（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
-      <svg viewBox="-100 -86.5 1400 1400" aria-hidden="true" fill="currentColor">
-        {/* X's official monochrome mark, framed to match the Bilibili icon. */}
-        <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z" />
-      </svg>
-    </a>
     <a href="https://space.bilibili.com/37124259" target="_blank" rel="noopener noreferrer"
       aria-label="Bilibili（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5"
         strokeLinecap="round" strokeLinejoin="round">
         <path d="m7.5 3.5 3.4 4m5.6-4-3.4 4M5 7.5h14l2 2v9.5l-2 2H5l-2-2V9.5Z M7 13.5l3-1m4 0 3 1" />
+      </svg>
+    </a>
+    <a href="https://x.com/LibreCostaHQ" target="_blank" rel="noopener noreferrer"
+      aria-label="X（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
+      <svg viewBox="-100 -86.5 1400 1400" aria-hidden="true" fill="currentColor">
+        {/* X's official monochrome mark, framed to match the Bilibili icon. */}
+        <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z" />
       </svg>
     </a>
   </nav>;

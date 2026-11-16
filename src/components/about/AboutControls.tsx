@@ -21,14 +21,6 @@ export function scrollToAboutSection(id: string, reduced: boolean) {
   section.scrollIntoView({ behavior: reduced ? 'instant' : 'smooth' });
 }
 
-export function AboutLanguage() {
-  return <div className={styles.language} role="group" aria-label="页面语言">
-    <span lang="zh-CN" aria-current="true" aria-label="中文">中</span>
-    <span aria-hidden="true">/</span>
-    <button type="button" lang="en" disabled aria-label="English (unavailable)">EN</button>
-  </div>;
-}
-
 export function AboutSectionNav({ progress, reduced }: ControlsProps) {
   const [active, setActive] = useState(0);
   const [pointed, setPointed] = useState(0);

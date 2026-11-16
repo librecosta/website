@@ -2,53 +2,18 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import {
-  LazyMotion, animate, cubicBezier, domAnimation, m, stagger, useAnimate, useMotionValue,
+  LazyMotion, animate, cubicBezier, domAnimation, m, useAnimate, useMotionValue,
   useReducedMotion, useScroll, useTransform,
   type MotionValue,
 } from 'motion/react';
-import {
-  InstrumentCorners, InstrumentHeader, InstrumentSocialLinks,
-} from '@/components/expanse/ExpanseInstrument';
-import instrument from '@/components/expanse/expanse.module.css';
-import { AboutLanguage, AboutSectionNav, AboutScrollGauge, scrollToAboutSection } from './AboutControls';
+import { WorkshopFrame } from '@/components/WorkshopFrame';
+import { AboutSectionNav, AboutScrollGauge, scrollToAboutSection } from './AboutControls';
 import { AboutClosing } from './AboutClosing';
 import { ProjectArchive } from './ProjectArchive';
 import { PracticeSection } from './PracticeSection';
 import styles from './about.module.css';
 
 const openingEase = [.22, .66, .24, 1] as const;
-
-function Dossier({ reduced }: { reduced: boolean }) {
-  const [scope, animate] = useAnimate<HTMLElement>();
-
-  useEffect(() => {
-    if (reduced || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const animation = animate('[data-dossier-line]', {
-      clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], y: [5, 0],
-    }, { delay: stagger(.065, { startDelay: .57 }), duration: .37, ease: openingEase });
-    return () => animation.cancel();
-  }, [animate, reduced]);
-
-  return <aside ref={scope} className={`${instrument.observationData} ${styles.dossier}`} lang="en" aria-label="LibreCosta dossier">
-    <p className={instrument.observationSite} data-dossier-line>DOSSIER / LC-01</p>
-    <p data-dossier-line>LIBRECOSTA · ABOUT</p>
-    <dl>
-      <div data-dossier-line><dt>FIELD</dt><dd>SOFTWARE / TOOLS</dd></div>
-      <div data-dossier-line><dt>PRACTICE</dt><dd>OPEN SOURCE / DESIGN</dd></div>
-    </dl>
-  </aside>;
-}
-
-function AboutFrame({ progress, reduced }: { progress: MotionValue<number>; reduced: boolean }) {
-  return <div className={`${instrument.instrument} ${styles.frame}`}>
-    <InstrumentCorners />
-    <InstrumentHeader about reduced={reduced} className={styles.header} navigationPrefix={<AboutLanguage />} />
-    <AboutSectionNav progress={progress} reduced={reduced} />
-    <Dossier reduced={reduced} />
-    <AboutScrollGauge progress={progress} reduced={reduced} />
-    <InstrumentSocialLinks />
-  </div>;
-}
 
 function Opening({ reduced }: { reduced: boolean }) {
   const [scope, animate] = useAnimate<HTMLElement>();
@@ -219,11 +184,12 @@ export function AboutExperience() {
   useEffect(() => setReady(true), []);
 
   return <LazyMotion features={domAnimation}>
-    <div className={styles.about}>
-      <AboutFrame progress={scrollYProgress} reduced={reduced} />
+    <WorkshopFrame route="/about" className={styles.about} reduced={reduced}
+      sectionNav={<AboutSectionNav progress={scrollYProgress} reduced={reduced} />}
+      scrollGauge={<AboutScrollGauge progress={scrollYProgress} reduced={reduced} />}>
       <main className={styles.main}>
         <AboutContents reduced={reduced} />
       </main>
-    </div>
+    </WorkshopFrame>
   </LazyMotion>;
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type PointerEvent, type RefObject } from 'react';
-import { AnimatePresence, animate, cubicBezier, m, useInView, useMotionValue, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { AnimatePresence, animate, m, useInView, useMotionValue, useSpring } from 'motion/react';
+import { useSoftFocus } from '../soft-focus';
 import styles from './about-closing.module.css';
 
 const links = [
@@ -9,18 +10,8 @@ const links = [
   { label: 'GITHUB', href: 'https://github.com/librecosta', image: '/about/closing/librecosta-github.webp', aspect: 1, width: 160 },
 ] as const;
 
-const focusEase = cubicBezier(.22, 1, .36, 1);
 const previewEase = [.2, .8, .2, 1] as const;
 const previewSpring = { stiffness: 280, damping: 34, mass: .65 };
-
-// Soft Blur In uses the same eased value for opacity and blur, with a shorter
-// travel window for the vertical offset. Here the stagger is by content block.
-function useSoftFocus(clock: MotionValue<number>, start: number, duration: number, blur: number, travel: number) {
-  const opacity = useTransform(clock, [start, start + duration], [0, 1], { ease: focusEase });
-  const filter = useTransform(opacity, value => `blur(${(1 - value) * blur}px)`);
-  const y = useTransform(clock, [start, start + duration / 3], [travel, 0], { ease: focusEase });
-  return { opacity, filter, y };
-}
 
 export function AboutClosing({ reduced }: { reduced: boolean }) {
   const copy = useRef<HTMLDivElement>(null);
