@@ -43,5 +43,6 @@ __pycache__/
 !/public/works/islands/wave.glb
 !/public/works/islands/harvest.glb
 
-# Approved editable model source for Harvest.
+# Approved editable island art sources.
 !/assets/works/harvest/harvest.blend
+!/assets/works/liquid-glass/liquid-glass.blend
