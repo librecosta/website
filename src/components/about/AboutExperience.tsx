@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import {
   LazyMotion, animate, cubicBezier, domAnimation, m, stagger, useAnimate, useMotionValue,
   useReducedMotion, useScroll, useTransform,
@@ -12,6 +11,7 @@ import {
 } from '@/components/expanse/ExpanseInstrument';
 import instrument from '@/components/expanse/expanse.module.css';
 import { AboutLanguage, AboutSectionNav, AboutScrollGauge, scrollToAboutSection } from './AboutControls';
+import { AboutClosing } from './AboutClosing';
 import { ProjectArchive } from './ProjectArchive';
 import { PracticeSection } from './PracticeSection';
 import styles from './about.module.css';
@@ -98,27 +98,6 @@ function Opening({ reduced }: { reduced: boolean }) {
       探索 LibreCosta
     </m.button>
   </section>;
-}
-
-function RevealedLine({ children, progress, index, reduced }: {
-  children: string; progress: MotionValue<number>; index: number; reduced: boolean;
-}) {
-  const delay = index * .036;
-  const y = useTransform(progress, [.06 + delay, .34 + delay, .76 + delay / 2, 1], ['103%', '0%', '0%', '-23%']);
-  const opacity = useTransform(progress, [.08 + delay, .33 + delay, .82, 1], [.28, 1, 1, .3]);
-  return <span className={styles.lineMask}>
-    <m.span style={reduced ? undefined : { y, opacity }} data-about-motion>{children}</m.span>
-  </span>;
-}
-
-function ChapterTitle({ id, lines, reduced, className }: {
-  id: string; lines: readonly string[]; reduced: boolean; className?: string;
-}) {
-  const title = useRef<HTMLHeadingElement>(null);
-  const { scrollYProgress } = useScroll({ target: title, offset: ['start end', 'end start'] });
-  return <h2 ref={title} id={id} className={`${styles.display} ${className ?? ''}`} lang="en" aria-label={lines.join(' ')}>
-    {lines.map((line, index) => <RevealedLine key={line} progress={scrollYProgress} index={index} reduced={reduced}>{line}</RevealedLine>)}
-  </h2>;
 }
 
 const studioLines = ['FROM THE TOOLS', 'WE USE TO THE WORLDS', 'WE IMAGINE.'] as const;
@@ -228,26 +207,8 @@ function AboutContents({ reduced }: { reduced: boolean }) {
     <Studio reduced={reduced} />
     <ProjectArchive reduced={reduced} />
     <PracticeSection reduced={reduced} />
-    <section className={styles.closing} id="closing" aria-labelledby="closing-title">
-      <ChapterTitle id="closing-title" lines={['Let’s', 'talk.']} className={styles.closingTitle} reduced={reduced} />
-      <p>想交流软件、开源或交互设计，欢迎联系我们。</p>
-      <Action href="/contact" reduced={reduced}>联系我们</Action>
-      <nav className={styles.closingLinks} aria-label="更多 LibreCosta 链接">
-        <a href="https://github.com/librecosta" lang="en">GitHub</a>
-        <a href="https://gopheratlas.com/" lang="en">GopherAtlas</a>
-      </nav>
-    </section>
+    <AboutClosing reduced={reduced} />
   </>;
-}
-
-function Action({ href, children, reduced }: { href: string; children: ReactNode; reduced: boolean }) {
-  return <m.div className={styles.action} whileHover={reduced ? undefined : 'hover'} whileTap={reduced ? undefined : { scale: .975 }}>
-    <Link href={href} prefetch={false}>{children}
-      <m.svg viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true" variants={{ hover: { x: 4 } }}>
-        <path d="M2 8h11M8 3l5 5-5 5" />
-      </m.svg>
-    </Link>
-  </m.div>;
 }
 
 export function AboutExperience() {

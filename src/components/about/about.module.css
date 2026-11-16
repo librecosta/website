@@ -2,7 +2,6 @@
   composes: fixedWorkshop from '../workshop.module.css';
   --color: #d6dff7;
   --secondary: #a1aec7;
-  --panel-line: #8fa5cc37;
   --inset: clamp(12px, 2.7vw, 38px);
   --rail: clamp(14px, 1.6vw, 24px);
   --edge-top: max(var(--inset), env(safe-area-inset-top));
@@ -208,26 +207,6 @@
 .profileCopy p + p { margin-top: 19px; }
 .lead { color: var(--color); font-size: 17px; font-weight: 600; line-height: 1.75; }
 
-.closing {
-  position: relative;
-  display: flex;
-  min-height: 100svh;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(19px, 4svh, 40px);
-  padding: 14svh 8% 18svh;
-  text-align: center;
-}
-
-.closingTitle { font-size: clamp(76px, 8.4vw, 160px); }
-.closing p { color: var(--secondary); }
-.closingLinks { position: absolute; bottom: calc(var(--edge-bottom) + var(--rail) + 60px); left: max(10%, calc(var(--edge-left) + var(--rail))); display: flex; gap: 16px; }
-.closingLinks a, .action a { color: var(--secondary); font: 600 12px/1.1 var(--instrument-type); letter-spacing: .095em; text-decoration: none; }
-.closingLinks a { display: inline-flex; align-items: center; min-height: 38px; }
-.closingLinks a:hover, .action a:hover { color: var(--color); }
-.action a { display: inline-flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 22px; padding: 0 2px; border-bottom: 1px solid var(--panel-line); }
-.action svg { width: 16px; height: 16px; }
 .about a:focus-visible, .explore:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
 
 @media (min-width: 1280px) {
@@ -299,8 +278,6 @@
     transform: translateY(var(--studio-offset, 0px)) !important;
     opacity: 1 !important;
   }
-  .closing { padding-block: 120px 160px; }
-  .closingTitle { font-size: clamp(65px, 16vw, 105px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
