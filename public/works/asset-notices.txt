@@ -23,17 +23,23 @@ are provided under the Apache License 2.0. See draco-license.txt.
 
 Project previews
 
+previews/*.webp: LibreCosta renders of the five Wenz-derived and three original
+islands listed above. All eight use the same orthographic camera, authored
+model bearings, materials and lighting as the single-island viewer. Captured
+with transparency at 800 × 600, then resized to 560 × 420 and encoded as WebP.
+
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 gofurry.webp is a capture of the local GoFurry /start page (f19016b).
 Sofaraway: shots/play.png from the LibreCosta project workspace, revision 5ca93c6.
 Wavefield: https://github.com/librecosta/wavefield/blob/main/docs/assets/wavefield-preview.webp
-Tool4Furry: public/brand/tool4furry-og.png from the Tool4Furry project workspace.
-tool4furry-mark.webp isolates the mark from the same source.
+Tool4Furry: tool4furry.webp is a capture of the Chinese /tools/ listing from
+the local Tool4Furry static build. tool4furry-mark.webp uses the official OG mark.
 Harvest: harvest.webp shows the verbatim output of the local Harvest
 command-line tool's --help (349730b), typeset as a terminal preview.
 LibreCosta Uptime: https://github.com/librecosta/uptime/blob/master/docs/assets/uptime-dashboard.webp
 Liquid Glass: https://github.com/librecosta/liquid-glass/blob/main/docs/playground.webp
-GopherAtlas: https://gopheratlas.com/images/og-default.png (official publication artwork).
+GopherAtlas: gopheratlas.webp is a capture of the public Chinese homepage,
+https://gopheratlas.com/.
 
 BSD 3-Clause License
 

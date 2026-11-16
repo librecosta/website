@@ -1,8 +1,10 @@
 'use client';
 
-import { animate, cancelFrame, frame, useMotionValue, useMotionValueEvent } from 'motion/react';
+import { animate, cancelFrame, frame, useMotionValue, useMotionValueEvent, useTransform } from 'motion/react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { WorkshopFrame } from '../WorkshopFrame';
+import { ProjectDetail } from './ProjectDetail';
+import { islandPreview, projects } from './projects';
 import {
   arcStep, orbitCount, orbitDuration, orbitEase, orbitFlip, orbitIndex, orbitPose,
   orbitTransform, projectPose, ringSpin, wrapOrbit,
@@ -10,7 +12,7 @@ import {
 import styles from './orbit-reel.module.css';
 
 const cards = Array.from({ length: orbitCount }, (_, index) => ({
-  index, number: String(index + 1).padStart(2, '0'), pose: orbitPose(index, 0, 0),
+  index, number: String(index + 1).padStart(2, '0'), pose: orbitPose(index, 0, 0), project: projects[index],
 }));
 const numberAt = (index: number) => cards[index].number;
 const motionPreference = '(prefers-reduced-motion: reduce)';
@@ -55,12 +57,15 @@ export function WorksReel() {
   const [view, setView] = useState<View>('ring');
   const [selection, setSelection] = useState(0);
   const [project, setProject] = useState<number | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [visible, setVisible] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [paused, setPaused] = useState(false);
   const position = useMotionValue(0);
   const mix = useMotionValue(0);
   const detail = useMotionValue(0);
+  const archiveReveal = useTransform(detail, [.65, 1], [0, 1]);
   const cardsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const stageRef = useRef<HTMLElement>(null);
   const centerRef = useRef<HTMLDivElement>(null);
@@ -202,24 +207,32 @@ export function WorksReel() {
   }
 
   function showProject(index: number, origin: HTMLButtonElement) {
+    if (projectRef.current !== null) return;
     positionPlayback.current?.stop();
     viewPlayback.current?.stop();
     restoreFocus.current = origin;
     projectRef.current = index;
     setProject(index);
-    detailPlayback.current = animate(detail, 1, { duration: reduced ? 0 : orbitDuration, ease: 'linear' });
+    detailPlayback.current = animate(detail, 1, {
+      duration: reduced ? 0 : orbitDuration, ease: 'linear',
+      onComplete() { if (!closing.current) setShowArchive(true); },
+    });
     schedulePaint();
   }
 
   function closeProject() {
     if (closing.current) return;
     closing.current = true;
+    setLeaving(true);
+    backButton.current?.focus({ preventScroll: true });
     detailPlayback.current?.stop();
     detailPlayback.current = animate(detail, 0, {
       duration: reduced ? 0 : orbitDuration * detail.get(), ease: 'linear',
       onComplete() {
         closing.current = false;
         projectRef.current = null;
+        setLeaving(false);
+        setShowArchive(false);
         setProject(null);
         viewPlayback.current = animate(mix, view === 'arc' ? 1 : 0, { duration: reduced ? 0 : orbitDuration, ease: orbitEase });
         schedulePaint();
@@ -301,15 +314,24 @@ export function WorksReel() {
       onPointerLeave={(event) => { if (!drag.current?.moved) endDrag(event); }}>
       <h1 className={styles.srOnly}>WORKS</h1>
       <div ref={centerRef} className={styles.center} aria-hidden="true" />
-      {cards.map(({ index, number, pose }) => <button
+      {cards.map(({ index, number, pose, project: entry }) => <button
         key={number} ref={(element) => { cardsRef.current[index] = element; }}
-        type="button" className={styles.card} data-reel-card={number} aria-label={`打开档案 ${number}`}
+        type="button" className={styles.card} data-reel-card={number} data-entry={entry?.slug}
+        aria-label={entry ? `${number} · ${entry.name} · ${entry.type}` : `${number} · 预留档案`} aria-disabled={!entry || undefined}
         tabIndex={index === 0 ? 0 : -1}
         style={{ '--card-scale': pose.scale.toFixed(5), transform: orbitTransform(pose), zIndex: pose.depth } as CSSProperties}
         onClick={(event) => {
-          if (event.detail === 0 || !suppressClick.current) showProject(index, event.currentTarget);
+          if (entry && (event.detail === 0 || !suppressClick.current)) showProject(index, event.currentTarget);
         }}>
-        <span className={styles.face}><span className={styles.number}>{number}</span><CardGlyph index={index} /></span>
+        <span className={styles.face}>
+          <span className={styles.number}>{number}</span>
+          {entry ? <>
+            <span className={styles.cardRules} aria-hidden="true" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className={styles.cardPreview} src={islandPreview(entry)} alt="" width={560} height={420} draggable={false} decoding="async" />
+            <span className={styles.cardLabel}><strong>{entry.name}</strong><span>{entry.type}</span></span>
+          </> : <CardGlyph index={index} />}
+        </span>
       </button>)}
       {project === null && <>
         <button type="button" className={`${styles.control} ${styles.mode}`} data-reel-control
@@ -327,8 +349,11 @@ export function WorksReel() {
             : <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2v8m4-8v8" stroke="currentColor" strokeWidth="1.4" /></svg>}
         </button>}
       </>}
-      {project !== null && <section className={styles.detail} aria-label={`档案 ${numberAt(project)}`}>
-        <button ref={backButton} className={`${styles.control} ${styles.mode}`} data-reel-control type="button" onClick={closeProject}>返回轮盘</button>
+      {project !== null && <section className={styles.detail} aria-label={projects[project].name}>
+        <button ref={backButton} className={`${styles.control} ${styles.back}`} data-reel-control type="button" onClick={closeProject}>
+          <span aria-hidden="true">‹</span> 返回轮盘
+        </button>
+        {showArchive && <ProjectDetail project={projects[project]} reveal={archiveReveal} closing={leaving} />}
       </section>}
     </main>
   </WorkshopFrame>;
