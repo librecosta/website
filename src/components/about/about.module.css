@@ -24,7 +24,7 @@
 .about :where(h1, h2, h3, p, dl, dd) { margin: 0; }
 .main { position: relative; max-width: none; margin: 0; padding: 0; }
 
-.frame {
+.about .frame {
   --instrument-ink: #cfdbf0;
   --instrument-muted: #aebbd4;
   --instrument-glint: #b7cff42b;
