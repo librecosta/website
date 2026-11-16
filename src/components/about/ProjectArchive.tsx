@@ -1,5 +1,6 @@
 import { useRef, useSyncExternalStore, type CSSProperties } from 'react';
 import { m, useMotionValueEvent, useScroll, useTransform, type MotionValue } from 'motion/react';
+import { projectPreviews } from '../project-previews';
 import styles from './project-archive.module.css';
 
 type ProjectCard = {
@@ -19,7 +20,7 @@ const cards: readonly ProjectCard[] = [
     summary: '面向 Furry 社群的浏览器起始页与资源发现平台。',
     status: '开发中',
     source: 'https://github.com/librecosta/gofurry',
-    preview: { src: '/about/gofurry-og.png', alt: '浅橙色背景上的 GoFurry 标志与字标', width: 1200, height: 630, background: '#ffdec2' },
+    preview: projectPreviews.gofurry,
   },
   {
     number: '02',
@@ -27,7 +28,7 @@ const cards: readonly ProjectCard[] = [
     summary: '面向 Furry 创作者的开源浏览器工具箱。',
     status: '开发中',
     source: 'https://github.com/librecosta/tool4furry',
-    preview: { src: '/about/tool4furry-og.png', alt: '深灰背景上的白色 Tool4Furry 标志与字标', width: 1200, height: 630, background: '#30343a' },
+    preview: projectPreviews.tool4furry,
   },
   {
     number: '03',
@@ -35,7 +36,7 @@ const cards: readonly ProjectCard[] = [
     summary: '面向 Go 开发者的技术出版平台，汇集原创实践、精选文章与专题阅读。',
     status: '持续更新',
     entry: { href: 'https://gopheratlas.com/', label: '访问官网' },
-    preview: { src: '/about/gopheratlas-og.png', alt: '深色背景上的 GopherAtlas 品牌字标', width: 1200, height: 630, background: '#101215' },
+    preview: projectPreviews.gopheratlas,
   },
   {
     number: '04',
@@ -43,7 +44,7 @@ const cards: readonly ProjectCard[] = [
     summary: '轻量、可自托管的 HTTP/HTTPS 可用性监测与告警工具。',
     status: '已发布',
     entry: { href: 'https://github.com/librecosta/uptime/releases', label: '查看发布版' },
-    preview: { src: '/about/uptime-dashboard.webp', alt: 'LibreCosta Uptime 仪表盘，显示服务状态、可用率和监测时间线', width: 1672, height: 941, background: '#f1f6fd' },
+    preview: projectPreviews.uptime,
   },
   {
     number: '05',
@@ -51,6 +52,7 @@ const cards: readonly ProjectCard[] = [
     summary: '一款将高速飞行与音乐节奏融为一体的浏览器游戏，画面与音乐均在运行时程序化生成。',
     status: '开发中',
     entry: { href: 'https://sofaraway.librecosta.com/', label: '访问官网' },
+    preview: projectPreviews.sofaraway,
   },
 ];
 const pairQuery = '(min-width: 1280px)';

@@ -1,3 +1,5 @@
+import { projectPreviews } from '../project-previews';
+
 type Island = { name: string; width: number; bearing: number } & (
   { model: 'bay' | 'foundry' | 'signal' | 'prism' | 'wave'; original?: never } |
   { original: 'fields' | 'gates' | 'archive'; model?: never }
@@ -11,7 +13,7 @@ export type Project = {
   status: string;
   description: string;
   links: readonly { label: string; href: string }[];
-  media: { src: string; alt: string };
+  media: { src: string; alt: string; background?: string };
 };
 
 export function islandPreview(project: Project) { return `/works/previews/${project.slug}.webp`; }
@@ -22,21 +24,21 @@ export const projects: readonly Project[] = [
     island: { name: '铆湾', width: 39, bearing: 85, model: 'bay' },
     description: '面向 Furry 社群的可定制浏览器起始页与资源发现入口。',
     links: [{ label: 'GitHub 源码', href: 'https://github.com/librecosta/gofurry' }],
-    media: { src: '/works/gofurry.webp', alt: 'GoFurry 起始页，显示搜索分类、常用站点和侧边工具' },
+    media: projectPreviews.gofurry,
   },
   {
     slug: 'tool4furry', name: 'Tool4Furry', type: '创作者工具', status: '开发中',
     island: { name: '砧石屿', width: 35, bearing: 24, model: 'foundry' },
     description: '面向 Furry 创作者的开源浏览器工具箱。',
     links: [{ label: 'GitHub 源码', href: 'https://github.com/librecosta/tool4furry' }],
-    media: { src: '/works/tool4furry.webp', alt: 'Tool4Furry 中文工具箱，显示创作身份、类别和工具列表' },
+    media: projectPreviews.tool4furry,
   },
   {
     slug: 'librecosta-uptime', name: 'LibreCosta Uptime', type: '可用性监测', status: '已发布',
     island: { name: '风标岭', width: 28, bearing: 45, model: 'signal' },
     description: '自托管 HTTP/HTTPS 可用性监测工具，附状态面板。',
     links: [{ label: '查看发布版', href: 'https://github.com/librecosta/uptime/releases' }],
-    media: { src: '/works/uptime.webp', alt: 'LibreCosta Uptime 状态面板，显示端点状态和可用性时间线' },
+    media: projectPreviews.uptime,
   },
   {
     slug: 'harvest', name: 'Harvest', type: '数据采集引擎', status: '开源项目',
@@ -70,7 +72,7 @@ export const projects: readonly Project[] = [
     island: { name: '远拍岛', width: 44, bearing: 39, original: 'gates' },
     description: '在程序化音乐和场景中穿过节拍门的浏览器节奏跑酷游戏。',
     links: [{ label: '查看项目', href: 'https://github.com/librecosta/sofaraway#readme' }],
-    media: { src: '/works/sofaraway.webp', alt: 'SoFarAway 游戏画面，紫色节拍门沿程序化隧道向远处延伸' },
+    media: projectPreviews.sofaraway,
   },
   {
     slug: 'gopheratlas', name: 'GopherAtlas', type: '技术出版', status: '持续更新',
@@ -80,6 +82,6 @@ export const projects: readonly Project[] = [
       { label: '阅读文章', href: 'https://gopheratlas.com/articles/' },
       { label: '访问博客', href: 'https://gopheratlas.com/' },
     ],
-    media: { src: '/works/gopheratlas.webp', alt: 'GopherAtlas 中文首页，显示技术出版导览和学习随笔入口' },
+    media: projectPreviews.gopheratlas,
   },
 ];

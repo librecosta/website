@@ -1,6 +1,10 @@
 LibreCosta ABOUT project archive previews
 
-The archive previews are unmodified copies from the source commits below.
+The four project images with source commits below are unmodified copies.
+
+sofaraway.webp (17,354 bytes)
+User-supplied SoFarAway.png, resized without cropping to 800 × 450 and encoded as WebP.
+Used by both ABOUT and WORKS. Copyright (c) 2026 LibreCosta.
 
 gofurry-og.png (15,453 bytes)
 https://github.com/librecosta/gofurry/blob/fe3c47e20e0fcb1f12c00cc9553762cfad7bd044/apps/web/public/brand/gofurry-og.png

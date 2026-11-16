@@ -14,7 +14,9 @@ islands/bay.glb — Cozy Isle, Cozy_Isle subtree without café signage and boat.
 islands/foundry.glb — Buildshore, BeeSigned workshop terrain and honey glass.
 islands/signal.glb — Lumina Point, MainIsland terrain and tower without contact props.
 islands/prism.glb — Tech Grove, Island_Creative terrace, with a LibreCosta landmark.
-islands/wave.glb — Buildshore, Qoves terrain batch without external logo mesh.
+islands/wave.glb — Buildshore, Qoves terrain batch without the external logo mesh.
+LibreCosta added a closed rear cliff in the island's local coordinates. Original cliff faces
+are rendered from both sides to preserve the crest when the viewer orbits behind it.
 
 The Harvest, Sofaraway and GopherAtlas islands, glass landmark, field archive
 interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
@@ -22,6 +24,9 @@ and JavaScript wrapper come from the installed Three.js r187 distribution and
 are provided under the Apache License 2.0. See draco-license.txt.
 
 Project previews
+
+GoFurry, Tool4Furry, LibreCosta Uptime, GopherAtlas and SoFarAway now use the
+shared assets documented in ../about/asset-notices.txt for their dossiers.
 
 previews/*.webp: LibreCosta renders of the five Wenz-derived and three original
 islands listed above. All eight use the same orthographic camera, authored

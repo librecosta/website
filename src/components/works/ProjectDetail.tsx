@@ -62,7 +62,7 @@ export function ProjectDetail({ project, reveal, closing }: {
 
   return <div ref={layout} className={styles.layout} style={{ opacity: reveal.get() }} inert={closing}>
     <div className={styles.exhibit}>
-      <IslandStage project={project} />
+      <IslandStage key={project.slug} project={project} />
     </div>
     <article className={styles.archive}>
       <header>
@@ -70,7 +70,7 @@ export function ProjectDetail({ project, reveal, closing }: {
         <p className={styles.status}>{project.status}</p>
       </header>
       <p className={styles.description}>{project.description}</p>
-      <div className={styles.projectMedia}>
+      <div className={styles.projectMedia} style={{ backgroundColor: project.media.background }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={project.media.src} alt={project.media.alt} />
       </div>

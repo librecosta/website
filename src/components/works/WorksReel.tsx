@@ -57,6 +57,7 @@ export function WorksReel() {
   const [view, setView] = useState<View>('ring');
   const [selection, setSelection] = useState(0);
   const [project, setProject] = useState<number | null>(null);
+  const inDetail = project !== null;
   const [showArchive, setShowArchive] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [visible, setVisible] = useState(true);
@@ -174,13 +175,13 @@ export function WorksReel() {
   }, [reduced, schedulePaint]);
 
   useLayoutEffect(() => {
-    if (project !== null) backButton.current?.focus({ preventScroll: true });
+    if (inDetail) backButton.current?.focus({ preventScroll: true });
     else if (restoreFocus.current) {
       paint();
       restoreFocus.current.focus({ preventScroll: true });
       restoreFocus.current = null;
     }
-  }, [paint, project]);
+  }, [inDetail, paint]);
 
   function goTo(target: number, focusCard = false) {
     destination.current = target;
@@ -238,6 +239,12 @@ export function WorksReel() {
         schedulePaint();
       },
     });
+  }
+
+  function stepProject(direction: -1 | 1) {
+    if (!showArchive || closing.current) return;
+    // Keep the original reel card as the return target while browsing details.
+    setProject(current => current === null ? current : (current + direction + projects.length) % projects.length);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -350,10 +357,21 @@ export function WorksReel() {
         </button>}
       </>}
       {project !== null && <section className={styles.detail} aria-label={projects[project].name}>
-        <button ref={backButton} className={`${styles.control} ${styles.back}`} data-reel-control type="button" onClick={closeProject}>
-          <span aria-hidden="true">‹</span> 返回轮盘
-        </button>
-        {showArchive && <ProjectDetail project={projects[project]} reveal={archiveReveal} closing={leaving} />}
+        <div className={styles.detailToolbar}>
+          <button ref={backButton} className={`${styles.control} ${styles.back}`} data-reel-control type="button" onClick={closeProject}>
+            <span aria-hidden="true">‹</span> 返回轮盘
+          </button>
+          <div className={styles.detailPager} role="group" aria-label="翻阅作品">
+            <button className={styles.control} data-reel-control type="button" aria-label="上一件作品"
+              disabled={!showArchive || leaving} onClick={() => stepProject(-1)}><span aria-hidden="true">‹</span></button>
+            <button className={styles.control} data-reel-control type="button" aria-label="下一件作品"
+              disabled={!showArchive || leaving} onClick={() => stepProject(1)}><span aria-hidden="true">›</span></button>
+            <span className={styles.srOnly} role="status">{projects[project].name}</span>
+          </div>
+        </div>
+        <div className={styles.detailContent}>
+          {showArchive && <ProjectDetail project={projects[project]} reveal={archiveReveal} closing={leaving} />}
+        </div>
       </section>}
     </main>
   </WorkshopFrame>;

@@ -196,17 +196,31 @@
   display: grid;
   grid-template-rows: 40px minmax(0, 1fr);
   gap: 5px;
-  padding: max(calc(var(--edge-top) + var(--rail) + 27px), 80px)
-    max(calc(var(--edge-right) + var(--rail)), 7vw)
-    calc(var(--edge-bottom) + var(--rail) + 28px)
-    max(calc(var(--edge-left) + var(--rail)), 7vw);
+  padding-block: max(calc(var(--edge-top) + var(--rail) + 27px), 80px)
+    calc(var(--edge-bottom) + var(--rail) + 28px);
   pointer-events: none;
 }
-.detail .back { display: flex; gap: 7px; justify-self: start; pointer-events: auto; }
+.detailToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-inline: calc(var(--edge-left) + var(--rail)) calc(var(--edge-right) + var(--rail));
+}
+.detailContent {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  padding-inline: max(calc(var(--edge-left) + var(--rail)), 7vw) max(calc(var(--edge-right) + var(--rail)), 7vw);
+}
+.detail .back { display: flex; gap: 7px; padding-inline-start: 0; pointer-events: auto; }
 .back span { color: var(--secondary); font-size: 18px; }
+.detailPager { display: flex; align-items: center; }
+.detailPager .control { font-size: 22px; pointer-events: auto; }
+.detailPager .control:disabled { opacity: .45; cursor: default; }
 
 @media (max-width: 800px) {
-  .detail { padding-inline: max(17px, var(--edge-left)) max(17px, var(--edge-right)); }
+  .detailToolbar, .detailContent { padding-inline: max(17px, var(--edge-left)) max(17px, var(--edge-right)); }
+  .detail .back { padding-inline-start: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

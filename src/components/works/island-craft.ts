@@ -9,6 +9,12 @@ const tile = '#a8553b';
 const dark = '#555a56';
 const lamp = '#ffe7a2';
 const wood = '#937254';
+// Each approach shares one centerline from the summit landing to the pier in +Z.
+const approaches = {
+  fields: { x: -.3, from: 3.4, crest: 4.26, shore: 6.6, end: 8.9, width: 1.35, deck: 1.05, steps: 10 },
+  gates: { x: -.7, from: .19, crest: 1.98, shore: 4.05, end: 5.6, width: 1.4, deck: 1.12, steps: 9 },
+  archive: { x: -2.55, from: 1.62, crest: 4.77, shore: 7.28, end: 9.2, width: 1.4, deck: 1.39, steps: 11 },
+};
 
 export function originalIsland(kind: Kind) {
   const group = new T.Group();
@@ -83,12 +89,43 @@ export function originalIsland(kind: Kind) {
   land.computeVertexNormals();
   parts.push(land);
 
-  const materials = [wood, '#c09c68', '#ac885b', '#c8a775'];
-  function dock(x:number,z:number,length:number) {
-    for(let i=0;i<length*4;i++) box(x, .58, z+i*.25, 2.18,.18,.24,materials[i%4]);
-    for(const side of [-.95,.95]) for(let j=0;j<length;j+=1.6) {
-      cone(x+side,.31,z+j,.09,.13,1.36,wood,6);
-      if(j===0 || j>length-1.7) cone(x+side,.98,z+j,.15,.15,.22,lamp,6);
+  const approach = approaches[kind];
+  const groundMaterial = new T.MeshBasicMaterial();
+  const ground = new T.Mesh(land, groundMaterial);
+  const ray = new T.Raycaster(new T.Vector3(), new T.Vector3(0, -1, 0));
+  function groundHeight(x: number, z: number) {
+    ray.ray.origin.set(x, summit + 1, z);
+    return ray.intersectObject(ground)[0]?.point.y ?? -.5;
+  }
+  function stonePlatform(x: number, width: number, from: number, to: number, top: number, color: string) {
+    const base = Math.min(top - .14, ...[-width / 2, 0, width / 2].flatMap(dx =>
+      [from, (from + to) / 2, to].map(z => groundHeight(x + dx, z) - .12)));
+    box(x, (top + base) / 2, (from + to) / 2, width, top - base, to - from, color);
+  }
+  function buildApproach() {
+    const { x, from, crest, shore, end, width, deck, steps } = approach;
+    const top = summit + (kind === 'gates' ? .18 : .08);
+    const tread = (shore - crest) / steps;
+    stonePlatform(x, width, from, crest, top, '#c4b89a');
+    for (let i = 0; i < steps; i++) {
+      const edge = crest + i * tread;
+      const riserTop = T.MathUtils.lerp(top, deck, (i + 1) / (steps + 1));
+      stonePlatform(x, width, edge, edge + tread, riserTop, '#bdac88');
+    }
+    const planks = [wood, '#c09c68', '#ac885b', '#c8a775'];
+    const count = Math.ceil((end - shore) / .25);
+    const pitch = (end - shore) / count;
+    for (let i = 0; i < count; i++) {
+      box(x, deck - .08, shore + (i + .5) * pitch, 2.18, .16, pitch - .012, planks[i % 4]);
+    }
+    for (const side of [-.88, .88]) {
+      box(x + side, deck - .23, (shore + end) / 2, .17, .17, end - shore, wood);
+      for (const z of [shore + .2, end - .2]) {
+        const bottom = Math.min(deck - .33, groundHeight(x + side, z) - .14);
+        const postTop = deck + .21;
+        cone(x + side, (bottom + postTop) / 2, z, .09, .13, postTop - bottom, wood, 6);
+        cone(x + side, postTop, z, .14, .14, .12, lamp, 6);
+      }
     }
   }
   function tree(x:number,y:number,z:number,pine=false) {
@@ -103,6 +140,10 @@ export function originalIsland(kind: Kind) {
     }
   }
   function rock(x: number, y: number, z: number, size: number, tint: string) {
+    const clearance = size * 1.25 + .1;
+    const pathHalfWidth = z + clearance < approach.shore ? approach.width / 2 : 1.09;
+    if (z + clearance > approach.from && z - clearance < approach.end &&
+      Math.abs(x - approach.x) < pathHalfWidth + clearance) return;
     const geometry = new T.IcosahedronGeometry(size, 0);
     geometry.scale(1.25, .62 + random() * .48, .69 + random() * .36);
     geometry.rotateZ((random() - .5) * .8);
@@ -136,64 +177,53 @@ export function originalIsland(kind: Kind) {
     for (const [x,z] of [[-7,0],[5,-3],[-5,-5],[4,2],[-6,3],[-4,3.8],[1,-4.8],[5,-1.2]]) {
       tree(x,summit,z);
     }
-    for (let step=0;step<13;step++) {
-      box(-.3, .55+step*.227, 6.18-step*.195, 1.25,.27,.29, '#bdac82');
-    }
-    dock(.4,6.2,3.1);
   } else if(kind==='gates') {
-    const gates = [];
-    for(let k=0;k<5;k++){
-      const x=-8.2+k*3.65, z=1.1-Math.sin(k*.75)*3.5;
-      gates.push([x, z]);
-      const h=1.9+k*.22, w=2.9;
-      const y=summit;
-      box(x,y+.09,z,w+.7,.18,w*.82,'#bfad90');
-      for(const side of [-1,1]){
-        const px=x+side*w*.48;
-        box(px,y+h*.53,z,.46,h,.44,'#bcb19a',.17);
-        box(px,y+h*.55,z+.25,.16,h*.67,.09,k%2?'#d68f65':'#a078ad');
-        box(px,y+.17,z,.81,.34,.73,'#777b79');
-      }
-      add(new T.TorusGeometry(w*.505,.15,5,12,Math.PI), '#beb4a2',x,y+h-.06,z);
-      add(new T.TorusGeometry(w*.485,.045,5,12,Math.PI),k%2?'#edaa74':'#b18abb',x,y+h-.06,z+.17);
-      for(let j=0;j<7;j++)box(x+(j-3)*.32,y+.17,z+.81,.12,.11,.22,'#d6bf8d');
+    const x = approach.x, z = -1, h = 2.34, w = 2.9, y = summit;
+    stonePlatform(x, w + .7, 2 * z - approach.from, approach.from, y + .18, '#bfad90');
+    for (const side of [-1, 1]) {
+      const px = x + side * w * .48;
+      box(px, y + h * .53, z, .46, h, .44, '#bcb19a', .17);
+      box(px, y + h * .55, z + .25, .16, h * .67, .09, '#a078ad');
+      box(px, y + .27, z, .81, .2, .73, '#777b79');
     }
-    for (let i = 1; i < gates.length; i++) {
-      const [ax, az] = gates[i - 1];
-      const [bx, bz] = gates[i];
-      const angle = -Math.atan2(bz - az, bx - ax);
-      for (const t of [.28, .5, .72]) {
-        const x = T.MathUtils.lerp(ax, bx, t);
-        const z = T.MathUtils.lerp(az, bz, t);
-        box(x, summit + .12, z, .68, .18, 1.46, '#c2ab89', angle);
-        box(x, summit + .22, z + .65, .59, .035, .08, '#a389af', angle);
-      }
+    add(new T.TorusGeometry(w * .505, .15, 5, 12, Math.PI), '#beb4a2', x, y + h - .06, z);
+    add(new T.TorusGeometry(w * .485, .045, 5, 12, Math.PI), '#b18abb', x, y + h - .06, z + .17);
+    for (let j = 0; j < 7; j++) box(x + (j - 3) * .32, y + .19, z + .81, .12, .033, .22, '#d6bf8d');
+    for (const [tx, tz] of [[-7,2.2],[-5,-2],[3,-5],[4,.1],[7,-3],[4.6,-4],[-6,-1],[-4,1.6]]) {
+      tree(tx, groundHeight(tx, tz), tz, true);
     }
-    for (let i = 0; i < 9; i++) box(-7.5 + i * .06, .62 + i * .22, 4.9 - i * .23, 1.16, .28, .29, '#a99a80');
-    for(const p of [[-7,2.2],[-5,-2],[3,-5],[5,0],[7,-3],[4.6,-4],[-6,-1],[-4,1.6]])tree(p[0],summit,p[1],true);
-    dock(-7.5,4.5,3.5);
   } else {
-    for(let i=0;i<5;i++)box(.5,summit+.12+i*.11,3.4-i*.29,3.8-i*.2,.22+i*.11,.49,'#c4b89a');
-    box(.5,summit+.58,-.35,5.25,1.17,4.4,'#b8a98c');
-    box(.5,summit+1.88,-.7,4.7,1.5,3.8,ivory);
-    box(.5,summit+2.69,-.7,5.2,.24,4.23,'#ada68a');
-    for(const x of [-1.5,-.5,.5,1.5,2.5]) {
-      cone(x,summit+1.72,1.37,.13,.20,1.45,'#a2947b',8);
-      box(x,summit+1.88,1.28,.55,1.18,.06,'#698b80');
+    const x = -.45, z = -2.65, roofZ = z - .35;
+    stonePlatform(x, 5.25, z - 2.2, z + 2.2, summit + 1.17, '#b8a98c');
+    box(x, summit + 1.88, roofZ, 4.7, 1.5, 3.8, ivory);
+    box(x, summit + 2.69, roofZ, 5.2, .24, 4.23, '#ada68a');
+    for (let dx = -2; dx <= 2; dx++) {
+      cone(x + dx, summit + 1.72, z + 1.72, .13, .20, 1.45, '#a2947b', 8);
+      box(x + dx, summit + 1.88, z + 1.63, .55, 1.18, .06, '#698b80');
     }
-    add(new T.CylinderGeometry(0,3.2,1.35,4,1,false,Math.PI/4),'#789d91',.5,summit+3.47,-.7);
-    cone(.5,summit+4.06,-.7,.74,.9,1.9,ivory);
+    add(new T.CylinderGeometry(0, 3.2, 1.35, 4, 1, false, Math.PI / 4), '#789d91', x, summit + 3.47, roofZ);
+    cone(x, summit + 4.06, roofZ, .74, .9, 1.9, ivory);
     for (let i=0;i<8;i++) {
       const a=i*Math.PI/4;
-      box(.5+Math.sin(a)*.78,summit+4.09,-.7+Math.cos(a)*.78,.17,.75,.13,'#6e968c',a);
+      box(x + Math.sin(a) * .78, summit + 4.09, roofZ + Math.cos(a) * .78, .17, .75, .13, '#6e968c', a);
     }
-    cone(.5,summit+5.04,-.7,.9,.9,.12,'#a99c7b');
-    cone(.5,summit+5.25,-.7,.54,.58,.37,lamp);
-    cone(.5,summit+5.62,-.7,0,.79,.59,'#728f87');
+    cone(x, summit + 5.04, roofZ, .9, .9, .12, '#a99c7b');
+    cone(x, summit + 5.25, roofZ, .54, .58, .37, lamp);
+    cone(x, summit + 5.62, roofZ, 0, .79, .59, '#728f87');
+    const entry = z + 2.2;
+    const landing = .72;
+    const tread = (landing - entry) / 5;
+    for (let i = 0; i < 5; i++) {
+      const edge = entry + i * tread;
+      stonePlatform(x, 2.2, edge, edge + tread, summit + T.MathUtils.lerp(1.17, .08, (i + 1) / 6), '#c4b89a');
+    }
+    const plazaLeft = approach.x - approach.width / 2;
+    const plazaRight = x + 1.1;
+    stonePlatform((plazaLeft + plazaRight) / 2, plazaRight - plazaLeft, landing, approach.from, summit + .08, '#c4b89a');
     gable(-5,summit,-1.4,2,2,1.3,tile);
-    for(const p of [[4,-5],[4,0],[-4,2],[-2,-4],[2,-4],[4.8,-2],[-5,2.8],[-3,-3]])tree(p[0],summit,p[1],true);
-    for(let i=0;i<12;i++)box(2.2+i*.19,summit-.31*i,2.15+i*.285,1.1,.32,.35,'#b2a68c',-.37);
-    dock(5.4,5.6,4.3);
+    for (const [tx, tz] of [[4,-5],[4,0],[-4.5,2],[-2,-6.1],[2,-6],[4.8,-2],[-5,2.8],[-4.3,-3.3]]) {
+      tree(tx, groundHeight(tx, tz), tz, true);
+    }
   }
   for (let i = 0; i < coast.length; i++) {
     const outer = rings[3][i];
@@ -208,6 +238,8 @@ export function originalIsland(kind: Kind) {
       rock(shrub.x, shrub.y + .13, shrub.z, .26 + random() * .35, meadow[i % meadow.length]);
     }
   }
+  buildApproach();
+  groundMaterial.dispose();
 
   const geometry=mergeGeometries(parts);
   parts.forEach(part=>part.dispose());
