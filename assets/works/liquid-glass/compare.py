@@ -3,6 +3,7 @@
 import argparse
 import math
 from pathlib import Path
+import subprocess
 import sys
 
 import bpy
@@ -17,13 +18,14 @@ from fabric import collection, object_in
 
 REPO=HERE.parents[2]
 ISLANDS=REPO/'public'/'works'/'islands'
+L1_REVISION='4e4755da607c397032048d1c6cdbc2594f449606'
 CASES=(
-    ('Liquid Glass / L1 source',HERE/'liquid-glass.blend','LIQUID GLASS',0),
+    ('Liquid Glass / L1 source','liquid-glass-l1.blend','LIQUID GLASS',0),
     ('Harvest / H2 source',HERE.parent/'harvest'/'harvest.blend','HARVEST',0),
     ('Harvest / H2 GLB',ISLANDS/'harvest.glb',None,0),
     ('Bay / GLB',ISLANDS/'bay.glb',None,85),
     ('Foundry / GLB',ISLANDS/'foundry.glb',None,24),
-    ('Prism / reference GLB',ISLANDS/'prism.glb',None,30),
+    ('Prism / reference GLB','prism-l1.glb',None,30),
 )
 WIDTH, HEIGHT = 760, 608
 
@@ -112,10 +114,17 @@ def main():
     cli.add_argument('output',type=Path)
     args=cli.parse_args(sys.argv[sys.argv.index('--')+1:])
     args.scratch.mkdir(parents=True,exist_ok=True)
+    for name, relative_path in (
+        ('liquid-glass-l1.blend', 'assets/works/liquid-glass/liquid-glass.blend'),
+        ('prism-l1.glb', 'public/works/islands/prism.glb'),
+    ):
+        with (args.scratch/name).open('wb') as output:
+            subprocess.run(['git', 'show', f'{L1_REVISION}:{relative_path}'],
+                           cwd=REPO, stdout=output, check=True)
     panels=[]
-    for i,case in enumerate(CASES):
+    for i,(label,path,prefix,bearing) in enumerate(CASES):
         dest=(args.scratch/f'panel-{i+1}.png').resolve()
-        panel(*case,dest)
+        panel(label, (args.scratch/path).resolve(), prefix, bearing, dest)
         panels.append(dest)
     assemble(panels,args.output.resolve())
 

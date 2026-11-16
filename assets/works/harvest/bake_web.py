@@ -45,12 +45,12 @@ def baked_light(tree, point, normal):
     return max(.55, 1 - .49 * occlusion - .27 * (daylight - direct))
 
 
-def collect_geometry(island):
+def collect_geometry(island, *, project_uvs=surface_uvs, keep_bevels=lambda obj: False):
     # The smallest edge chamfers are subpixel at the viewer's initial framing. Keep
     # the authored modifiers in the .blend and the larger silhouettes in the GLB.
     for obj in island.all_objects:
         for modifier in obj.modifiers:
-            if modifier.type == 'BEVEL' and modifier.width < .02:
+            if modifier.type == 'BEVEL' and modifier.width < .02 and not keep_bevels(obj):
                 modifier.show_viewport = False
     bpy.context.view_layer.update()
     depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -69,7 +69,7 @@ def collect_geometry(island):
         uvs = {}
         for face in mesh.polygons:
             material = mesh.materials[face.material_index]
-            for i, uv in zip(face.loop_indices, surface_uvs(obj, mesh, face, material, dish), strict=True):
+            for i, uv in zip(face.loop_indices, project_uvs(obj, mesh, face, material, dish), strict=True):
                 uvs[i] = uv
         for tri in mesh.loop_triangles:
             material = mesh.materials[tri.material_index]
@@ -134,6 +134,14 @@ def baked_mesh(island, images):
 
 def export(island, images, output):
     mesh, count = baked_mesh(island, images)
+    gltf = export_glb(mesh, output)
+    groups = [primitive for model in gltf['meshes'] for primitive in model['primitives']]
+    if any('COLOR_0' not in p['attributes'] for p in groups):
+        raise RuntimeError('Baked daylight and pigment are missing from the GLB.')
+    print(f'Harvest web asset: {count:,} triangles, {len(groups)} draw groups, {output.stat().st_size:,} bytes')
+
+
+def export_glb(mesh, output):
     bpy.ops.object.select_all(action='DESELECT')
     mesh.select_set(True)
     bpy.context.view_layer.objects.active = mesh
@@ -152,10 +160,7 @@ def export(island, images, output):
         gltf = json.loads(handle.read(length))
     if 'KHR_draco_mesh_compression' not in gltf.get('extensionsUsed', []):
         raise RuntimeError('The Blender exporter did not apply Draco compression.')
-    groups = [primitive for model in gltf['meshes'] for primitive in model['primitives']]
-    if any('COLOR_0' not in p['attributes'] for p in groups):
-        raise RuntimeError('Baked daylight and pigment are missing from the GLB.')
-    print(f'Harvest web asset: {count:,} triangles, {len(groups)} draw groups, {output.stat().st_size:,} bytes')
+    return gltf
 
 
 def main():

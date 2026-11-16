@@ -5,7 +5,7 @@ Interactive 3D Portfolio, commit 0319381ab0310cdabaca734d4e9c92bfcee79a49.
 Source: https://github.com/wenzrejas/wenzrejas.github.io
 Copyright (c) 2026 Wenz Louie Rejas. See wenz-license.txt (MIT).
 
-The five modified islands below include original Blender geometry and baked
+The four modified islands below include original Blender geometry and baked
 lighting textures authored by Wenz Louie Rejas and distributed alongside his
 source under the same MIT license. The glTF subtrees were extracted,
 recompressed, and stripped of unrelated props and project signage.
@@ -13,7 +13,6 @@ recompressed, and stripped of unrelated props and project signage.
 islands/bay.glb — Cozy Isle, Cozy_Isle subtree without café signage and boat.
 islands/foundry.glb — Buildshore, BeeSigned workshop terrain and honey glass.
 islands/signal.glb — Lumina Point, MainIsland terrain and tower without contact props.
-islands/prism.glb — Tech Grove, Island_Creative terrace, with a LibreCosta landmark.
 islands/wave.glb — Buildshore, Qoves terrain batch without the external logo mesh.
 LibreCosta added a closed rear cliff in the island's local coordinates. Original cliff faces
 are rendered from both sides to preserve the crest when the viewer orbits behind it.
@@ -23,7 +22,13 @@ Blender model, surface atlases and baked contact/daylight shading. The editable
 source and export scripts are in assets/works/harvest/ in the website repository.
 Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
 
-The Harvest, Sofaraway and GopherAtlas islands, glass landmark, field archive
+islands/liquid-glass.glb (1,081,908 bytes) — The Refraction Atelier. Original LibreCosta
+Blender model, opaque surface atlases and baked contact/daylight shading, with separate
+PBR transmission and thickness for the optical pieces. The editable source and export
+scripts are in assets/works/liquid-glass/ in the website repository.
+Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+
+The Harvest, Liquid Glass, Sofaraway and GopherAtlas islands, field archive
 interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
 and JavaScript wrapper come from the installed Three.js r187 distribution and
 are provided under the Apache License 2.0. See draco-license.txt.
@@ -33,12 +38,14 @@ Project previews
 GoFurry, Tool4Furry, LibreCosta Uptime, GopherAtlas and SoFarAway now use the
 shared assets documented in ../about/asset-notices.txt for their dossiers.
 
-previews/*.webp: LibreCosta renders of the five Wenz-derived and three original
+previews/*.webp: LibreCosta renders of the four Wenz-derived and four original
 islands listed above. All eight use the same orthographic camera, authored
 model bearings, materials and lighting as the single-island viewer. Captured
 with transparency at 800 × 600, then resized to 560 × 420 and encoded as WebP.
 previews/harvest.webp (44,148 bytes) was recaptured after the Blender export using
 the WORKS single-island renderer, including Harvest's authored fill light.
+previews/liquid-glass.webp (46,278 bytes) was captured from the same viewer after L2
+integration, with the atlas shading, PBR transmission and atelier reflection lighting.
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 gofurry.webp is a capture of the local GoFurry /start page (f19016b).

@@ -6,8 +6,9 @@ import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { atelierEnvironment } from './atelier-light';
 import type { Project } from './projects';
-import { glassLandmark, originalIsland } from './island-craft';
+import { originalIsland } from './island-craft';
 
 const offset = new T.Vector3(200, 120, 200);
 
@@ -40,8 +41,8 @@ function prepareIsland(project: Project, model: T.Object3D) {
   const size = new T.Box3().setFromObject(carrier, true).getSize(new T.Vector3());
   carrier.scale.setScalar(project.island.width / Math.max(size.x, size.z));
   carrier.updateMatrixWorld(true);
-  // Harvest's PBR maps, emission and baked contact light are authored for this viewer.
-  if (project.island.model === 'harvest') return carrier;
+  // Both original Blender assets carry their own calibrated PBR and baked shading.
+  if (project.island.model === 'harvest' || project.island.model === 'liquid-glass') return carrier;
   const seen = new Set<T.Material>();
   model.traverse(node => {
     if (!(node instanceof T.Mesh)) return;
@@ -51,10 +52,6 @@ function prepareIsland(project: Project, model: T.Object3D) {
       if (!material.name.startsWith('LibreCosta')) material.roughness = 1;
       material.metalness *= 0.55;
       material.emissiveIntensity *= 0.34;
-      if (project.island.model === 'prism' && /Glow_Creative/.test(material.name)) {
-        material.color.set('#7abbad');
-        material.emissive.set('#368c83');
-      }
       if (material.aoMap) {
         // Retain the upstream baked overhead visibility in the G channel.
         material.onBeforeCompile = shader => {
@@ -115,19 +112,23 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
   const renderer = new T.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'default' });
   renderer.setClearColor(0, 0);
   const scene = new T.Scene();
+  const atelier = project.island.model === 'liquid-glass';
   const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 900);
   camera.position.copy(offset);
   camera.lookAt(0, 0, 0);
-  const hemisphere = new T.HemisphereLight('#f0f2dd', '#7b9185', 2.1);
-  const sun = new T.DirectionalLight('#fff1cb', 2.05);
+  const hemisphere = atelier
+    ? new T.HemisphereLight('#f0f4f8', '#85988c', 2.25)
+    : new T.HemisphereLight('#f0f2dd', '#7b9185', 2.1);
+  const sun = new T.DirectionalLight(atelier ? '#fff3df' : '#fff1cb', atelier ? 2.35 : 2.05);
   sun.position.set(-70, 120, 48);
   scene.add(hemisphere, sun);
-  if (project.island.model === 'harvest') {
+  if (project.island.model === 'harvest' || atelier) {
     // Neutral reflected daylight brings up the copper and timber on the camera side.
-    const fill = new T.DirectionalLight('#e6edfa', .64);
+    const fill = new T.DirectionalLight('#e6edfa', atelier ? .85 : .64);
     fill.position.set(86, 72, 118);
     scene.add(fill);
   }
+  if (atelier) renderer.transmissionResolutionScale = .75;
 
   const abort = new AbortController();
   const listen = { signal: abort.signal };
@@ -271,6 +272,7 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
     observer.disconnect();
     controls.dispose();
     dispose(scene);
+    scene.environment?.dispose();
     scene.clear();
     renderer.dispose();
     if (!contextLost) renderer.forceContextLoss();
@@ -301,14 +303,12 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
       dispose(model);
       return;
     }
-    scene.add(model);
-    if (project.island.model === 'prism') {
-      const glass = glassLandmark();
-      glass.position.y = 2.81;
-      (model.getObjectByName('Island_Creative') ?? model).add(glass);
-    }
     const carrier = prepareIsland(project, model);
     scene.add(carrier);
+    if (atelier) {
+      scene.environment = atelierEnvironment();
+      scene.environmentIntensity = .62;
+    }
     home = fitIsland(carrier, camera);
     controls.target.copy(home.target);
     homePosition.copy(offset);

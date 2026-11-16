@@ -1,7 +1,7 @@
 import { projectPreviews } from '../project-previews';
 
 type Island = { name: string; width: number; bearing: number } & (
-  { model: 'bay' | 'foundry' | 'signal' | 'prism' | 'wave' | 'harvest'; original?: never } |
+  { model: 'bay' | 'foundry' | 'signal' | 'liquid-glass' | 'wave' | 'harvest'; original?: never } |
   { original: 'gates' | 'archive'; model?: never }
 );
 
@@ -49,7 +49,7 @@ export const projects: readonly Project[] = [
   },
   {
     slug: 'liquid-glass', name: 'Liquid Glass', type: 'SVG 折射库', status: '已发布',
-    island: { name: '折光屿', width: 34, bearing: 30, model: 'prism' },
+    island: { name: '折光屿', width: 34, bearing: 0, model: 'liquid-glass' },
     description: '为原生 HTML 提供可定制 SVG 玻璃折射的开源库。',
     links: [
       { label: '查看库与用法', href: 'https://github.com/librecosta/liquid-glass#readme' },

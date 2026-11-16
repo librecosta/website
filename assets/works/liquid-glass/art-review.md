@@ -18,7 +18,7 @@ WEB-V0.1-W3-L1 的原创微缩岛屿，供 Blender 美术验收。场景内有�
 
 Blender 5.3 重新打开成品源文件，确认没有外部模型或贴图依赖。源文件保留 1,720 个可编辑岛屿对象、36,158 个未应用修改器的三角面、73 个材质和五台正交相机。复核基岩、透镜、玻璃试件和抱圈的闭合性与法线，对 37 级踏面采样确认没有穿入基岩。仓库 `pnpm check` 通过。
 
-## 复现与 L2
+## 复现 L1
 
 建模脚本复用仓库内 Harvest 的基础 Blender 几何工具。运行下列命令可将重建结果写入 `.local`，原始文件可独立打开。
 
@@ -27,4 +27,23 @@ blender --background --factory-startup --python-exit-code 1 --python assets/work
 blender --background --factory-startup --python-exit-code 1 --python assets/works/liquid-glass/compare.py -- .local/liquid-glass-l1/equal-scale .local/liquid-glass-l1/comparison.png
 ```
 
-后续材质深化可集中在青铜抱圈的磨损和石材接缝。网页阶段需整理 UV，烘焙遮蔽与柔和日照，并验证不同视角的透明排序、粗糙度及厚玻璃边缘。正式 GLB 与轮盘预览在网页阶段处理。
+## L2 材质与 Web 验收
+
+沿用 L1 的 1,720 个可编辑对象。重新打开 Blender 源文件，核对网格、变换、Collection 和倒角参数与 L1 一致。青铜抱圈、风化金属屋面、石材与木料共用两张 512 × 512 图集。软日照遮挡和接触 AO 写入不透明几何的顶点色。两张图集和一张主透镜厚度贴图均内嵌于 Blender 源文件。
+
+透镜保留曲面与厚边，Clear、Soft、Prismatic 分别呈现清透、柔化和厚边折射。闭合玻璃采用 glTF PBR 透射、折射率与体积吸收，主透镜使用径向厚度贴图。多层光路由 Three.js 的屏幕空间透射近似，网页网格经画布 Alpha 合成。[glTF 体积材质规范](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_volume)
+
+| Chrome 157，1440 × 900，DPR 1 | GLB 字节 | 模型三角面 | 每次重绘 Draw Calls |
+| --- | ---: | ---: | ---: |
+| 折光屿 L2 | 1,081,908 | 52,462 | 8 主画面 + 1 透射预通道 |
+| Harvest H2 | 891,716 | 40,610 | 3 主画面 |
+
+透射预通道额外提交 47,502 个不透明三角面，分辨率为画布的 75%。反射图在首次绘制时生成，静止时无连续 WebGL 绘制。在同一页面连续打开和退出五次，均销毁 WebGL 上下文并释放几何缓冲与纹理。轮盘首屏无 WebGL、GLB 或 Draco 请求，分别打开八个项目验证按需加载。关闭 WebGL 与阻断模型请求时均显示静态图和档案。
+
+检查了 1920、1440、960、390、320 px 视口，移动端使用 Chrome 触屏模拟。桌面实看正面、背面、近景及复位，标定条、窗格、金属连接和工坊内的物件可辨。核对拖动、触摸缩放、键盘、前后翻阅及返回轮盘后的焦点。 `pnpm check` 通过。 [WORKS 实际截图](./renders/web-front.webp) · [正式 GLB](../../../public/works/islands/liquid-glass.glb) · [正式渲染器生成的 560 × 420 透明预览](../../../public/works/previews/liquid-glass.webp)
+
+Blender 5.3 可从当前源文件复现同一个 GLB。由 L1 重新制作时，追加 `--blend` 和输出路径可保存材质深化后的源文件，追加 `--render` 可输出正交相机 PNG。
+
+```powershell
+blender --background assets/works/liquid-glass/liquid-glass.blend --python-exit-code 1 --python assets/works/liquid-glass/bake_web.py -- --glb public/works/islands/liquid-glass.glb
+```

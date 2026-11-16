@@ -87,7 +87,7 @@ def atlas(name, pixels, colorspace):
     return image
 
 
-def atlases():
+def atlases(asset='Harvest'):
     axis = np.clip((np.arange(CELL) - MARGIN) / (CELL - 1 - 2 * MARGIN), 0, 1)
     u, v = np.meshgrid(axis, axis)
     color = np.ones((SIDE, SIDE, 4), dtype=np.float32)
@@ -102,7 +102,7 @@ def atlases():
             color[y:y+CELL, x:x+CELL, c] = np.clip(value, 0, 1)**(1 / 2.2)
         finish[y:y+CELL, x:x+CELL, 1] = np.clip(roughness + grain, 0, 1)
         finish[y:y+CELL, x:x+CELL, 2] = np.clip(metallic - .18 * oxide, 0, 1)
-    return atlas('Harvest · surface pigment', color, 'sRGB'), atlas('Harvest · roughness and metal', finish, 'Non-Color')
+    return atlas(f'{asset} · surface pigment', color, 'sRGB'), atlas(f'{asset} · roughness and metal', finish, 'Non-Color')
 
 
 def dish_axes(obj):
@@ -118,8 +118,8 @@ def dish_axes(obj):
     return center, x.normalized() / x.length, y.normalized() / y.length
 
 
-def surface_uvs(obj, mesh, face, material, dish):
-    name = surface(material)
+def surface_uvs(obj, mesh, face, material, dish=None, *, surface_name=None):
+    name = surface_name if surface_name is not None else surface(material)
     index = CELL_INDEX[name]
     points = [mesh.vertices[mesh.loops[i].vertex_index].co for i in face.loop_indices]
     if name == 'dish' and dish:
@@ -153,12 +153,12 @@ def image_nodes(material, images):
     pigment.location = (-610, 260)
     pigment.image = images[0]
     pigment.extension = 'EXTEND'
-    pigment.label = 'Harvest surface pigment atlas'
+    pigment.label = images[0].name
     finish = nodes.new('ShaderNodeTexImage')
     finish.location = (-610, -40)
     finish.image = images[1]
     finish.extension = 'EXTEND'
-    finish.label = 'Harvest finish atlas · G roughness / B metal'
+    finish.label = images[1].name
     channels = nodes.new('ShaderNodeSeparateColor')
     channels.location = (-320, -30)
     link = material.node_tree.links.new

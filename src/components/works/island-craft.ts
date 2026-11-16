@@ -225,27 +225,3 @@ export function originalIsland(kind: Kind) {
   group.add(new T.Mesh(geometry,new T.MeshStandardMaterial({vertexColors:true,roughness:1})));
   return group;
 }
-
-export function glassLandmark() {
-  const group = new T.Group();
-  const glass = new T.MeshPhysicalMaterial({
-    name: 'LibreCosta glass',
-    color: '#74c7c6', roughness: .21, metalness: .12, clearcoat: 1,
-    emissive: '#164e53', emissiveIntensity: .24,
-  });
-  const seam = new T.MeshStandardMaterial({ color: '#bfdfd5', roughness: .28, metalness: .28 });
-  const plaque = new T.Mesh(new T.BoxGeometry(2.06, .35, .095),
-    new T.MeshStandardMaterial({ color: '#b8c2aa', roughness: .92 }));
-  plaque.position.set(0, -.79, 1.22);
-  group.add(plaque);
-  for (const [x, z, height, angle] of [[-.37,-.02,1.42,-.15],[.19,-.12,2.14,.2],[.48,.1,1.21,.28]]) {
-    const panel = new T.Mesh(new T.BoxGeometry(.31,height,.59),glass);
-    panel.position.set(x,height*.48,z);
-    panel.rotation.set(.12,angle,-.16);
-    group.add(panel);
-    const cap = new T.Mesh(new T.BoxGeometry(.32,.045,.61),seam);
-    cap.position.set(0,height*.5,0);
-    panel.add(cap);
-  }
-  return group;
-}
