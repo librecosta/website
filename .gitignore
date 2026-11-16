@@ -41,6 +41,7 @@ __pycache__/
 !/public/works/islands/signal.glb
 !/public/works/islands/prism.glb
 !/public/works/islands/wave.glb
+!/public/works/islands/harvest.glb
 
-# Approved editable model source for the Harvest H1 art review.
+# Approved editable model source for Harvest.
 !/assets/works/harvest/harvest.blend

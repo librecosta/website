@@ -1,8 +1,8 @@
 # Harvest — The Collector’s Workshop
 
-层畴屿 · 山地数据采集工坊。WEB-V0.1-W3-H1 美术验收源文件为 [harvest.blend](./harvest.blend)，与网站运行资产分开。岛体、机械、建筑、道路、植被和货运道具均为 LibreCosta 原创几何。相机和灯光放在独立的审阅 Collection。文件内保留独立零件、材质槽、倒角修改器和可编辑管线，无外部贴图或链接库。
+层畴屿 · 山地数据采集工坊。[harvest.blend](./harvest.blend) 保留 WEB-V0.1-W3-H1 验收的地形、几何和构图，并内嵌 H2 的材质图集。岛体、机械、建筑、道路、植被和货运道具均为 LibreCosta 原创几何。相机和灯光放在独立的审阅 Collection。文件内保留独立零件、材质槽、倒角修改器和可编辑管线，无外部贴图或链接库。
 
-## 渲染
+## H1 渲染
 
 - [正面等距](./renders/front.png)。前景的吊运码头、中央处理庭院和后方采集塔形成三层轮廓。
 - [侧后方](./renders/rear.png)。可以检查采集盘背肋、叉架、塔身侧面、校准棚和岩层收边。
@@ -22,11 +22,21 @@
 
 Harvest 的庭院空间更紧凑，主轮廓由矮工坊、采集塔和吊臂形成。对照渲染审阅了远景剪影、中景建筑关系以及近景节点。重新打开成品源文件，检查主体岩体闭合、材质槽存在、五台相机可用和无丢失资源。按踏面采样检查了岸边石阶、两段折返梯和塔门台阶的地形净空。仓库 `pnpm check` 通过。
 
-## 复现和下一轮
+## 复现 H1 结构
 
 ```powershell
-blender --background --factory-startup --python-exit-code 1 --python assets/works/harvest/build.py -- --renders front rear top collector workshop
+blender --background --factory-startup --python-exit-code 1 --python assets/works/harvest/build.py -- --output .local/harvest-h1/rebuild --renders front rear top collector workshop
 blender --background --factory-startup --python-exit-code 1 --python assets/works/harvest/render_references.py -- .local/harvest-h1/benchmarks
 ```
 
-H2 的材质重点是区分铜盘本体、氧化边和支架磨损，给石灰抹面、木材端纹和崖壁苔藓增加尺度一致的变化。随后为目标材质整理 UV，评估遮蔽和环境光烘焙测试，以及近景下窗内光与信号灯的亮度。源文件保留建模用零件和修改器供后续编辑。
+## H2 材质和网页导出
+
+铜盘使用沿盘面展开的 UV，氧化集中在外圈。木纹沿构件长轴，岩壁层理和低对比度苔色落在岩面。两张 512 × 512 图集分别记录表面色、粗糙度与金属度，源文件内已打包。Blender 在求值几何上采样局部半球遮蔽与柔和日照，将遮挡乘入顶点色，网页旋转时由单岛渲染器补足明暗和金属高光。
+
+正式 GLB 用 Draco 压缩几何并内嵌 WebP 图集。网页副本省略宽度小于 0.02 Blender 单位的倒角，保留大倒角、闭合地形和全部原始构件。其余几何按 PBR 表面、琥珀灯和青绿信号灯合批。GLB 为 891,716 字节、40,610 三角面、3 个 Draw Calls。[正式模型](../../../public/works/islands/harvest.glb) · [WORKS 渲染器预览](../../../public/works/previews/harvest.webp)
+
+从更新后的源文件重新导出，或用同一个命令为重新生成的 H1 模型补齐材质与 UV。追加 `--blend` 并指定输出路径可保存可编辑源文件，追加 `--render` 可用源文件的正交相机渲染 PNG。
+
+```powershell
+blender --background assets/works/harvest/harvest.blend --python-exit-code 1 --python assets/works/harvest/bake_web.py -- --glb public/works/islands/harvest.glb
+```

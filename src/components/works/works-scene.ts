@@ -40,6 +40,8 @@ function prepareIsland(project: Project, model: T.Object3D) {
   const size = new T.Box3().setFromObject(carrier, true).getSize(new T.Vector3());
   carrier.scale.setScalar(project.island.width / Math.max(size.x, size.z));
   carrier.updateMatrixWorld(true);
+  // Harvest's PBR maps, emission and baked contact light are authored for this viewer.
+  if (project.island.model === 'harvest') return carrier;
   const seen = new Set<T.Material>();
   model.traverse(node => {
     if (!(node instanceof T.Mesh)) return;
@@ -120,6 +122,12 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
   const sun = new T.DirectionalLight('#fff1cb', 2.05);
   sun.position.set(-70, 120, 48);
   scene.add(hemisphere, sun);
+  if (project.island.model === 'harvest') {
+    // Neutral reflected daylight brings up the copper and timber on the camera side.
+    const fill = new T.DirectionalLight('#e6edfa', .64);
+    fill.position.set(86, 72, 118);
+    scene.add(fill);
+  }
 
   const abort = new AbortController();
   const listen = { signal: abort.signal };

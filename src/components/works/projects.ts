@@ -1,8 +1,8 @@
 import { projectPreviews } from '../project-previews';
 
 type Island = { name: string; width: number; bearing: number } & (
-  { model: 'bay' | 'foundry' | 'signal' | 'prism' | 'wave'; original?: never } |
-  { original: 'fields' | 'gates' | 'archive'; model?: never }
+  { model: 'bay' | 'foundry' | 'signal' | 'prism' | 'wave' | 'harvest'; original?: never } |
+  { original: 'gates' | 'archive'; model?: never }
 );
 
 export type Project = {
@@ -42,7 +42,7 @@ export const projects: readonly Project[] = [
   },
   {
     slug: 'harvest', name: 'Harvest', type: '数据采集引擎', status: '开源项目',
-    island: { name: '层畴屿', width: 37, bearing: -14, original: 'fields' },
+    island: { name: '层畴屿', width: 37, bearing: 0, model: 'harvest' },
     description: '支持持久化调度和可扩展采集源的分布式数据采集引擎。',
     links: [{ label: '查看项目文档', href: 'https://github.com/librecosta/harvest#readme' }],
     media: { src: '/works/harvest.webp', alt: 'Harvest 命令行帮助，列出控制面、Worker 和健康检查命令' },

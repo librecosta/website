@@ -1,7 +1,7 @@
 import * as T from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-type Kind = 'fields' | 'gates' | 'archive';
+type Kind = 'gates' | 'archive';
 const stone = ['#817f70', '#a8a08b', '#767e73', '#b7a990'];
 const meadow = ['#879858', '#9ea966', '#a3ac69', '#758d60'];
 const ivory = '#ded4b4';
@@ -11,7 +11,6 @@ const lamp = '#ffe7a2';
 const wood = '#937254';
 // Each approach shares one centerline from the summit landing to the pier in +Z.
 const approaches = {
-  fields: { x: -.3, from: 3.4, crest: 4.26, shore: 6.6, end: 8.9, width: 1.35, deck: 1.05, steps: 10 },
   gates: { x: -.7, from: .19, crest: 1.98, shore: 4.05, end: 5.6, width: 1.4, deck: 1.12, steps: 9 },
   archive: { x: -2.55, from: 1.62, crest: 4.77, shore: 7.28, end: 9.2, width: 1.4, deck: 1.39, steps: 11 },
 };
@@ -19,7 +18,7 @@ const approaches = {
 export function originalIsland(kind: Kind) {
   const group = new T.Group();
   const parts: T.BufferGeometry[] = [];
-  let seed = { fields: 149, gates: 318, archive: 279 }[kind];
+  let seed = { gates: 318, archive: 279 }[kind];
   function random() {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 4294967296;
@@ -52,11 +51,10 @@ export function originalIsland(kind: Kind) {
   // Hand-shaped coastlines, with an intertidal shelf, fractured bluffs and
   // inset vegetated terraces. Each silhouette has its own slope and headland.
   const outline = {
-    fields: [[-12, -2], [-11, -7], [-7, -10], [0, -10], [7, -8], [12, -4], [12, 1], [8, 5], [4, 7], [-3, 8], [-9, 6], [-13, 2]],
     gates: [[-14, 5], [-15, 0], [-11, -5], [-6, -6], [-1, -3], [5, -5], [11, -9], [15, -8], [15, -4], [10, 1], [5, 4], [-1, 4], [-6, 6]],
     archive: [[-12, -4], [-8, -9], [-2, -11], [4, -10], [10, -7], [12, -2], [9, 6], [6, 8], [4, 5], [1, 4], [-2, 8], [-7, 9], [-13, 4]],
   }[kind];
-  const summit = { fields: 3.6, gates: 3.0, archive: 4.8 }[kind];
+  const summit = { gates: 3.0, archive: 4.8 }[kind];
   const n = outline.length;
   const coast = outline.flatMap(([x,z], i) => {
     const [nx,nz] = outline[(i+1)%n];
@@ -158,26 +156,7 @@ export function originalIsland(kind: Kind) {
     for(let i=-1;i<=1;i++) box(x+i*w*.29,y+h*.56,z+d*.502,.2,h*.26,.035,'#658980');
     box(x,y+h*.25,z+d*.508,.24,h*.5,.04,dark);
   }
-  if(kind==='fields') {
-    for(let k=0;k<9;k++){
-      const z=-4+k*.56;
-      const length=10-Math.abs(4-k)*.44;
-      box(-.9,summit+.04,z,length,.1,.45,k%3===0?'#ad8a55':'#9e884f');
-      for(let i=0;i<Math.floor(length*3);i++){
-        const x=-.9-length*.44+i*.29;
-        const h=.15+random()*.36;
-        cone(x,summit+h*.5,z+.08,.04,.1,h,i%5===0?'#c3ac61':'#748749',5);
-      }
-    }
-    gable(-3.15,summit,2.25,2.7,1.65,1.2,tile);
-    gable(2.5,summit,1.65,1.7,1.55,1,'#779991');
-    cone(4.65,summit+.9,-.3,.58,.74,1.8,dark);
-    cone(4.65,summit+1.93,-.3,0,.63,.55,'#b99c6b');
-    for(let i=0;i<10;i++)box(-4.7+i*.8,summit+.04,3.4,.65,.08,.46,'#c0ad7d');
-    for (const [x,z] of [[-7,0],[5,-3],[-5,-5],[4,2],[-6,3],[-4,3.8],[1,-4.8],[5,-1.2]]) {
-      tree(x,summit,z);
-    }
-  } else if(kind==='gates') {
+  if(kind==='gates') {
     const x = approach.x, z = -1, h = 2.34, w = 2.9, y = summit;
     stonePlatform(x, w + .7, 2 * z - approach.from, approach.from, y + .18, '#bfad90');
     for (const side of [-1, 1]) {

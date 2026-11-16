@@ -18,6 +18,11 @@ islands/wave.glb — Buildshore, Qoves terrain batch without the external logo m
 LibreCosta added a closed rear cliff in the island's local coordinates. Original cliff faces
 are rendered from both sides to preserve the crest when the viewer orbits behind it.
 
+islands/harvest.glb (891,716 bytes) — The Collector's Workshop. Original LibreCosta
+Blender model, surface atlases and baked contact/daylight shading. The editable
+source and export scripts are in assets/works/harvest/ in the website repository.
+Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+
 The Harvest, Sofaraway and GopherAtlas islands, glass landmark, field archive
 interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
 and JavaScript wrapper come from the installed Three.js r187 distribution and
@@ -32,6 +37,8 @@ previews/*.webp: LibreCosta renders of the five Wenz-derived and three original
 islands listed above. All eight use the same orthographic camera, authored
 model bearings, materials and lighting as the single-island viewer. Captured
 with transparency at 800 × 600, then resized to 560 × 420 and encoded as WebP.
+previews/harvest.webp (44,148 bytes) was recaptured after the Blender export using
+the WORKS single-island renderer, including Harvest's authored fill light.
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 gofurry.webp is a capture of the local GoFurry /start page (f19016b).
