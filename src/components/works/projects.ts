@@ -1,9 +1,11 @@
 import { projectPreviews } from '../project-previews';
 
-type Island = { name: string; width: number; bearing: number } & (
-  { model: 'bay' | 'foundry' | 'signal' | 'liquid-glass' | 'wave' | 'harvest' | 'sofaraway'; original?: never } |
-  { original: 'archive'; model?: never }
-);
+type Island = {
+  name: string;
+  width: number;
+  bearing: number;
+  model: 'bay' | 'foundry' | 'signal' | 'liquid-glass' | 'wave' | 'harvest' | 'sofaraway' | 'gopher-atlas';
+};
 
 export type Project = {
   slug: string;
@@ -76,7 +78,7 @@ export const projects: readonly Project[] = [
   },
   {
     slug: 'gopheratlas', name: 'GopherAtlas', type: '技术出版', status: '持续更新',
-    island: { name: '页港', width: 36, bearing: 8, original: 'archive' },
+    island: { name: '页港', width: 36, bearing: 15, model: 'gopher-atlas' },
     description: 'LibreCosta 团队的 Go 技术文章与实验笔记。',
     links: [
       { label: '阅读文章', href: 'https://gopheratlas.com/articles/' },

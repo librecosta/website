@@ -43,6 +43,7 @@ __pycache__/
 !/public/works/islands/wave.glb
 !/public/works/islands/harvest.glb
 !/public/works/islands/sofaraway.glb
+!/public/works/islands/gopher-atlas.glb
 
 # Approved editable island art sources.
 !/assets/works/harvest/harvest.blend

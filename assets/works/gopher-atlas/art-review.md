@@ -26,6 +26,23 @@ blender --background --factory-startup --python-exit-code 1 --python assets/work
 blender --background --factory-startup --python-exit-code 1 --python assets/works/gopher-atlas/review.py -- --source .local/gopher-atlas-g1/rebuild/gopher-atlas.blend --scratch .local/gopher-atlas-g1/compare --output .local/gopher-atlas-g1/comparison.png
 ```
 
-## G2 验收项
+## G2 · 材质、烘焙与 WORKS 验收
 
-深化石材、青灰屋面与木作。为拱廊、阶梯底面、窗龛和室内家具烘焙接触遮挡。按玻璃与不透明表面分别评估材质合批、远景可读性和透明排序，再验证网页相机与静态预览构图。
+重新打开源文件并比对 3,956 个对象的顶点、面、层级、变换及倒角参数，均与 G1 一致。沿用 Harvest 的两张内嵌 512 × 512 PBR 图集，按石材、青灰屋面、木作和金属分配材质与 UV。拱廊、檐下、窗龛、阶梯和家具的接触 AO 与柔和日照遮挡烘入不透明批次的角点颜色。网页保留主立面、拱廊和档案家具的倒角，省去部分默认视角下不足一像素的倒角。带厚度的窗格采用独立的单面透明 PBR，暖灯使用独立的低强度发光材质。将页港的模型方位设为 15°，对齐 G1 正面图的水平观察角度。正面、侧后方、最高可达的俯角和放大视图都可观察到窗框和庭院构件。
+
+| Chrome 157，1440 × 900，DPR 1 | GLB 字节 | 主画面三角面 | 每次重绘 Draw Calls |
+| --- | ---: | ---: | ---: |
+| 页港 G2 | 1,873,704 | 93,110 | 3 主画面 |
+| Harvest H2 | 891,716 | 40,610 | 3 主画面 |
+| 折光屿 L2 | 1,081,908 | 52,462 | 8 主画面 + 1 透射预通道 |
+| 远拍岛 S2 | 1,111,248 | 58,340 | 9 主画面 + 4 透射预通道 |
+
+轮盘首屏的 18 张卡片未发出 GLB 或 Draco 请求，也未创建 WebGL 上下文。依次进入八座岛屿，各自只请求自己的模型，其余七座的绘制数与 S2 记录一致。页港静止时没有持续重绘，连续五次打开及退出均释放缓冲、纹理和 WebGL 上下文。慢速加载中途退出后可再次进入。阻断模型或禁用 WebGL 时仍显示静态预览与项目档案。
+
+Chrome 实测 1920、1440、960、390、320 px。拖动、触屏捏合、缩放、重置视角、键盘、作品切换与返回后的焦点恢复通过。`pnpm check` 通过。[WORKS 网页截图](./renders/web-front.webp) · [正式 GLB](../../../public/works/islands/gopher-atlas.glb) · [正式渲染器生成的 560 × 420 透明预览](../../../public/works/previews/gopheratlas.webp)
+
+从更新后的 Blender 源文件复现导出，并核对 GLB 的 SHA-256 一致。从 G1 源文件开始时，可追加 `--blend` 和保存路径生成带内嵌图集的源文件。
+
+```powershell
+blender --background assets/works/gopher-atlas/gopher-atlas.blend --python-exit-code 1 --python assets/works/gopher-atlas/bake_web.py -- --glb public/works/islands/gopher-atlas.glb
+```

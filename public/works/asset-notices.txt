@@ -35,6 +35,12 @@ rhythm lights. Editable source and export scripts are in assets/works/sofaraway/
 in the website repository. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause
 License below.
 
+islands/gopher-atlas.glb (1,873,704 bytes) — The Atlas Observatory. Original
+LibreCosta Blender model, packed PBR atlases and baked contact/daylight shading,
+with independent PBR glazing and warm lights. Editable source and export
+scripts are in assets/works/gopher-atlas/ in the website repository.
+Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+
 The Harvest, Liquid Glass, SoFarAway and GopherAtlas islands, field archive
 interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
 and JavaScript wrapper come from the installed Three.js r187 distribution and
@@ -55,6 +61,8 @@ previews/liquid-glass.webp (46,278 bytes) was captured from the same viewer afte
 integration, with the atlas shading, PBR transmission and atelier reflection lighting.
 previews/sofaraway.webp (60,904 bytes) was captured from the same viewer after S2
 integration, with baked shading, layered glazing and static rhythm lights.
+previews/gopheratlas.webp (34,898 bytes) was captured from the same viewer after
+G2 integration, with baked stone, slate and timber and inset glazing.
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 gofurry.webp is a capture of the local GoFurry /start page (f19016b).
@@ -71,6 +79,7 @@ https://gopheratlas.com/.
 BSD 3-Clause License
 
 Copyright (c) 2026, LibreCosta (GoFurry, Harvest, Sofaraway, Wavefield)
+Copyright (c) 2026, LibreCosta (The Atlas Observatory island and preview)
 Copyright (c) 2026, Faolan Grey (Tool4Furry)
 
 Redistribution and use in source and binary forms, with or without
