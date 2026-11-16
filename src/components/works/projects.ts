@@ -1,8 +1,8 @@
 import { projectPreviews } from '../project-previews';
 
 type Island = { name: string; width: number; bearing: number } & (
-  { model: 'bay' | 'foundry' | 'signal' | 'liquid-glass' | 'wave' | 'harvest'; original?: never } |
-  { original: 'gates' | 'archive'; model?: never }
+  { model: 'bay' | 'foundry' | 'signal' | 'liquid-glass' | 'wave' | 'harvest' | 'sofaraway'; original?: never } |
+  { original: 'archive'; model?: never }
 );
 
 export type Project = {
@@ -69,7 +69,7 @@ export const projects: readonly Project[] = [
   },
   {
     slug: 'sofaraway', name: 'SoFarAway', type: '浏览器节奏游戏', status: '开发中',
-    island: { name: '远拍岛', width: 44, bearing: 39, original: 'gates' },
+    island: { name: '远拍岛', width: 44, bearing: 0, model: 'sofaraway' },
     description: '在程序化音乐和场景中穿过节拍门的浏览器节奏跑酷游戏。',
     links: [{ label: '查看项目', href: 'https://github.com/librecosta/sofaraway#readme' }],
     media: projectPreviews.sofaraway,

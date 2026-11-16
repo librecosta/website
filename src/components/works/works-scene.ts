@@ -8,7 +8,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { atelierEnvironment } from './atelier-light';
 import type { Project } from './projects';
-import { originalIsland } from './island-craft';
+import { archiveIsland } from './island-craft';
 
 const offset = new T.Vector3(200, 120, 200);
 
@@ -41,8 +41,9 @@ function prepareIsland(project: Project, model: T.Object3D) {
   const size = new T.Box3().setFromObject(carrier, true).getSize(new T.Vector3());
   carrier.scale.setScalar(project.island.width / Math.max(size.x, size.z));
   carrier.updateMatrixWorld(true);
-  // Both original Blender assets carry their own calibrated PBR and baked shading.
-  if (project.island.model === 'harvest' || project.island.model === 'liquid-glass') return carrier;
+  // The original Blender assets carry calibrated PBR and baked shading.
+  if (project.island.model === 'harvest' || project.island.model === 'liquid-glass' ||
+      project.island.model === 'sofaraway') return carrier;
   const seen = new Set<T.Material>();
   model.traverse(node => {
     if (!(node instanceof T.Mesh)) return;
@@ -90,7 +91,7 @@ function fitIsland(model: T.Object3D, camera: T.OrthographicCamera) {
 
 async function loadIsland(project: Project, signal: AbortSignal) {
   const slug = project.island.model;
-  if (!slug) return originalIsland(project.island.original);
+  if (!slug) return archiveIsland();
 
   const response = await fetch(`/works/islands/${slug}.glb`, { signal });
   if (!response.ok) throw new Error(`Island model: ${response.status}`);
@@ -112,23 +113,24 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
   const renderer = new T.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'default' });
   renderer.setClearColor(0, 0);
   const scene = new T.Scene();
-  const atelier = project.island.model === 'liquid-glass';
+  const beatline = project.island.model === 'sofaraway';
+  const optical = project.island.model === 'liquid-glass' || beatline;
   const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 900);
   camera.position.copy(offset);
   camera.lookAt(0, 0, 0);
-  const hemisphere = atelier
+  const hemisphere = optical
     ? new T.HemisphereLight('#f0f4f8', '#85988c', 2.25)
     : new T.HemisphereLight('#f0f2dd', '#7b9185', 2.1);
-  const sun = new T.DirectionalLight(atelier ? '#fff3df' : '#fff1cb', atelier ? 2.35 : 2.05);
+  const sun = new T.DirectionalLight(optical ? '#fff3df' : '#fff1cb', optical ? 2.35 : 2.05);
   sun.position.set(-70, 120, 48);
   scene.add(hemisphere, sun);
-  if (project.island.model === 'harvest' || atelier) {
+  if (project.island.model === 'harvest' || optical) {
     // Neutral reflected daylight brings up the copper and timber on the camera side.
-    const fill = new T.DirectionalLight('#e6edfa', atelier ? .85 : .64);
+    const fill = new T.DirectionalLight('#e6edfa', optical ? .85 : .64);
     fill.position.set(86, 72, 118);
     scene.add(fill);
   }
-  if (atelier) renderer.transmissionResolutionScale = .75;
+  if (optical) renderer.transmissionResolutionScale = .75;
 
   const abort = new AbortController();
   const listen = { signal: abort.signal };
@@ -305,9 +307,9 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
     }
     const carrier = prepareIsland(project, model);
     scene.add(carrier);
-    if (atelier) {
+    if (optical) {
       scene.environment = atelierEnvironment();
-      scene.environmentIntensity = .62;
+      scene.environmentIntensity = beatline ? .38 : .62;
     }
     home = fitIsland(carrier, camera);
     controls.target.copy(home.target);

@@ -29,3 +29,25 @@ blender --background --factory-startup --python-exit-code 1 --python assets/work
 ```
 
 [可编辑 Blender 源文件](./sofaraway.blend)包含独立地形、航道、建筑、维护步道、竖井与植被 Collection，以及已有厚度的玻璃和基础 PBR 配色。交付内容用于 S1 美术验收。
+
+## S2 · 材质、烘焙与 WORKS 验收
+
+重新打开更新后的 Blender 源文件，核对全部 2,470 个对象的几何、变换、层级和倒角参数与 S1 一致。深色承重梁、金属护壁、紧固件、控制设施及岩面共用两张内嵌的 512 × 512 PBR 图集。软日照的遮挡和接触 AO 烘入不透明几何的顶点色。导出保留航道护壁、观察窗和门体的主要倒角，省去部分在默认视角下不足一像素的小倒角。三组青绿、青蓝和琥珀材质提供静态节拍灯。
+
+航道天幕和门体采用独立的分层透明 PBR，控制舱观察窗保留 glTF 体积透射。对比过航道全透射方案，最终采用分层混合以显示后方的玻璃边、真实开口和节拍灯。检查正面、侧后方、轴向和缩放视角，导出的 Draco 模型也通过五种门洞的射线验证。[glTF 透射规范](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission/README.md)
+
+| Chrome 157，1440 × 900，DPR 1 | GLB 字节 | 模型三角面 | 每次重绘 Draw Calls |
+| --- | ---: | ---: | ---: |
+| 远拍岛 S2 | 1,111,248 | 58,340 | 9 主画面 + 4 透射预通道 |
+| Harvest H2 | 891,716 | 40,610 | 3 主画面 |
+| 折光屿 L2 | 1,081,908 | 52,462 | 8 主画面 + 1 透射预通道 |
+
+远拍岛的透射预通道额外提交 53,452 个三角面，按画布尺寸的 75% 绘制。静止时浏览器没有持续的 WebGL 绘制。轮盘首屏没有 WebGL、GLB 或 Draco 请求，打开各项目分别核对模型请求。连续五次打开及退出远拍岛，均回收缓冲、纹理和帧缓冲并关闭 WebGL 上下文。模拟慢速网络中途退出，再次进入可正常加载。阻断 GLB 和禁用 WebGL 时均显示静态图与项目档案。
+
+在 Chrome 检查 1920、1440、960、390、320 px，移动端使用触屏模拟。通过拖动、缩放、视角重置、键盘、前后切换和回到轮盘后的焦点检查。`pnpm check` 通过。 [WORKS 实际截图](./renders/web-front.webp) · [正式 GLB](../../../public/works/islands/sofaraway.glb) · [正式渲染器生成的 560 × 420 透明预览](../../../public/works/previews/sofaraway.webp)
+
+从当前 Blender 源文件可复现同一份 GLB。从 S1 源文件制作时，追加 `--blend` 和保存路径可保存深化后的源文件。
+
+```powershell
+blender --background assets/works/sofaraway/sofaraway.blend --python-exit-code 1 --python assets/works/sofaraway/bake_web.py -- --glb public/works/islands/sofaraway.glb
+```

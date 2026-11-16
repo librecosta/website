@@ -28,7 +28,14 @@ PBR transmission and thickness for the optical pieces. The editable source and e
 scripts are in assets/works/liquid-glass/ in the website repository.
 Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
 
-The Harvest, Liquid Glass, Sofaraway and GopherAtlas islands, field archive
+islands/sofaraway.glb (1,111,248 bytes) — The Beatline. Original LibreCosta
+Blender model, opaque surface atlases and baked contact/daylight shading, with
+independent layered flight glazing, control window transmission and emissive
+rhythm lights. Editable source and export scripts are in assets/works/sofaraway/
+in the website repository. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause
+License below.
+
+The Harvest, Liquid Glass, SoFarAway and GopherAtlas islands, field archive
 interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
 and JavaScript wrapper come from the installed Three.js r187 distribution and
 are provided under the Apache License 2.0. See draco-license.txt.
@@ -46,10 +53,11 @@ previews/harvest.webp (44,148 bytes) was recaptured after the Blender export usi
 the WORKS single-island renderer, including Harvest's authored fill light.
 previews/liquid-glass.webp (46,278 bytes) was captured from the same viewer after L2
 integration, with the atlas shading, PBR transmission and atelier reflection lighting.
+previews/sofaraway.webp (60,904 bytes) was captured from the same viewer after S2
+integration, with baked shading, layered glazing and static rhythm lights.
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 gofurry.webp is a capture of the local GoFurry /start page (f19016b).
-Sofaraway: shots/play.png from the LibreCosta project workspace, revision 5ca93c6.
 Wavefield: https://github.com/librecosta/wavefield/blob/main/docs/assets/wavefield-preview.webp
 Tool4Furry: tool4furry.webp is a capture of the Chinese /tools/ listing from
 the local Tool4Furry static build. tool4furry-mark.webp uses the official OG mark.
