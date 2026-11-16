@@ -3,8 +3,8 @@
 export const orbitCount = 18;
 export const orbitDuration = .7;
 export const ringRadius = 82;
-export const cardHeight = 100;
-export const cardAspect = .8;
+const cardHeight = 100;
+const cardAspect = .8;
 const gap = .18;
 const cardWidth = cardHeight * cardAspect;
 export const arcStep = cardWidth / (1 - gap);
@@ -46,7 +46,9 @@ export function orbitPose(index: number, position: number, mix: number) {
 export type OrbitPose = ReturnType<typeof orbitPose>;
 
 export function orbitFlip(elapsed: number, distance: number) {
-  const wave = (elapsed % 6 - .6 - distance * .065) / 1.05;
+  const interval = 10;
+  if (elapsed < interval) return 0;
+  const wave = (elapsed % interval - distance * .065) / 1.05;
   return wave > 0 && wave < 1 ? orbitEase(wave) * 360 : 0;
 }
 
@@ -64,6 +66,6 @@ export function projectPose(pose: OrbitPose, progress: number, chosen: boolean):
   };
 }
 
-export function orbitTransform({ x, y, rotate, scale }: OrbitPose) {
-  return `translate3d(calc(-50% + ${x.toFixed(3)} * var(--reel-unit)), calc(-50% + ${y.toFixed(3)} * var(--reel-unit)), 0) rotate(${rotate.toFixed(3)}deg) scale(${scale.toFixed(5)})`;
+export function orbitTransform({ x, y, rotate }: OrbitPose, flip = 1) {
+  return `translate(calc(-50% + ${x.toFixed(3)} * var(--reel-unit)), calc(-50% + ${y.toFixed(3)} * var(--reel-unit))) rotate(${rotate.toFixed(3)}deg) scaleX(${flip.toFixed(5)})`;
 }

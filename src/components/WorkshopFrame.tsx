@@ -61,8 +61,11 @@ export function WorkshopFrame({ route, reduced, className, sectionNav, scrollGau
   scrollGauge?: ReactNode;
   children: ReactNode;
 }) {
+  const shades = <div className={styles.shades} aria-hidden="true" />;
   return <div className={className ? `${styles.page} ${className}` : styles.page}>
+    {route === '/works' && shades}
     <div className={`${instrument.instrument} ${styles.frame}`}>
+      {route !== '/works' && shades}
       <InstrumentCorners />
       <InstrumentHeader currentPage={route} reduced={reduced} className={styles.header} navigationPrefix={<Language />} />
       {sectionNav}

@@ -1,10 +1,10 @@
 'use client';
 
 import { animate, cancelFrame, frame, useMotionValue, useMotionValueEvent } from 'motion/react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { WorkshopFrame } from '../WorkshopFrame';
 import {
-  arcStep, cardHeight, orbitCount, orbitDuration, orbitEase, orbitFlip, orbitIndex, orbitPose,
+  arcStep, orbitCount, orbitDuration, orbitEase, orbitFlip, orbitIndex, orbitPose,
   orbitTransform, projectPose, ringSpin, wrapOrbit,
 } from './orbit-reel';
 import styles from './orbit-reel.module.css';
@@ -56,14 +56,13 @@ export function WorksReel() {
   const [selection, setSelection] = useState(0);
   const [project, setProject] = useState<number | null>(null);
   const [visible, setVisible] = useState(true);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [paused, setPaused] = useState(false);
   const position = useMotionValue(0);
   const mix = useMotionValue(0);
   const detail = useMotionValue(0);
   const cardsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const stageRef = useRef<HTMLElement>(null);
   const centerRef = useRef<HTMLDivElement>(null);
   const viewButton = useRef<HTMLButtonElement>(null);
   const backButton = useRef<HTMLButtonElement>(null);
@@ -85,6 +84,9 @@ export function WorksReel() {
     const progress = detail.get();
     const openProject = projectRef.current;
     const selected = orbitIndex(slot);
+    const stageStyle = stageRef.current?.style;
+    const arcMix = blend.toFixed(5);
+    if (stageStyle && stageStyle.getPropertyValue('--arc-mix') !== arcMix) stageStyle.setProperty('--arc-mix', arcMix);
     if (selected !== lastSelection.current) {
       lastSelection.current = selected;
       setSelection(selected);
@@ -96,7 +98,12 @@ export function WorksReel() {
       const pose = openProject === null ? base : projectPose(base, progress, chosen);
       const available = openProject === null && pose.opacity > .12;
       const flipAngle = wrapOrbit(orbitFlip(elapsed.current, pose.distance), 360) * (1 - blend) * (chosen ? 1 - orbitEase(progress / .55) : 1);
-      button.style.transform = `${orbitTransform(pose)} rotateY(${flipAngle.toFixed(2)}deg)`;
+      // A Y-axis flip without perspective projects to a horizontal scale. Draw one face at its actual size.
+      const flip = Math.cos(flipAngle * Math.PI / 180);
+      const scale = pose.scale.toFixed(5);
+      if (button.style.getPropertyValue('--card-scale') !== scale) button.style.setProperty('--card-scale', scale);
+      button.style.transform = orbitTransform(pose, Math.abs(flip));
+      button.toggleAttribute('data-reverse', flip < 0);
       button.style.opacity = pose.opacity.toFixed(3);
       button.style.zIndex = String(pose.depth);
       button.style.visibility = pose.opacity > .005 ? 'visible' : 'hidden';
@@ -141,7 +148,7 @@ export function WorksReel() {
   }, []);
 
   useEffect(() => {
-    if (!visible || reduced || paused || view !== 'ring' || hovered || focused || dragging || project !== null) return;
+    if (!visible || reduced || paused || view !== 'ring' || dragging || project !== null) return;
     function spin({ delta }: { delta: number }) {
       if (document.hidden || drag.current || projectRef.current !== null || positionPlayback.current?.state === 'running') return;
       const seconds = Math.min(delta, 50) / 1000;
@@ -150,7 +157,7 @@ export function WorksReel() {
     }
     frame.update(spin, true);
     return () => cancelFrame(spin);
-  }, [dragging, focused, hovered, paused, position, project, reduced, view, visible]);
+  }, [dragging, paused, position, project, reduced, view, visible]);
 
   useEffect(() => {
     if (!reduced) return;
@@ -242,13 +249,12 @@ export function WorksReel() {
     if (projectRef.current !== null || drag.current || !event.isPrimary || event.button !== 0) return;
     if ((event.target as HTMLElement).closest('[data-reel-control]')) return;
     const center = centerRef.current?.getBoundingClientRect();
-    const card = cardsRef.current[0];
-    if (!center || !card) return;
+    if (!center) return;
     suppressClick.current = false;
     positionPlayback.current?.stop();
     drag.current = {
       pointer: event.pointerId, x: event.clientX, y: event.clientY, centerX: center.x, centerY: center.y,
-      unit: card.offsetHeight / cardHeight, angle: Math.atan2(event.clientX - center.x, center.y - event.clientY),
+      unit: center.width, angle: Math.atan2(event.clientX - center.x, center.y - event.clientY),
       position: position.get(), time: event.timeStamp, velocity: 0, moved: false,
     };
     setDragging(true);
@@ -288,34 +294,22 @@ export function WorksReel() {
   }
 
   return <WorkshopFrame route="/works" reduced={reduced}>
-    <main className={styles.stage} aria-label="作品档案轮盘" data-reel-view={view} data-project={project !== null ? numberAt(project) : undefined}
+    <main ref={stageRef} className={styles.stage} aria-label="作品档案轮盘" data-reel-view={view} data-project={project !== null ? numberAt(project) : undefined}
       onKeyDown={onKeyDown}
-      onFocusCapture={() => setFocused(true)}
-      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
       onLostPointerCapture={(event) => { if (event.target === event.currentTarget) endDrag(event); }}
-      onPointerOver={(event) => {
-        if (event.pointerType !== 'touch' && (event.target as HTMLElement).closest('button')) setHovered(true);
-      }}
-      onPointerOut={(event) => {
-        if (!(event.relatedTarget instanceof Element && event.relatedTarget.closest('button'))) setHovered(false);
-      }}
-      onPointerLeave={(event) => {
-        setHovered(false);
-        if (!drag.current?.moved) endDrag(event);
-      }}>
+      onPointerLeave={(event) => { if (!drag.current?.moved) endDrag(event); }}>
       <h1 className={styles.srOnly}>WORKS</h1>
       <div ref={centerRef} className={styles.center} aria-hidden="true" />
       {cards.map(({ index, number, pose }) => <button
         key={number} ref={(element) => { cardsRef.current[index] = element; }}
         type="button" className={styles.card} data-reel-card={number} aria-label={`打开档案 ${number}`}
         tabIndex={index === 0 ? 0 : -1}
-        style={{ transform: orbitTransform(pose), zIndex: pose.depth }}
+        style={{ '--card-scale': pose.scale.toFixed(5), transform: orbitTransform(pose), zIndex: pose.depth } as CSSProperties}
         onClick={(event) => {
           if (event.detail === 0 || !suppressClick.current) showProject(index, event.currentTarget);
         }}>
         <span className={styles.face}><span className={styles.number}>{number}</span><CardGlyph index={index} /></span>
-        <span className={`${styles.face} ${styles.reverse}`} aria-hidden="true"><span className={styles.number}>{number}</span><CardGlyph index={index} /></span>
       </button>)}
       {project === null && <>
         <button type="button" className={`${styles.control} ${styles.mode}`} data-reel-control

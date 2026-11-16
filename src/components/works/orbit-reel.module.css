@@ -1,5 +1,9 @@
 .stage {
-  --reel-unit: clamp(.48px, min(calc((100vw - 32px) / 205), calc((100dvh - 218px) / 205)), 3.65px);
+  --ring-clearance: clamp(112px, 270px - 9vw, 178px);
+  --ring-unit: max(.48px, min(calc((100vw - 24px) / 197), calc((100dvh - var(--ring-clearance)) / 197)));
+  --arc-unit: clamp(.48px, min(calc((100vw - 32px) / 205), calc((100dvh - 218px) / 205)), 3.65px);
+  --arc-mix: 0;
+  --reel-unit: calc(var(--ring-unit) * (1 - var(--arc-mix)) + var(--arc-unit) * var(--arc-mix));
   --reel-center: calc(50dvh - 12px);
   position: relative;
   isolation: isolate;
@@ -28,18 +32,19 @@
   left: 50%;
 }
 
+.center { width: var(--reel-unit); pointer-events: none; }
+
 .card {
+  --card-unit: calc(var(--reel-unit) * var(--card-scale));
   display: block;
-  width: calc(80 * var(--reel-unit));
-  height: calc(100 * var(--reel-unit));
+  width: calc(80 * var(--card-unit));
+  height: calc(100 * var(--card-unit));
   padding: 0;
   border: 0;
-  border-radius: calc(6 * var(--reel-unit));
+  border-radius: calc(6 * var(--card-unit));
   background: none;
   color: #415266;
   font-family: var(--instrument-type);
-  transform-style: preserve-3d;
-  will-change: transform;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -49,24 +54,22 @@
   inset: 0;
   display: grid;
   place-items: center;
-  border: 1px solid #f0f5fb76;
+  border: 1px solid #f0f5fb55;
   border-radius: inherit;
   background: linear-gradient(148deg, #e4e9f0, #bbc7d5);
-  box-shadow: 0 calc(3.5 * var(--reel-unit)) calc(8 * var(--reel-unit)) #05080d50;
-  backface-visibility: hidden;
+  box-shadow: 0 calc(3.5 * var(--card-unit)) calc(8 * var(--card-unit)) #05080d50;
   pointer-events: none;
 }
 
-.reverse {
+.card[data-reverse] .face {
   background: linear-gradient(140deg, #c1cbd8, #d9e1eb);
-  transform: rotateY(180deg);
 }
 
 .number {
   position: absolute;
   top: 9%;
   left: 11%;
-  font-size: calc(8 * var(--reel-unit));
+  font-size: max(8px, calc(8 * var(--card-unit)));
   font-weight: 700;
   line-height: 1;
   letter-spacing: .06em;
@@ -151,10 +154,6 @@
 .pager .control { font-size: 22px; }
 .detail { position: absolute; inset: 0; pointer-events: none; }
 .detail .control { pointer-events: auto; }
-
-@media (max-width: 500px) {
-  .stage[data-reel-view='ring'] .number { font-size: 26px; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .pause { display: none; }
