@@ -1,4 +1,4 @@
-import styles from './works.module.css';
+import styles from './project-mark.module.css';
 import type { Landmark } from './projects';
 
 const markImages: Record<Landmark, string> = {

@@ -130,7 +130,7 @@ export function InstrumentCorners() {
 }
 
 export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage, className, navigationPrefix }: {
-  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: '/about' | '/contact';
+  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: '/works' | '/about' | '/contact';
   className?: string; navigationPrefix?: ReactNode;
 }) {
   const { enabled, cue } = useSiteAudio();
@@ -147,7 +147,7 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage, cla
     {navigationPrefix}
     <nav className={styles.instrumentNav} aria-label="站点导航" data-audio-ui>
       {currentPage && <InstrumentLink href="/" text="WORLD" reduced={reduced} />}
-      <InstrumentLink href="/works" text="WORKS" reduced={reduced} />
+      <InstrumentLink href="/works" text="WORKS" reduced={reduced} current={currentPage === '/works'} />
       <InstrumentLink href="/about" text="ABOUT" reduced={reduced} current={currentPage === '/about'} />
       <InstrumentLink href="https://gopheratlas.com/" text="BLOG" reduced={reduced} external />
       <InstrumentLink href="/contact" text="CONTACT" reduced={reduced} current={currentPage === '/contact'} />

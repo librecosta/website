@@ -4,8 +4,6 @@ import { InstrumentCorners, InstrumentHeader, InstrumentSocialLinks } from './ex
 import instrument from './expanse/expanse.module.css';
 import styles from './workshop-frame.module.css';
 
-type WorkshopRoute = '/about' | '/contact';
-
 const dossiers = {
   '/about': {
     id: 'LC-01',
@@ -17,7 +15,14 @@ const dossiers = {
     title: 'CONTACT',
     rows: [['CHANNELS', 'EMAIL / X']],
   },
+  '/works': {
+    id: 'LC-03',
+    title: 'WORKS',
+    rows: [],
+  },
 } as const;
+
+type WorkshopRoute = keyof typeof dossiers;
 
 function Dossier({ route, reduced }: { route: WorkshopRoute; reduced: boolean }) {
   const [scope, animate] = useAnimate<HTMLElement>();
@@ -34,9 +39,9 @@ function Dossier({ route, reduced }: { route: WorkshopRoute; reduced: boolean })
   return <aside ref={scope} className={`${instrument.observationData} ${styles.dossier}`} lang="en" aria-label="LibreCosta dossier">
     <p className={instrument.observationSite} data-dossier-line>DOSSIER / {id}</p>
     <p data-dossier-line>LIBRECOSTA · {title}</p>
-    <dl>
+    {rows.length > 0 && <dl>
       {rows.map(([label, value]) => <div key={label} data-dossier-line><dt>{label}</dt><dd>{value}</dd></div>)}
-    </dl>
+    </dl>}
   </aside>;
 }
 
