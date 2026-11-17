@@ -1,0 +1,68 @@
+{
+  "A": {
+    "basecolor": {
+      "file": "textures/A-basecolor.png",
+      "sha256": "50868c97d35775005be518f368b1d61e2d2bf845c396e270d5da1553ec8cbccc",
+      "bits_per_channel": 8
+    },
+    "roughness": {
+      "file": "textures/A-roughness.png",
+      "sha256": "66510548ecede83f982cf515aeabf299cb05339e9d89953e80fdc6c9abc6468a",
+      "bits_per_channel": 16
+    },
+    "normal": {
+      "file": "textures/A-normal.png",
+      "sha256": "18dfddac07cde003f0cc312b4d90184345e11c0bb1e8b533821976b9a23c3a4f",
+      "bits_per_channel": 16
+    },
+    "ao": {
+      "file": "textures/A-ao.png",
+      "sha256": "8f6ede4c0ef219ae8cc6dbf4865347cb9fea46dc1196d68ac298aa4ce5086afe",
+      "bits_per_channel": 16
+    }
+  },
+  "B": {
+    "basecolor": {
+      "file": "textures/B-basecolor.png",
+      "sha256": "8d1b02a1874ef28ee317db03b4a4609a27cff6c542dc72222f70d3e8e8f3c20c",
+      "bits_per_channel": 8
+    },
+    "roughness": {
+      "file": "textures/B-roughness.png",
+      "sha256": "fac4a5a7ca48506d7ae00196b23cb9d1cf3bb86d51f859500d256f2690b7e53b",
+      "bits_per_channel": 16
+    },
+    "normal": {
+      "file": "textures/B-normal.png",
+      "sha256": "6c516b818726f054bcc79b2253155883537380a41e2216cfd9586d4acc2f730e",
+      "bits_per_channel": 16
+    },
+    "ao": {
+      "file": "textures/B-ao.png",
+      "sha256": "876c4eb367465256018f515f89071f48799d1accd05e7b094f2a892b761b62b7",
+      "bits_per_channel": 16
+    }
+  },
+  "C": {
+    "basecolor": {
+      "file": "textures/C-basecolor.png",
+      "sha256": "a49c3eed0e518e354be41c398544625270cef5e4f820a1f03d0ed33259a62826",
+      "bits_per_channel": 8
+    },
+    "roughness": {
+      "file": "textures/C-roughness.png",
+      "sha256": "c006f439a9080650cc78cc1d24a292ba5bed4dbfea0cdc0bc88b6c607aea5032",
+      "bits_per_channel": 16
+    },
+    "normal": {
+      "file": "textures/C-normal.png",
+      "sha256": "955c65cb8c204f9097b061b205b1657821c5cf70e7ac53784d250abfc122cc15",
+      "bits_per_channel": 16
+    },
+    "ao": {
+      "file": "textures/C-ao.png",
+      "sha256": "876c4eb367465256018f515f89071f48799d1accd05e7b094f2a892b761b62b7",
+      "bits_per_channel": 16
+    }
+  }
+}

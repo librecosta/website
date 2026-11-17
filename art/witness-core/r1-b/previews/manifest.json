@@ -1,0 +1,143 @@
+{
+  "engine": "BLENDER_WORKBENCH",
+  "blender_version": "5.2.3 LTS",
+  "parameters_sha256": "2d95096858242cb8d8ba0175df4933e178d4c6d30795ab121167466e921dceb9",
+  "source_sha256": "426d9d71d7c2ec59e6f1c543b43adaa99b543ca81eb0d660e1693d029faacc52",
+  "render_environment": "Local Steam Blender background process; Workbench studio lighting; no image generation",
+  "stills": [
+    {
+      "file": "three-quarter.png",
+      "camera": "ThreeQuarter",
+      "frame": 1,
+      "joint_degrees_override": null,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "front-orthographic.png",
+      "camera": "FrontOrthographic",
+      "frame": 481,
+      "joint_degrees_override": null,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "oblique-side.png",
+      "camera": "ObliqueSide",
+      "frame": 1,
+      "joint_degrees_override": null,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "pose-moderate.png",
+      "camera": "ThreeQuarter",
+      "frame": null,
+      "joint_degrees_override": [
+        2,
+        28,
+        -22
+      ],
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "side-orthographic.png",
+      "camera": "SideOrthographic",
+      "frame": 1,
+      "joint_degrees_override": null,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "top-orthographic.png",
+      "camera": "TopOrthographic",
+      "frame": 1,
+      "joint_degrees_override": null,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "pose-idle-mid.png",
+      "camera": "ThreeQuarter",
+      "frame": 121,
+      "joint_degrees_override": null,
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "alignment-end.png",
+      "camera": "ThreeQuarter",
+      "frame": 481,
+      "joint_degrees_override": null,
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "videos": [
+    {
+      "file": "idle-rotation.mp4",
+      "frames": [
+        1,
+        240
+      ],
+      "decoded_frame_count": 240,
+      "size": [
+        1280,
+        960
+      ],
+      "fps": 24,
+      "full_object_framing": {
+        "frames_checked": 240,
+        "uv_bounds": [
+          0.2006779974010208,
+          0.06136398972228139,
+          0.799322598645414,
+          0.938635540665393
+        ],
+        "pass": true
+      },
+      "seconds": 10.0
+    },
+    {
+      "file": "precision-alignment.mp4",
+      "frames": [
+        241,
+        481
+      ],
+      "decoded_frame_count": 241,
+      "size": [
+        1280,
+        960
+      ],
+      "fps": 24,
+      "full_object_framing": {
+        "frames_checked": 241,
+        "uv_bounds": [
+          0.20308030837058352,
+          0.09333765328507548,
+          0.7969202876758513,
+          0.9066618771025988
+        ],
+        "pass": true
+      },
+      "seconds": 10.041666666666666
+    }
+  ]
+}

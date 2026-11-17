@@ -1,0 +1,16 @@
+{
+  "expanse-wind.opus": {
+    "sha256": "496660bcfcf853f2443a8ebea7a62ae680ec947c348d2c9256a6efb9097669fa",
+    "seconds": 58.0,
+    "rmsDbfs": -23.77,
+    "peakDbfs": -7.12,
+    "loopStep": 0.01416
+  },
+  "expanse-wind.mp3": {
+    "sha256": "b9d905a0413a93206cca9d734c3eb5df3595389b60de141588ec2db83b89d17b",
+    "seconds": 58.0,
+    "rmsDbfs": -23.38,
+    "peakDbfs": -7.2,
+    "loopStep": 0.02234
+  }
+}

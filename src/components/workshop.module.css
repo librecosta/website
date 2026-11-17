@@ -1,0 +1,23 @@
+.workshop, .fixedWorkshop {
+  --workshop-base: #11151a;
+}
+
+.workshop, .fixedWorkshop::before {
+  /* One tile spans four grid cells so each cross sits on a grid intersection. */
+  background: var(--workshop-base)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='104' height='104'%3E%3Cpath d='M.5 0V104 M26.5 0V104 M52.5 0V104 M78.5 0V104 M0 .5H104 M0 26.5H104 M0 52.5H104 M0 78.5H104' stroke='%231a2026'/%3E%3Cpath d='M18.5 78.5h16m-8-8v16' stroke='%23303840'/%3E%3C/svg%3E")
+    9px 7px / 104px 104px repeat;
+}
+
+.fixedWorkshop {
+  isolation: isolate;
+  background-color: var(--workshop-base);
+}
+
+.fixedWorkshop::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+}

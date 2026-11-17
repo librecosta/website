@@ -1,0 +1,6 @@
+{
+  "nodeVersion": "24.18.0",
+  "installCommand": "npx --yes pnpm@12.8.1 install --frozen-lockfile",
+  "buildCommand": "npx --yes pnpm@12.8.1 build:cn",
+  "outputDirectory": "dist/cn"
+}

@@ -1,0 +1,9 @@
+{
+  "pass": true,
+  "source_blend_sha256": "b47c58d51ec475d815f4375a005ecbd52122b8416fe51e135b648d0a54894cd6",
+  "render_count": 16,
+  "all_render_hashes_and_sizes_match": true,
+  "same_camera_lights_exposure_within_each_view": true,
+  "shared_low_geometry_and_uv": true,
+  "scope": "Manifest/source/bake verification consistency. Visual review was performed separately."
+}
