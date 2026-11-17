@@ -34,7 +34,7 @@
   overflow: hidden;
   touch-action: pan-y;
 }
-.canvas { position: absolute !important; inset: 0; opacity: 0; transition: opacity 600ms ease; pointer-events: none; touch-action: pan-y; }
+.canvas { position: absolute !important; inset: 0; opacity: 0; pointer-events: none; touch-action: pan-y; }
 .journey[data-ready='true'] .canvas { opacity: 1; }
 .instrument {
   --corner-width: clamp(68px, 8vw, 103px);
@@ -300,7 +300,6 @@
 }
 .journey[data-ready='true'] .instrument { animation: instrument-reveal 460ms ease-out both; }
 @keyframes instrument-reveal { from { opacity: .72; } to { opacity: 1; } }
-.loading { position: absolute; top: 50%; left: 0; width: 100%; margin: 0; text-align: center; font-size: 12px; color: #656e61; }
 .unavailable { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; text-align: center; background: #dedfd9; }
 .unavailable h1 { font-size: 23px; font-weight: 400; }
 .unavailable p { max-width: 32em; margin: 8px 0; font-size: 14px; }

@@ -65,10 +65,11 @@ function DistrictInstances({ geometry, buildings, material }: District & { mater
   return <instancedMesh ref={mesh} args={[geometry, material, buildings.length]} />;
 }
 
-export function EntranceRuin({ ruin, ground, atmosphere, storm, mobile, onAnchor }: {
+export function EntranceRuin({ ruin, ground, atmosphere, storm, mobile, onAnchor, onCommitted }: {
   ruin: Monument; atmosphere: Atmosphere; storm?: SandstormUniforms; mobile: boolean;
   ground: (x: number, z: number) => number;
   onAnchor: (object: Object3D | null) => void;
+  onCommitted: () => void;
 }) {
   const { nodes } = useLoader(GLTFLoader, '/expanse/entrance-ruin.glb');
   const source = (nodes.Tower as Mesh<BufferGeometry>).geometry;
@@ -88,8 +89,9 @@ export function EntranceRuin({ ruin, ground, atmosphere, storm, mobile, onAnchor
   }, [atmosphere, mobile, storm]);
   useLayoutEffect(() => {
     gl.shadowMap.needsUpdate = true;
+    onCommitted();
     invalidate();
-  }, [gl, invalidate]);
+  }, [gl, invalidate, onCommitted]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
   return <mesh geometry={geometry} material={material} position={ruin.position}

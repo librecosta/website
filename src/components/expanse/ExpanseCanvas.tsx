@@ -1,7 +1,7 @@
 'use client';
 
-import { addAfterEffect, Canvas, useFrame, useThree } from '@react-three/fiber';
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   ACESFilmicToneMapping, BufferAttribute, BufferGeometry, InstancedMesh, MathUtils,
   MeshStandardMaterial, Object3D, PCFShadowMap, PerspectiveCamera, Quaternion, SRGBColorSpace, WebGLRenderer,
@@ -31,7 +31,7 @@ import styles from './expanse.module.css';
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
   skyView: SkyView; cameraRef: RefObject<Camera | null>; observationElements: RefObject<ObservationElements>;
   editor?: ExpanseEditorMount; editorDragging: RefObject<boolean>;
-  windView: WindView; onReady: () => void; onContextLost: () => void };
+  windView: WindView; onLoading: (phase: 'assets' | 'presenting') => void; onReady: () => void; onContextLost: () => void };
 
 const ExpanseTransformEditor = process.env.NODE_ENV === 'development'
   ? lazy(() => import('./ExpanseTransformEditor')) : null;
@@ -66,9 +66,9 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant} dispose={null} />;
 }
 
-function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere, observationElements, editor, stage, signal, editorDragging, locale }:
+function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere, observationElements, editor, stage, signal, editorDragging, locale, onAssetsReady }:
   Pick<Props, 'mobile' | 'windView' | 'skyView' | 'reduced' | 'debug' | 'observationElements' | 'editor' | 'stage' | 'signal' | 'editorDragging'> &
-  { visible: boolean; atmosphere: Atmosphere; locale: Locale }) {
+  { visible: boolean; atmosphere: Atmosphere; locale: Locale; onAssetsReady: () => void }) {
   const { invalidate, gl } = useThree();
   const opaque = useRef<Group>(null);
   const anchors = useRef<Partial<Record<ObservationId, Object3D | null>>>({});
@@ -78,6 +78,7 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
   }])) as Record<ObservationId, (object: Object3D | null) => void>, [invalidate]);
   const monuments = useMemo(() => buildMonuments(EXPANSE), []);
   const entrance = monuments.find(item => item.id === EXPANSE.futureCity.ruin.id);
+  useLayoutEffect(() => { if (!entrance) onAssetsReady(); }, [entrance, onAssetsReady]);
   const distantStelae = useMemo(() => monuments.filter(item => item.family === 'Distant Stelae'), [monuments]);
   const terrain = useMemo(() => {
     const resolution = EXPANSE.terrain.resolution[mobile ? 'mobile' : 'desktop'];
@@ -142,7 +143,7 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
         debug={debug} onAnchor={attach.ring} onAirshipAnchor={attach.airship} />
       {entrance && <Suspense fallback={null}>
         <EntranceRuin ruin={entrance} ground={groundHeight} atmosphere={atmosphere}
-          storm={storm ?? undefined} mobile={mobile} onAnchor={attach.ruin} />
+          storm={storm ?? undefined} mobile={mobile} onAnchor={attach.ruin} onCommitted={onAssetsReady} />
       </Suspense>}
       <EnvironmentalDressing ground={groundHeight} mobile={mobile} material={resources.dressing} onAnchor={attach.bones} />
       <Instances items={distantStelae} geometry={stelaGeometry} material={resources.distant} distant />
@@ -160,14 +161,14 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
   </group>;
 }
 
-function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, cameraRef, visible, editorDragging }:
-  Props & { visible: boolean }) {
+function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, onContextLost, cameraRef, visible, editorDragging, assetsReady }:
+  Props & { visible: boolean; assetsReady: RefObject<boolean> }) {
   const { camera, invalidate, gl, size } = useThree();
   useEffect(() => {
     cameraRef.current = camera;
     return () => { cameraRef.current = null; };
   }, [camera, cameraRef]);
-  const ready = useRef(false), frames = useRef(0), readback = useRef(false);
+  const ready = useRef(false), frames = useRef(0), failed = useRef(false);
   const lastPose = useRef({ smoothed: -1, aspect: 0, camera, reduced, rotation: new Quaternion(), x: 0, y: 0 });
   const pointer = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, sampledAt: null as number | null });
   const animated = visible && !reduced;
@@ -239,21 +240,13 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
       reset();
     };
   }, [stage, signal, reduced, visible, editorDragging]);
-  useEffect(() => addAfterEffect(timestamp => {
-    if (!readback.current) return;
-    readback.current = false;
-    const dataset = gl.domElement.dataset;
-    dataset.frames = String(frames.current); dataset.drawCalls = String(gl.info.render.calls);
-    dataset.triangles = String(gl.info.render.triangles); dataset.geometries = String(gl.info.memory.geometries);
-    if (inspect) {
-      dataset.frameAt = timestamp.toFixed(3);
-      dataset.textures = String(gl.info.memory.textures);
-    }
-    if (!ready.current) { ready.current = true; onReady(); }
-  }), [gl, inspect, onReady]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = gl.domElement;
-    const lost = (event: Event) => { event.preventDefault(); onContextLost(); };
+    const lost = (event: Event) => {
+      event.preventDefault();
+      failed.current = true;
+      onContextLost();
+    };
     canvas.addEventListener('webglcontextlost', lost);
     const context = gl.getContext();
     canvas.dataset.webgl = context.getParameter(context.VERSION);
@@ -321,9 +314,34 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
       dataset.scrollProgress = signal.current.raw.toFixed(5);
       dataset.smoothedProgress = smoothed.toFixed(5);
     }
-    frames.current++;
-    readback.current = true;
   }, -1);
+  // Submit the usual R3F draw after its camera and scene callbacks. A frame
+  // during the entrance ruin's Suspense fallback cannot release the loader.
+  useFrame(({ scene }) => {
+    if (failed.current) return;
+    const context = gl.getContext();
+    try {
+      gl.render(scene, camera);
+      if (context.isContextLost()) throw new Error('WebGL context lost');
+    } catch {
+      failed.current = true;
+      onContextLost();
+      return;
+    }
+    const { calls, triangles } = gl.info.render;
+    const dataset = gl.domElement.dataset;
+    dataset.frames = String(++frames.current); dataset.drawCalls = String(calls);
+    dataset.triangles = String(triangles); dataset.geometries = String(gl.info.memory.geometries);
+    if (inspect) {
+      dataset.frameAt = performance.now().toFixed(3);
+      dataset.textures = String(gl.info.memory.textures);
+    }
+    if (!ready.current && assetsReady.current && calls > 0 && triangles > 0 &&
+      context.drawingBufferWidth > 0 && context.drawingBufferHeight > 0) {
+      ready.current = true;
+      onReady();
+    }
+  }, 1);
   return null;
 }
 
@@ -331,6 +349,12 @@ export default function ExpanseCanvas(props: Props) {
   const { locale } = useSiteLocale();
   const copy = useSiteCopy().world;
   const [visible, setVisible] = useState(true);
+  const assetsReady = useRef(false);
+  const { onLoading } = props;
+  const onAssetsReady = useCallback(() => {
+    assetsReady.current = true;
+    onLoading('presenting');
+  }, [onLoading]);
   const windView = props.reduced ? 'static' : props.windView;
   const atmosphere = useMemo(createAtmosphere, []);
   useEffect(() => () => atmosphere.uniforms.airSky.value.dispose(), [atmosphere]);
@@ -353,6 +377,7 @@ export default function ExpanseCanvas(props: Props) {
     frameloop={visible ? 'demand' : 'never'} dpr={[1, props.mobile ? 1.25 : 1.5]}
     camera={{ near: 3, far: EXPANSE.futureCity.cameraFar, fov: 47 }}
     shadows={{ type: PCFShadowMap }}
+    onCreated={() => onLoading('assets')}
     gl={defaults => {
       const canvas = defaults.canvas as HTMLCanvasElement;
       const context = canvas.getContext('webgl2', { antialias: !props.mobile, alpha: false, powerPreference: 'high-performance' });
@@ -363,6 +388,7 @@ export default function ExpanseCanvas(props: Props) {
       });
       renderer.toneMapping = ACESFilmicToneMapping; renderer.toneMappingExposure = a.exposure;
       renderer.outputColorSpace = SRGBColorSpace; renderer.shadowMap.autoUpdate = false;
+      renderer.debug.onShaderError = () => { throw new Error('Expanse shader failed to link'); };
       return renderer;
     }} fallback={<p>{copy.canvasFallback}</p>}>
     <color attach="background" args={[atmosphere.horizon]} />
@@ -376,7 +402,7 @@ export default function ExpanseCanvas(props: Props) {
     </directionalLight>
     <World mobile={props.mobile} windView={windView} skyView={props.skyView} reduced={props.reduced} locale={locale}
       visible={visible} debug={props.debug} atmosphere={atmosphere} observationElements={props.observationElements}
-      editor={props.editor} stage={props.stage} signal={props.signal} editorDragging={props.editorDragging} />
-    <Observation {...props} visible={visible} />
+      editor={props.editor} stage={props.stage} signal={props.signal} editorDragging={props.editorDragging} onAssetsReady={onAssetsReady} />
+    <Observation {...props} visible={visible} assetsReady={assetsReady} />
   </Canvas>;
 }

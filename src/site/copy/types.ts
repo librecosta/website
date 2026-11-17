@@ -20,7 +20,8 @@ export type SiteCopy = {
   };
   world: {
     title: string; landscape: string; sceneLabel: string; noScript: string; instructions: string;
-    webgl: string; canvasFallback: string; reload: string; loading: string; scroll: string; progress: string;
+    webgl: string; canvasFallback: string; reload: string; scroll: string; progress: string;
+    loading: { starting: string; assets: string; presenting: string; ready: string };
     audio: { on: string; off: string; labelOn: string; labelOff: string; indicatorOn: string; indicatorOff: string;
       prompt: readonly [string, string]; failure: string; windMissing: string };
     readout: { site: string; basin: string; sector: string; time: string; position: string; chapter: string };
@@ -44,7 +45,7 @@ export type SiteCopy = {
     heading: string; archive: string; expand: string; overview: string; reel: string; cards: string;
     previousCard: string; nextCard: string; browse: string; previousProject: string; nextProject: string;
     pause: string; resume: string; reserved: string; island: string; zoomIn: string; zoomOut: string; reset: string;
-    staticPreview: string; previewLabel: `${string}{name}${string}`; canvasLabel: `${string}{name}${string}`; links: string;
+    loadingIsland: string; staticPreview: string; previewLabel: `${string}{name}${string}`; canvasLabel: `${string}{name}${string}`; links: string;
     statuses: Record<ProjectStatus, string>;
     actions: Record<ProjectAction, string>;
     projects: Record<ProjectId, { category: string; island: string; description: string; alt: string }>;

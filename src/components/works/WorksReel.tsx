@@ -77,6 +77,7 @@ export function WorksReel() {
   const viewButton = useRef<HTMLButtonElement>(null);
   const backButton = useRef<HTMLButtonElement>(null);
   const projectRef = useRef<number | null>(null);
+  const requestedProject = useRef<{ index: number } | null>(null);
   const restoreFocus = useRef<HTMLButtonElement | null>(null);
   const drag = useRef<Drag | null>(null);
   const suppressClick = useRef(false);
@@ -151,6 +152,7 @@ export function WorksReel() {
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
+      requestedProject.current = null;
       positionPlayback.current?.stop();
       viewPlayback.current?.stop();
       detailPlayback.current?.stop();
@@ -211,6 +213,17 @@ export function WorksReel() {
     schedulePaint();
   }
 
+  function withPreview(index: number, show: () => void) {
+    const request = { index };
+    requestedProject.current = request;
+    const preview = cardsRef.current[index]?.querySelector('img');
+    const present = () => { if (requestedProject.current === request) show(); };
+    // The reel already owns this image. Decode it before replacing the
+    // current display, including when several switch inputs arrive together.
+    if (preview) void preview.decode().then(present, present);
+    else present();
+  }
+
   function showProject(index: number, origin: HTMLButtonElement) {
     if (projectRef.current !== null) return;
     positionPlayback.current?.stop();
@@ -218,9 +231,11 @@ export function WorksReel() {
     restoreFocus.current = origin;
     projectRef.current = index;
     setProject(index);
-    detailPlayback.current = animate(detail, 1, {
-      duration: reduced ? 0 : orbitDuration, ease: 'linear',
-      onComplete() { if (!closing.current) setShowArchive(true); },
+    withPreview(index, () => {
+      detailPlayback.current = animate(detail, 1, {
+        duration: prefersReducedMotion() ? 0 : orbitDuration, ease: 'linear',
+        onComplete() { if (!closing.current) setShowArchive(true); },
+      });
     });
     schedulePaint();
   }
@@ -228,6 +243,7 @@ export function WorksReel() {
   function closeProject() {
     if (closing.current) return;
     closing.current = true;
+    requestedProject.current = null;
     setLeaving(true);
     backButton.current?.focus({ preventScroll: true });
     detailPlayback.current?.stop();
@@ -247,8 +263,11 @@ export function WorksReel() {
 
   function stepProject(direction: -1 | 1) {
     if (!showArchive || closing.current) return;
+    const current = requestedProject.current?.index ?? project;
+    if (current === null) return;
     // Keep the original reel card as the return target while browsing details.
-    setProject(current => current === null ? current : (current + direction + projects.length) % projects.length);
+    const next = (current + direction + projects.length) % projects.length;
+    withPreview(next, () => setProject(next));
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {

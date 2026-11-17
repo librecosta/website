@@ -19,15 +19,23 @@
   gap: 4px;
 }
 
-.viewport { position: relative; min-width: 0; min-height: 0; }
+.viewport { position: relative; min-width: 0; min-height: 0; container-type: size; overflow: clip; }
 .viewport > * { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.islandPreview { object-fit: contain; pointer-events: none; transition: opacity .3s ease-out; }
-.viewport canvas { opacity: 0; cursor: grab; transition: opacity .3s ease-out; }
+.viewport .islandPreview {
+  inset: 50% auto auto 50%;
+  width: min(calc(100cqw * var(--preview-fit-x)), calc(100cqh * var(--preview-fit-y)));
+  height: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.viewport canvas { opacity: 0; cursor: grab; pointer-events: none; transition: opacity .3s ease-out; }
 .viewport canvas:active { cursor: grabbing; }
-[data-island-status='ready'] .islandPreview { opacity: 0; }
-[data-island-status='ready'] .viewport canvas { opacity: 1; }
+[data-island-status='ready'] .islandPreview { visibility: hidden; }
+:is([data-island-status='revealing'], [data-island-status='ready']) .viewport canvas { opacity: 1; }
+[data-island-status='ready'] .viewport canvas { pointer-events: auto; }
 
 .viewTools { display: grid; place-items: center; }
+.viewTools > * { grid-area: 1 / 1; }
 .viewTools > div { display: flex; align-items: center; gap: 4px; }
 .viewTools button {
   min-width: 38px;
@@ -51,6 +59,7 @@
 :global(html[data-localized]) .archive { overflow-wrap: anywhere; }
 .viewTools button:hover, .viewTools button:focus-visible { color: var(--color); }
 .viewTools button:focus-visible, .viewport canvas:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
+.viewport canvas:focus-visible { outline-offset: -2px; }
 
 .archive {
   display: grid;
@@ -125,5 +134,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .islandPreview, .viewport canvas { transition: none; }
+  .viewport canvas { transition: none; }
 }

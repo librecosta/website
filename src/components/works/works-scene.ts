@@ -83,6 +83,7 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
 }) {
   const renderer = new T.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'default' });
   renderer.setClearColor(0, 0);
+  renderer.debug.onShaderError = () => { throw new Error('Island shader failed to link'); };
   const scene = new T.Scene();
   const beatline = project.island.model === 'sofaraway';
   const waveLoom = project.island.model === 'wavefield';
@@ -178,10 +179,20 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
     }
     const changed = controls.update();
     if (dirty || changed) {
-      renderer.render(scene, camera);
+      try {
+        renderer.render(scene, camera);
+      } catch {
+        fail();
+        return;
+      }
       dirty = false;
     }
     if (!presented) {
+      const context = renderer.getContext();
+      if (context.isContextLost() || !renderer.info.render.triangles) {
+        fail(context.isContextLost());
+        return;
+      }
       presented = true;
       controls.enabled = true;
       callbacks.ready();

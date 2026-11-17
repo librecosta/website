@@ -15,6 +15,7 @@ import { ExpanseAudioLevels } from './ExpanseAudio';
 import { ExpanseNarrative, ExpanseTranscript } from './ExpanseNarrative';
 import { narrativeTiming, witnessSequence, type NarrativeEndpoint, type ObservationId, type WitnessId } from './narrative';
 import { ExpanseSignals, SignalReadouts } from './ExpanseSignals';
+import { ExpanseLoading, type LoadingPhase } from './ExpanseLoading';
 import type { ObservationElements } from './ObservationProjection';
 import styles from './expanse.module.css';
 
@@ -71,24 +72,46 @@ export default function ExpanseExperience() {
   const [debug, setDebug] = useState(false), [forceReduced, setForceReduced] = useState(false);
   const [skyView, setSkyView] = useState<SkyView>('color');
   const [windView, setWindView] = useState<WindView>('transport');
-  const [ready, setReady] = useState(false), [contextLost, setContextLost] = useState(false);
+  const [phase, setPhase] = useState<LoadingPhase | 'failed'>('starting');
+  const [revealed, setRevealed] = useState(false);
   const [editorStarted, setEditorStarted] = useState(false), [editorOpen, setEditorOpen] = useState(false);
   const closeEditor = useCallback(() => setEditorOpen(false), []);
   useEffect(() => {
     if (editorStarted && !editorOpen) editorToggle.current?.focus({ preventScroll: true });
   }, [editorOpen, editorStarted]);
   const reduced = mediaReduced || forceReduced;
+  const ready = phase === 'ready';
+  const contextLost = phase === 'failed';
+  const showLoading = !contextLost && (!ready || !reduced && !revealed);
+  const onRevealed = useCallback(() => setRevealed(true), []);
+  const onLoading = useCallback((next: 'assets' | 'presenting') => {
+    setPhase(current => current === 'starting' || current === 'assets' ? next : current);
+  }, []);
   const onReady = useCallback(() => {
     sceneReady.current = true;
-    setReady(true);
+    setPhase(current => current === 'failed' ? current : 'ready');
     syncNarrative.current?.();
   }, []);
   const onContextLost = useCallback(() => {
     sceneReady.current = false;
-    setContextLost(true);
-    setReady(false);
+    setPhase('failed');
     setObservation(null);
   }, []);
+  useEffect(() => {
+    if (ready || contextLost) return;
+    let timeout: ReturnType<typeof setTimeout>;
+    // A hidden tab can legitimately defer its first frame.
+    function watchLoading() {
+      clearTimeout(timeout);
+      if (!document.hidden) timeout = setTimeout(onContextLost, 60_000);
+    }
+    watchLoading();
+    document.addEventListener('visibilitychange', watchLoading);
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener('visibilitychange', watchLoading);
+    };
+  }, [ready, contextLost, onContextLost]);
   const closeObservation = useCallback(() => {
     if (!observation) return;
     const marker = observationElements.current.buttons[observation];
@@ -230,43 +253,48 @@ export default function ExpanseExperience() {
           debug={debug} skyView={skyView} windView={windView} cameraRef={cameraRef} observationElements={observationElements}
           editor={editorStarted ? { host: editorHost, open: editorOpen, close: closeEditor } : undefined}
           editorDragging={editorDragging}
-          onReady={onReady} onContextLost={onContextLost} />}
-        {!ready && !contextLost && <p className={styles.loading} role="status">{copy.loading}</p>}
+          onLoading={onLoading} onReady={onReady} onContextLost={onContextLost} />}
       </SceneBoundary>
-      <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost} stage={stage}
-        hint={hint} progressBar={progressBar} progressFill={progressFill} cameraRef={cameraRef} />
-      <ExpanseSignals elements={observationElements} enabled={ready && !contextLost}
-        active={observation} read={read} onSelect={selectObservation}
-        invalidate={invalidateScene} />
-      <ExpanseNarrative subtitles={subtitles} endpointState={endpointState}
-        ready={ready} reduced={reduced} unavailable={contextLost} />
-      <h1 className={styles.srOnly}>{copy.title}</h1>
-      <noscript><div className={styles.unavailable}><p>{copy.noScript}</p></div></noscript>
-      {process.env.NODE_ENV === 'development' && debug && <aside className={styles.debug} data-editor-open={editorOpen && !contextLost} aria-label="场景调试">
-        <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
-        <div>主线 {subtitles.length} / {witnessSequence.length} · 全息卡 {observation ?? '关闭'}</div>
-        <div>{([['起点 · Passage', 0], ['50%', .5], ['终点', 1]] as const)
-          .map(([label, progress]) => <button key={label} type="button" disabled={reduced || contextLost} onClick={() => seek(progress)}>{label}</button>)}</div>
-        <button ref={editorToggle} type="button" disabled={!ready || contextLost} aria-expanded={editorOpen && !contextLost}
-          aria-controls={editorStarted ? 'expanse-transform-inspector' : undefined}
-          onClick={() => { setEditorStarted(true); setEditorOpen(!editorOpen); }}>
-          {editorOpen ? '关闭物体变换' : '打开物体变换'}
-        </button>
-        <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />验证减少动态效果</label>
-        <label>风沙 <select disabled={reduced || contextLost} value={reduced ? 'static' : windView}
-          onChange={event => setWindView(event.target.value as WindView)}>
-          {Object.entries(WIND_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
-        </select></label>
-        <label>天空分层 <select disabled={contextLost} value={skyView} onChange={event => setSkyView(event.target.value as SkyView)}>
-          {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
-        </select></label>
-        <WordmarkStudy />
-        <SignalReadouts elements={observationElements} />
-        <ExpanseAudioLevels />
-      </aside>}
-      {process.env.NODE_ENV === 'development' && debug && editorStarted && <div ref={editorHost} id="expanse-transform-inspector"
-        className={styles.transformEditor} data-transform-inspector
-        hidden={!editorOpen || contextLost} />}
+      <div inert={showLoading}>
+        <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost} stage={stage}
+          hint={hint} progressBar={progressBar} progressFill={progressFill} cameraRef={cameraRef} />
+        <ExpanseSignals elements={observationElements} enabled={ready && !contextLost}
+          active={observation} read={read} onSelect={selectObservation}
+          invalidate={invalidateScene} />
+        <ExpanseNarrative subtitles={subtitles} endpointState={endpointState}
+          ready={ready} reduced={reduced} unavailable={contextLost} />
+        <h1 className={styles.srOnly}>{copy.title}</h1>
+        {process.env.NODE_ENV === 'development' && debug && <aside className={styles.debug} data-editor-open={editorOpen && !contextLost} aria-label="场景调试">
+          <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
+          <div>主线 {subtitles.length} / {witnessSequence.length} · 全息卡 {observation ?? '关闭'}</div>
+          <div>{([['起点 · Passage', 0], ['50%', .5], ['终点', 1]] as const)
+            .map(([label, progress]) => <button key={label} type="button" disabled={reduced || contextLost} onClick={() => seek(progress)}>{label}</button>)}</div>
+          <button ref={editorToggle} type="button" disabled={!ready || contextLost} aria-expanded={editorOpen && !contextLost}
+            aria-controls={editorStarted ? 'expanse-transform-inspector' : undefined}
+            onClick={() => { setEditorStarted(true); setEditorOpen(!editorOpen); }}>
+            {editorOpen ? '关闭物体变换' : '打开物体变换'}
+          </button>
+          <label><input type="checkbox" checked={forceReduced} onChange={event => setForceReduced(event.target.checked)} />验证减少动态效果</label>
+          <label>风沙 <select disabled={reduced || contextLost} value={reduced ? 'static' : windView}
+            onChange={event => setWindView(event.target.value as WindView)}>
+            {Object.entries(WIND_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
+          </select></label>
+          <label>天空分层 <select disabled={contextLost} value={skyView} onChange={event => setSkyView(event.target.value as SkyView)}>
+            {Object.entries(SKY_VIEWS).map(([view, label]) => <option key={view} value={view}>{label}</option>)}
+          </select></label>
+          <WordmarkStudy />
+          <SignalReadouts elements={observationElements} />
+          <ExpanseAudioLevels />
+        </aside>}
+        {process.env.NODE_ENV === 'development' && debug && editorStarted && <div ref={editorHost} id="expanse-transform-inspector"
+          className={styles.transformEditor} data-transform-inspector
+          hidden={!editorOpen || contextLost} />}
+      </div>
+      {showLoading && <ExpanseLoading phase={phase} onRevealed={onRevealed} />}
+      <noscript>
+        <style>{'[data-expanse-loading] { display: none; }'}</style>
+        <div className={styles.unavailable}><p>{copy.noScript}</p></div>
+      </noscript>
       <figcaption className={styles.srOnly}>{copy.instructions}</figcaption>
     </figure>
     {(reduced || contextLost) && <ExpanseTranscript />}
