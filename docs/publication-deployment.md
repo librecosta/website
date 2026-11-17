@@ -5,13 +5,13 @@ Both deployments use the same Next.js static export. CN exports eight pages in C
 | Region | Default locale | Build | Static directory | Production origin |
 | --- | --- | --- | --- | --- |
 | INTL · Cloudflare Workers Static Assets | `en` | `pnpm build:intl` | `dist/intl` | `https://librecosta.com` |
-| CN · EdgeOne Makers | `zh` | `pnpm build:cn` | `dist/cn` | `https://librecosta.cn` |
+| CN · EdgeOne Makers | `zh` | `deploy/edgeone-cn/edgeone.json` | `dist/cn` relative to `deploy/edgeone-cn` | `https://librecosta.cn` |
 
 ## Git and build settings
 
 The production branch is `master` in `librecosta/website`. Promote changes through pull requests from `develop` to `pre-master`, then from `pre-master` to `master`. Keep hosted release-candidate previews private.
 
-Pin Node **24.18.0** in both managed builds. Install with `npx --yes pnpm@12.8.1 install --frozen-lockfile` and build with the same pinned pnpm. Makers lists pnpm 6–11 for its bundled installation. Using npm's executable launcher selects pnpm 12.8.1 for both commands and keeps the existing lockfile. This route does not depend on a Corepack shim. [Workers build image](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/) · [Makers build guide](https://pages.edgeone.ai/document/build-guide)
+Pin Node **24.18.0** in both managed builds. Makers lists pnpm 6–11 for its bundled installation. Using npm's executable launcher selects pnpm 12.8.1 and keeps the existing lockfile. [Workers build image](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/) · [Makers build guide](https://pages.edgeone.ai/document/build-guide)
 
 ### Cloudflare INTL
 
@@ -22,9 +22,22 @@ Pin Node **24.18.0** in both managed builds. Install with `npx --yes pnpm@12.8.1
 
 ### EdgeOne Makers CN
 
-1. Use the static or custom framework preset and repository root. `edgeone.json` sets Node 24.18.0, the pinned installation and build commands, and `dist/cn`. Set `PUBLICATION_REQUIRE_RELEASE=1` in Production so the build fails if the release checks do. [Makers project configuration](https://pages.edgeone.ai/document/edgeone-json) · [Next.js static export](https://pages.edgeone.ai/document/framework-nextjs)
-2. Use the exported directory indexes and root `404.html` with native static routing. Leave rewrites and cache overrides empty. Makers documents revalidation for unversioned assets and longer caching for fingerprinted assets. Before accepting the managed preview, check deep links, slash redirects, actual HTTP 404 responses, and MIME types for JS, CSS, fonts, GLB, WASM and both audio formats. [Custom 404](https://edgeone.ai/document/192123212580007936) · [Makers cache policy](https://pages.edgeone.ai/document/configuring-cache)
-3. The public origin is configured under Domain Name Management. The CN pages display ICP filing `蜀ICP备2025158691号-3` and the text `公安备案待办理`. For rollback, redeploy the last verified Git commit or upload its retained static artifact. [Domain access and filing](https://pages.edgeone.ai/document/domain-overview) · [Manage deploys](https://pages.edgeone.ai/document/manage-deploys)
+In `librecosta-website-cn`, set **Root Directory** to `deploy/edgeone-cn`, retain the **Other** preset, and keep production auto-deploy on the GitHub `master` branch. `deploy/edgeone-cn/edgeone.json` supplies the following values for that root. [Makers build guide](https://pages.edgeone.ai/document/build-guide) · [Makers project configuration](https://pages.edgeone.ai/document/edgeone-json)
+
+| Setting | Value |
+| --- | --- |
+| Node version | `24.18.0` |
+| Install command | `npx --yes pnpm@12.8.1 --dir ../.. install --frozen-lockfile` |
+| Build command | `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ../../scripts/build-publication.mjs --edgeone cn` |
+| Output directory | `dist/cn` |
+
+The repository root declares Next.js, so Makers can detect it even with **Other** selected. The OpenNext build hook reads `.next/required-server-files.json` before handling static export. The publisher builds Next.js in a temporary snapshot and hands the host only the verified static export. The Makers root is a separate package with no framework dependencies. It calls the same publisher with mandatory release checks and writes `deploy/edgeone-cn/dist/cn`. The local `pnpm build:cn` and Cloudflare commands keep their original output paths. [OpenNext build hook](https://unpkg.com/@edgeone/opennextjs-pages@0.2.10-beta.1/dist/index.js) · [OpenNext build context](https://unpkg.com/@edgeone/opennextjs-pages@0.2.10-beta.1/dist/build/plugin-context.js)
+
+After saving the root setting, redeploy `master`. In the managed build log, confirm that the build runs from `deploy/edgeone-cn`, that `CN artifact release checks passed` is followed by a successful static upload, and that OpenNext is absent. Use the exported directory indexes and root `404.html` with native static routing. Leave rewrites and cache overrides empty. Verify deep links, slash redirects, HTTP 404 responses and static resource content types on the deployed origin. [Custom 404](https://edgeone.ai/document/192123212580007936) · [Makers cache policy](https://pages.edgeone.ai/document/configuring-cache)
+
+The Makers commands passed in a clean Linux container with Node 24.18.0 and pnpm 12.8.1. Local static serving returned all eight CN routes and the expected 308 and 404 responses. Tencent's published framework detector classified the repository root as `next` and the Makers root as `other`. Confirm plugin selection in the managed build log.
+
+The public origin is configured under Domain Name Management. The CN pages display ICP filing `蜀ICP备2025158691号-3` and the text `公安备案待办理`. For rollback, redeploy the last verified Makers deployment. [Domain access and filing](https://pages.edgeone.ai/document/domain-overview) · [Manage deploys](https://pages.edgeone.ai/document/manage-deploys)
 
 ## Expanse audio and release checks
 

@@ -15,7 +15,7 @@ The language menu shows the languages published in its region and keeps the curr
 
 ## Build and verify
 
-- EdgeOne Makers uses `pnpm build:cn` with `dist/cn/`. Cloudflare uses `pnpm build:intl` with `dist/intl/`.
+- `pnpm build:cn` writes `dist/cn/` locally. EdgeOne Makers builds from `deploy/edgeone-cn` and publishes `dist/cn/` relative to that directory. Cloudflare uses `pnpm build:intl` with `dist/intl/` from the repository root.
 - `pnpm preview cn` and `pnpm preview intl` serve the region's export locally. The preview server resolves directory indexes and returns the exported 404 page for missing routes. `pnpm dev`, `pnpm build`, and `pnpm check` use the CN configuration by default. The default build continues to write `out/` for `pnpm preview`.
 - Regional builds run Next in separate temporary project snapshots. They verify the exact page set, document language, internal asset references and output limits before replacing their own output directory.
 - Run `pnpm check:release <cn|intl>` against the completed export. Published pages are indexable, and error documents retain `noindex`. The gate checks the production origin, reviewed default language, indexing configuration and measured wind files. See the [deployment instructions](./publication-deployment.md) for artifact and platform verification.
