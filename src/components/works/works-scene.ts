@@ -41,9 +41,7 @@ function prepareIsland(project: Project, model: T.Object3D) {
   carrier.scale.setScalar(project.island.width / Math.max(size.x, size.z));
   carrier.updateMatrixWorld(true);
   // The original Blender assets carry calibrated PBR and baked shading.
-  if (project.island.model === 'harvest' || project.island.model === 'liquid-glass' ||
-      project.island.model === 'sofaraway' || project.island.model === 'gopher-atlas' ||
-      project.island.model === 'tool4furry' || project.island.model === 'wavefield') return carrier;
+  if (project.island.model !== 'signal') return carrier;
   const seen = new Set<T.Material>();
   model.traverse(node => {
     if (!(node instanceof T.Mesh)) return;
@@ -114,10 +112,13 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
   const scene = new T.Scene();
   const beatline = project.island.model === 'sofaraway';
   const waveLoom = project.island.model === 'wavefield';
-  const neutralDaylight = project.island.model === 'gopher-atlas' || project.island.model === 'tool4furry' || waveLoom;
+  const discoveryHarbor = project.island.model === 'gofurry';
+  const neutralDaylight = project.island.model === 'gopher-atlas' || project.island.model === 'tool4furry' || waveLoom || discoveryHarbor;
   const optical = project.island.model === 'liquid-glass' || beatline;
+  // Match the approved harbor view so the court and the lower quay both read.
+  const viewOffset = discoveryHarbor ? new T.Vector3(200, 168, 200) : offset;
   const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 900);
-  camera.position.copy(offset);
+  camera.position.copy(viewOffset);
   camera.lookAt(0, 0, 0);
   const hemisphere = optical || neutralDaylight
     ? new T.HemisphereLight('#f0f4f8', '#85988c', 2.25)
@@ -314,7 +315,7 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
     }
     home = fitIsland(carrier, camera);
     controls.target.copy(home.target);
-    homePosition.copy(offset);
+    homePosition.copy(viewOffset);
     camera.position.copy(home.target).add(homePosition);
     controls.update();
     resize();

@@ -4,7 +4,7 @@ type Island = {
   name: string;
   width: number;
   bearing: number;
-  model: 'bay' | 'tool4furry' | 'signal' | 'liquid-glass' | 'wavefield' | 'harvest' | 'sofaraway' | 'gopher-atlas';
+  model: 'gofurry' | 'tool4furry' | 'signal' | 'liquid-glass' | 'wavefield' | 'harvest' | 'sofaraway' | 'gopher-atlas';
 };
 
 export type Project = {
@@ -23,7 +23,7 @@ export function islandPreview(project: Project) { return `/works/previews/${proj
 export const projects: readonly Project[] = [
   {
     slug: 'gofurry', name: 'GoFurry', type: '资源发现平台', status: '开发中',
-    island: { name: '铆湾', width: 39, bearing: 85, model: 'bay' },
+    island: { name: '铆湾', width: 39, bearing: 21, model: 'gofurry' },
     description: '面向 Furry 社群的可定制浏览器起始页与资源发现入口。',
     links: [{ label: 'GitHub 源码', href: 'https://github.com/librecosta/gofurry' }],
     media: projectPreviews.gofurry,

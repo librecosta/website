@@ -25,6 +25,24 @@ blender --background --factory-startup --python-exit-code 1 --python assets/work
 blender --background --factory-startup --python-exit-code 1 --python assets/works/gofurry/review.py -- --source .local/gofurry-gf1/rebuild/gofurry.blend --scratch .local/gofurry-gf1/scale --output .local/gofurry-gf1/rebuild/renders/comparison.png
 ```
 
-## GF2 待办
+## GF2 正式资产
 
-深化陶瓦、切石、木板和屋面金属的表面质感，整理 UV 并烘焙檐下、廊柱和踏步接触阴影。玻璃保留独立材质，正式导出时检查透过展馆窗格的可见性。完成合批与几何压缩后，再用站内单岛渲染器检查轮廓、灯光和近景材质并生成正式轮盘预览。
+保留 GF1 的几何、布局和建筑色值。陶瓦使用非金属粗糙度和轻微窑色，切石、木构、锌板及地形分别使用对应的表面细节。两张 512 × 512 PBR 图集打包在源文件内，柔和日照遮挡与接触 AO 烘焙为面角颜色。`Discovery Harbor · Web bake` 场景保留合批后的 UV、法线及烘焙结果。窗格采用单面低透明度 PBR 材质，暖灯采用独立发光批次。 [正式 GLB](../../../public/works/islands/gofurry.glb) · [素材许可](../../../public/works/asset-notices.txt)
+
+使用静态生产构建，在 Chrome 157、AMD Radeon 上检查正面、侧后方、低视角和放大。拱顶瓦片、拱券接缝和五金结构仍可辨认，斜视展馆窗格时能看到陈列台和室内陈列。核对 1920 × 1080、1440 × 900、960 × 720、390 × 844、320 × 568 的布局，移动端使用浏览器视口与触摸模拟。通过拖动、键盘旋转、双指缩放、重置、前后切换与返回焦点检查。轮盘首屏的 WebGL 上下文、GLB 和 Draco 请求均为零，八座岛可各自加载。连续五次进入和退出 GoFurry，每次释放 15 个缓冲区、3 个纹理并丢弃旧 WebGL 上下文。阻断 GLB 或禁用 WebGL 时显示 560 × 420 的透明 WebP 回退。预览从正式单岛渲染器以 1.5 DPR 捕获，沿用详情页相机与灯光。`pnpm check` 通过。 [正式轮盘预览](../../../public/works/previews/gofurry.webp)
+
+| 模型 | GLB 字节 | GLB 三角面 | 浏览器屏上 Draw Calls |
+| --- | ---: | ---: | ---: |
+| GoFurry GF2 | 1,826,616 | 81,340 | 3 |
+| Harvest | 891,716 | 40,610 | 3 |
+| Liquid Glass | 1,081,908 | 52,462 | 8 |
+| SoFarAway | 1,111,248 | 58,340 | 9 |
+| GopherAtlas | 1,873,704 | 93,110 | 3 |
+| Tool4Furry | 1,831,560 | 91,354 | 4 |
+| Wavefield | 933,268 | 113,576 | 7 |
+
+从当前源文件重烘并导出，已与正式 GLB 比对 SHA-256。在 GF1 源文件上运行时可追加 `--blend <路径>` 保存带材质、UV 和完整烘焙场景的可编辑版本。
+
+```powershell
+blender --background assets/works/gofurry/gofurry.blend --python-exit-code 1 --python assets/works/gofurry/bake_web.py -- --glb public/works/islands/gofurry.glb
+```
