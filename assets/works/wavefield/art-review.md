@@ -25,6 +25,18 @@ blender --background --factory-startup --python-exit-code 1 --python assets/work
 
 有 NVIDIA 渲染设备时可在命令末尾追加 `--device OPTIX`。
 
-## WF2 待办
+## WF2 正式资产
 
-完成正式 PBR、接触 AO 与日照烘焙。在 Three.js 里验证双面观察、底纱排序和细线远景抗锯齿，再决定波场材质的合批与几何预算。
+保留 WF1 的构图、33 根经线、45 根纬线及缆端位置。经线实体截面放大至原来的 1.39 倍，纬线放大至 1.19 倍。浅银蓝色集中在原有波脊，边缘透过双面薄纱逐渐融入背景。偏冷日光照出灰绿台地与青灰岩面，浅木栈道和工坊暖灯保留色温差。 [WF2 Blender 源文件](./wavefield-final.blend)
+
+不透明结构使用两张打包的 512 × 512 PBR 图集，接触 AO 与柔和日照遮挡烘入顶点色。经纬线保留独立的 PBR 批次与实体深度，薄纱使用带顶点透明度的双面 alpha blend，工坊玻璃与工作灯各自分批。 [正式 GLB](../../../public/works/islands/wavefield.glb) · [资产与许可](../../../public/works/asset-notices.txt)
+
+在 Chrome 157（AMD Radeon，WebGL 4× MSAA）上验证静态生产构建。测试视口为 1920 × 1080、1440 × 900、960 × 720、390 × 844 和 320 × 568。检查默认、缩小、放大、侧后、顶部及低角度，主波脊保持可辨，最窄视口的细纬线较柔和。浏览器验证了鼠标拖动、触摸缩放、键盘、视角重置、退回轮盘与焦点恢复。八座岛均可依次独立加载，轮盘首屏的 WebGL 上下文及岛屿与 Draco 请求均为零。阻断 GLB 或禁用 WebGL 时显示静态回退。连续五次打开和退出均释放了对应 WebGL 上下文、缓冲区与纹理。移动端采用 Chrome 触摸和视口模拟。
+
+GLB 为 933,268 bytes，113,576 三角面，6 个 Draco primitive。浏览器实测每帧 7 次屏上绘制，双面透明薄纱分两次提交，合计 125,864 个三角形。离屏绘制为零，停止操作后按需渲染回到静止。两张 WebP 从正式单岛渲染器以 1.5 DPR 捕获，正交角度、光照与查看器一致。 `pnpm check` 通过。 [轮盘及回退 560 × 420](../../../public/works/previews/wavefield.webp) · [档案 768 × 432](../../../public/works/wavefield-preview.webp)
+
+从 WF1 源文件可重做材质与烘焙。把命令中的输入替换为 `wavefield-final.blend` 并去掉 `--blend` 也可重建同一份 GLB，已比对 SHA-256。
+
+```powershell
+blender --background assets/works/wavefield/wavefield.blend --python-exit-code 1 --python assets/works/wavefield/bake_web.py -- --blend assets/works/wavefield/wavefield-final.blend --glb public/works/islands/wavefield.glb
+```

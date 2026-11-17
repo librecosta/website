@@ -40,7 +40,7 @@ __pycache__/
 !/public/works/islands/foundry.glb
 !/public/works/islands/signal.glb
 !/public/works/islands/liquid-glass.glb
-!/public/works/islands/wave.glb
+!/public/works/islands/wavefield.glb
 !/public/works/islands/harvest.glb
 !/public/works/islands/sofaraway.glb
 !/public/works/islands/gopher-atlas.glb
@@ -53,3 +53,4 @@ __pycache__/
 !/assets/works/gopher-atlas/gopher-atlas.blend
 !/assets/works/tool4furry/tool4furry.blend
 !/assets/works/wavefield/wavefield.blend
+!/assets/works/wavefield/wavefield-final.blend

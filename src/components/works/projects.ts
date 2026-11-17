@@ -4,7 +4,7 @@ type Island = {
   name: string;
   width: number;
   bearing: number;
-  model: 'bay' | 'tool4furry' | 'signal' | 'liquid-glass' | 'wave' | 'harvest' | 'sofaraway' | 'gopher-atlas';
+  model: 'bay' | 'tool4furry' | 'signal' | 'liquid-glass' | 'wavefield' | 'harvest' | 'sofaraway' | 'gopher-atlas';
 };
 
 export type Project = {
@@ -61,13 +61,13 @@ export const projects: readonly Project[] = [
   },
   {
     slug: 'wavefield', name: 'Wavefield', type: 'WebGPU 实验', status: '开源项目',
-    island: { name: '回波岬', width: 45, bearing: 34, model: 'wave' },
+    island: { name: '回波岬', width: 45, bearing: 22, model: 'wavefield' },
     description: '以 WebGPU 绘制可交互的线框地形。',
     links: [
       { label: '查看项目', href: 'https://github.com/librecosta/wavefield#readme' },
       { label: '阅读技术文章', href: 'https://gopheratlas.com/notes/graphics-interaction/webgpu-wavefield-reconstruction/' },
     ],
-    media: { src: '/works/wavefield.webp', alt: 'Wavefield 的线框地形演示，网格随柔和丘陵起伏' },
+    media: { src: '/works/wavefield-preview.webp', alt: '回波岬的银蓝色波网跨过岩谷，两侧由张力架固定' },
   },
   {
     slug: 'sofaraway', name: 'SoFarAway', type: '浏览器节奏游戏', status: '开发中',

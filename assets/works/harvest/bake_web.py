@@ -141,9 +141,11 @@ def export(island, images, output):
     print(f'Harvest web asset: {count:,} triangles, {len(groups)} draw groups, {output.stat().st_size:,} bytes')
 
 
-def export_glb(mesh, output):
+def export_glb(mesh, output, *, extra_meshes=()):
     bpy.ops.object.select_all(action='DESELECT')
     mesh.select_set(True)
+    for item in extra_meshes:
+        item.select_set(True)
     bpy.context.view_layer.objects.active = mesh
     bpy.ops.export_scene.gltf(
         filepath=str(output), export_format='GLB', use_selection=True,

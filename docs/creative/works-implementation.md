@@ -1,5 +1,7 @@
 # WORKS · WEB-V0.1-A4
 
+本文记录 A4 的八岛总览和当时的资产来源。现行资源见 [WORKS 资产清单](../../public/works/asset-notices.txt)，回波岬的原创岛屿见 [Wavefield WF2](../../assets/works/wavefield/art-review.md)。
+
 `/works` 是一个全视口连续海域。八个作品各占一座岛，默认正交机位同时覆盖八岛。拖动海面、方向键或鼠标滚轮可在边界内探索。岛体和浮标都可选择，档案打开时相机为纸面腾出空间，关闭后返回原来的探索位置。项目数据同时供浮标、档案、索引与静态 HTML 列表使用。生产构建延续 Next.js 静态导出。
 
 ## 上游移植

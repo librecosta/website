@@ -5,7 +5,7 @@ Interactive 3D Portfolio, commit 0319381ab0310cdabaca734d4e9c92bfcee79a49.
 Source: https://github.com/wenzrejas/wenzrejas.github.io
 Copyright (c) 2026 Wenz Louie Rejas. See wenz-license.txt (MIT).
 
-The four modified islands below include original Blender geometry and baked
+The three modified islands below include original Blender geometry and baked
 lighting textures authored by Wenz Louie Rejas and distributed alongside his
 source under the same MIT license. The glTF subtrees were extracted,
 recompressed, and stripped of unrelated props and project signage.
@@ -14,9 +14,6 @@ islands/bay.glb — Cozy Isle, Cozy_Isle subtree without café signage and boat.
 islands/foundry.glb — Buildshore, BeeSigned workshop terrain and honey glass. Retained
 as a legacy asset pending the W4 asset and license review.
 islands/signal.glb — Lumina Point, MainIsland terrain and tower without contact props.
-islands/wave.glb — Buildshore, Qoves terrain batch without the external logo mesh.
-LibreCosta added a closed rear cliff in the island's local coordinates. Original cliff faces
-are rendered from both sides to preserve the crest when the viewer orbits behind it.
 
 islands/harvest.glb (891,716 bytes) — The Collector's Workshop. Original LibreCosta
 Blender model, surface atlases and baked contact/daylight shading. The editable
@@ -48,7 +45,13 @@ separate clear and diffuse glazing and warm lights. Editable source and export
 script: assets/works/tool4furry/. Copyright (c) 2026 LibreCosta. See the BSD
 3-Clause License below.
 
-The Harvest, Liquid Glass, SoFarAway, GopherAtlas and Tool4Furry islands, field
+islands/wavefield.glb (933,268 bytes) — The Wave Loom. Original LibreCosta Blender
+geometry, PBR surface atlases and baked contact/daylight shading, with independent
+silver-blue fibres, translucent gossamer and workshop windows. Editable source
+and export script: assets/works/wavefield/. Copyright (c) 2026 LibreCosta.
+See the BSD 3-Clause License below.
+
+The Harvest, Liquid Glass, SoFarAway, GopherAtlas, Tool4Furry and Wavefield islands, field
 archive interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
 and JavaScript wrapper come from the installed Three.js r187 distribution and
 are provided under the Apache License 2.0. See draco-license.txt.
@@ -58,7 +61,7 @@ Project previews
 GoFurry, Tool4Furry, LibreCosta Uptime, GopherAtlas and SoFarAway now use the
 shared assets documented in ../about/asset-notices.txt for their dossiers.
 
-previews/*.webp: LibreCosta renders of the three active Wenz-derived and five original
+previews/*.webp: LibreCosta renders of the two active Wenz-derived and six original
 islands listed above. All eight use the same orthographic camera, authored
 model bearings, materials and lighting as the single-island viewer. Captured
 with transparency at 800 × 600, then resized to 560 × 420 and encoded as WebP.
@@ -73,10 +76,12 @@ G2 integration, with baked stone, slate and timber and inset glazing.
 previews/tool4furry.webp (48,776 bytes) was captured from the same viewer after
 T2 integration, with the warm timber interior, clear workshop windows and
 translucent clerestory glazing.
+previews/wavefield.webp (41,916 bytes) and wavefield-preview.webp (65,342 bytes)
+were captured from the same WORKS single-island viewer at 4:3 and 16:9 for the
+reel and dossier respectively. Both show LibreCosta's Wave Loom island.
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 gofurry.webp is a capture of the local GoFurry /start page (f19016b).
-Wavefield: https://github.com/librecosta/wavefield/blob/main/docs/assets/wavefield-preview.webp
 Tool4Furry: tool4furry.webp is a capture of the Chinese /tools/ listing from
 the local Tool4Furry static build. tool4furry-mark.webp uses the official OG mark.
 Harvest: harvest.webp shows the verbatim output of the local Harvest
@@ -91,6 +96,7 @@ BSD 3-Clause License
 Copyright (c) 2026, LibreCosta (GoFurry, Harvest, Sofaraway, Wavefield)
 Copyright (c) 2026, LibreCosta (The Atlas Observatory island and preview)
 Copyright (c) 2026, LibreCosta (The Makers' Studio island and preview)
+Copyright (c) 2026, LibreCosta (The Wave Loom island and previews)
 Copyright (c) 2026, Faolan Grey (Tool4Furry)
 
 Redistribution and use in source and binary forms, with or without
