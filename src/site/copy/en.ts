@@ -6,7 +6,12 @@ export const en = {
     social: 'Social Media', newTab: ' (Opens in a New Tab)', blogNewTab: ' (Opens in a New Tab)',
     nav: { world: 'WORLD', works: 'WORKS', about: 'ABOUT', blog: 'BLOG', contact: 'CONTACT' },
     dossier: { name: 'DOSSIER', field: 'FIELD', software: 'SOFTWARE / TOOLS', practice: 'PRACTICE', design: 'OPEN SOURCE / DESIGN', channels: 'CHANNELS', email: 'EMAIL' },
-    notFound: { title: 'Page not found', home: 'Back to home' },
+    errors: {
+      home: 'Back to home', works: 'Explore works', retry: 'Reload page', routing: 'ROUTING', service: 'SERVICE',
+      notFound: { title: 'Page not found', detail: 'This link may be out of date. Check the address or start again from the home page.' },
+      request: { title: 'Request unavailable', detail: 'Check the link or your access permissions, or start again from the home page.' },
+      server: { title: 'Service temporarily unavailable', detail: 'Try again in a moment, or go back to the home page.' },
+    },
   },
   world: {
     title: 'The Expanse', landscape: 'Sand ridges frame a pale valley. Beyond the scattered leaning columns, a larger structure fades into the distance.',

@@ -4,7 +4,7 @@ import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { usesOriginalLayout } from '@/site/content';
 import { LanguageMenu } from '@/site/LanguageMenu';
-import { localePath, type SiteRoute } from '@/site/locale-contract';
+import { localePath, type Locale, type SiteRoute } from '@/site/locale-contract';
 import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
 import { EncryptedLabel, useEncryptedText } from './EncryptedText';
@@ -137,8 +137,9 @@ export function InstrumentCorners() {
   </svg>)}</>;
 }
 
-export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/', className }: {
-  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: SiteRoute;
+export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/', className, onLocaleChange }: {
+  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: SiteRoute | null;
+  onLocaleChange?: (locale: Locale) => void;
   className?: string;
 }) {
   const { enabled, cue } = useSiteAudio();
@@ -156,7 +157,7 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/
         aria-label={enabled ? audio.indicatorOn : audio.indicatorOff} data-enabled={enabled} />}
     </div>
     {soundToggle}
-    <LanguageMenu route={currentPage} reduced={reduced} />
+    <LanguageMenu route={currentPage ?? '/'} reduced={reduced} onLocaleChange={onLocaleChange} />
     <nav className={styles.instrumentNav} aria-label={copy.navigation} data-audio-ui>
       {currentPage !== '/' && <InstrumentLink href={pagePath('/')} text={copy.nav.world} reduced={reduced} />}
       <InstrumentLink href={pagePath('/works')} text={copy.nav.works} reduced={reduced} current={currentPage === '/works'} />

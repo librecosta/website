@@ -1,0 +1,94 @@
+.frame[data-error-pending] .screen,
+.frame[data-error-pending='locale'] :is(header, aside) {
+  visibility: hidden;
+}
+
+/* Keep the static fallback readable and start hydrated motion already blurred. */
+.frame:not([data-error-animate]) .screen [data-error-reveal] {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.screen {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  max-width: none;
+  margin: 0;
+  padding: max(104px, calc(var(--edge-top) + 64px))
+    max(22px, calc(var(--edge-right) + var(--rail)))
+    max(90px, calc(var(--edge-bottom) + 64px))
+    max(22px, calc(var(--edge-left) + var(--rail)));
+  text-align: center;
+}
+
+.content { width: min(100%, 38rem); min-width: 0; }
+
+.heading {
+  display: grid;
+  gap: clamp(9px, 2dvh, 23px);
+  font-size: clamp(22px, 3.6vw, 39px);
+  font-weight: 650;
+  line-height: 1.15;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.code {
+  color: #cfdbf0;
+  font: 600 clamp(64px, min(14vw, 22dvh), 151px)/.91 var(--instrument-type);
+  letter-spacing: -.08em;
+  padding-inline-end: .08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.content .detail {
+  max-width: 48ch;
+  margin: 13px auto 0;
+  color: var(--secondary);
+  font-size: clamp(14px, 1.2vw, 17px);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  column-gap: 18px;
+  row-gap: 3px;
+  margin-top: clamp(13px, 3dvh, 26px);
+}
+
+.actions :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 9px;
+  border: 0;
+  background: none;
+  font: 600 14px/1.35 var(--instrument-type);
+  text-underline-offset: .28em;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+}
+
+.primary { color: var(--color); text-decoration: underline; }
+.secondary { color: var(--secondary); text-decoration: none; }
+.actions :is(a, button):hover { color: #f1f5ff; }
+.actions button:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
+.actions:focus-within { opacity: 1 !important; filter: none !important; transform: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .screen [data-error-reveal] { opacity: 1 !important; filter: none !important; transform: none !important; }
+}
+
+@media (max-width: 720px) {
+  .screen { padding-block-start: calc(var(--edge-top) + var(--rail) + 96px); }
+}
+
+@media (max-height: 440px) and (min-width: 721px) {
+  .screen { padding-block: 75px 72px; }
+}

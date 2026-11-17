@@ -6,7 +6,12 @@ export const es = {
     social: 'Redes sociales', newTab: ' (se abre en una pestaña nueva)', blogNewTab: ' (se abre en una pestaña nueva)',
     nav: { world: 'MUNDO', works: 'PROYECTOS', about: 'ACERCA DE', blog: 'BLOG', contact: 'CONTACTO' },
     dossier: { name: 'FICHA', field: 'ÁMBITO', software: 'SOFTWARE / HERRAMIENTAS', practice: 'PRÁCTICA', design: 'CÓDIGO ABIERTO / DISEÑO', channels: 'CANALES', email: 'CORREO' },
-    notFound: { title: 'Página no encontrada', home: 'Volver al inicio' },
+    errors: {
+      home: 'Volver al inicio', works: 'Ver proyectos', retry: 'Recargar página', routing: 'ENRUTAMIENTO', service: 'SERVICIO',
+      notFound: { title: 'Página no encontrada', detail: 'Puede que el enlace esté desactualizado. Comprueba la dirección o vuelve a empezar desde el inicio.' },
+      request: { title: 'No se pudo completar la solicitud', detail: 'Comprueba el enlace o tus permisos de acceso, o vuelve a la página de inicio.' },
+      server: { title: 'Servicio no disponible temporalmente', detail: 'Inténtalo de nuevo en unos instantes o vuelve a la página de inicio.' },
+    },
   },
   world: {
     title: 'The Expanse', landscape: 'Las crestas de arena enmarcan un valle pálido. Más allá de unas columnas inclinadas y dispersas, una estructura mayor se difumina en la distancia.',

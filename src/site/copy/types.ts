@@ -6,13 +6,16 @@ export type PrincipleId = 'useful-first' | 'experience-first' | 'built-to-last';
 export type AboutChapter = 'opening' | 'studio' | 'collections' | 'practice' | 'closing';
 export type ProjectStatus = 'development' | 'released' | 'openSource' | 'ongoing';
 export type ProjectAction = 'source' | 'releases' | 'docs' | 'usage' | 'project' | 'article' | 'articles' | 'blog';
+export type ErrorScreenKind = 'notFound' | 'request' | 'server';
 
 export type SiteCopy = {
   shared: {
     language: string; pending: string; navigation: string; home: string; social: string; newTab: string; blogNewTab: string;
     nav: Record<'world' | 'works' | 'about' | 'blog' | 'contact', string>;
     dossier: { name: string; field: string; software: string; practice: string; design: string; channels: string; email: string };
-    notFound: { title: string; home: string };
+    errors: Record<ErrorScreenKind, { title: string; detail: string }> & {
+      home: string; works: string; retry: string; routing: string; service: string;
+    };
   };
   world: {
     title: string; landscape: string; sceneLabel: string; noScript: string; instructions: string;

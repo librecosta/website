@@ -6,7 +6,12 @@ export const zh = {
     social: '社交媒体', newTab: '（在新标签页打开）', blogNewTab: ' (opens in a new tab)',
     nav: { world: 'WORLD', works: 'WORKS', about: 'ABOUT', blog: 'BLOG', contact: 'CONTACT' },
     dossier: { name: 'DOSSIER', field: 'FIELD', software: 'SOFTWARE / TOOLS', practice: 'PRACTICE', design: 'OPEN SOURCE / DESIGN', channels: 'CHANNELS', email: 'EMAIL' },
-    notFound: { title: '页面未找到', home: '返回首页' },
+    errors: {
+      home: '返回首页', works: '浏览作品', retry: '重新加载', routing: 'ROUTING', service: 'SERVICE',
+      notFound: { title: '页面未找到', detail: '这个链接可能已失效。请检查地址，或从首页重新出发。' },
+      request: { title: '请求无法完成', detail: '请检查链接或访问权限，也可以从首页重新进入。' },
+      server: { title: '服务暂时无法响应', detail: '请稍后再试，或返回首页。' },
+    },
   },
   world: {
     title: 'The Expanse — 荒原', landscape: '连续沙脊围出苍白浅谷。稀疏的倾斜柱阵之后，更高的巨构隐入远方。',

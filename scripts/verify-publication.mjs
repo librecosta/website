@@ -25,6 +25,7 @@ const publicDirs = new Set(['about', 'audio', 'expanse', 'License', 'works']);
 const publicTypes = new Set(['.glb', '.jpg', '.jpeg', '.mp3', '.opus', '.png', '.svg', '.webp', '.woff2']);
 const nextTypes = new Set(['.css', '.js', '.wasm', '.woff2']);
 const fallbackPages = ['404.html', '404/index.html', '_not-found/index.html'];
+const errorTemplates = ['4xx/index.html', '5xx/index.html'];
 const localOrigin = 'https://publication.invalid';
 
 function isOutputFile(file, pages) {
@@ -87,7 +88,7 @@ export async function verifyExport(directory, publication) {
     siteRoutes.map(route => [localePath(route, locale, publication.defaultLocale), locale]),
   ));
   const pages = new Set([...routes.keys()].map(path => `${path.slice(1)}index.html`));
-  const allowedPages = new Set([...pages, ...fallbackPages]);
+  const allowedPages = new Set([...pages, ...fallbackPages, ...errorTemplates]);
   const entries = await readdir(directory, { recursive: true, withFileTypes: true });
   const paths = entries.filter(entry => !entry.isDirectory()).map(entry => {
     const file = join(entry.parentPath, entry.name);
@@ -115,6 +116,11 @@ export async function verifyExport(directory, publication) {
   }
   const notFound = await readFile(join(directory, '404.html'), 'utf8');
   verifyHtml(notFound, '/404.html', routes, files);
+  for (const file of errorTemplates) {
+    const html = await readFile(join(directory, file), 'utf8');
+    if (!/<meta name="robots" content="noindex/.test(html)) throw new Error(`Error template may be indexed: ${file}.`);
+    verifyHtml(html, `/${file.replace('index.html', '')}`, routes, files);
+  }
   for (const [path, locale] of routes) {
     const page = `${path.slice(1)}index.html`;
     const html = await readFile(join(directory, page), 'utf8');

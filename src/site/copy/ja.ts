@@ -6,7 +6,12 @@ export const ja = {
     social: 'ソーシャルメディア', newTab: '（新しいタブで開きます）', blogNewTab: '（新しいタブで開きます）',
     nav: { world: '世界', works: '作品', about: '紹介', blog: 'ブログ', contact: 'お問い合わせ' },
     dossier: { name: '資料', field: '分野', software: 'ソフトウェア／ツール', practice: '活動', design: 'オープンソース／デザイン', channels: '連絡先', email: 'メール' },
-    notFound: { title: 'ページが見つかりません', home: 'ホームに戻る' },
+    errors: {
+      home: 'ホームに戻る', works: '作品を見る', retry: '再読み込み', routing: '経路案内', service: 'サービス',
+      notFound: { title: 'ページが見つかりません', detail: 'リンクが無効になっている可能性があります。アドレスを確認するか、ホームからお探しください。' },
+      request: { title: 'リクエストを処理できません', detail: 'リンクやアクセス権限を確認するか、ホームからやり直してください。' },
+      server: { title: 'サービスに接続できません', detail: 'しばらくしてから再試行するか、ホームに戻ってください。' },
+    },
   },
   world: {
     title: 'The Expanse', landscape: '砂の尾根が白っぽい谷を囲み、まばらに立つ傾いた柱の向こうで、ひときわ大きな構造物が遠くにかすんでいます。',

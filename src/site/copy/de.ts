@@ -6,7 +6,12 @@ export const de = {
     social: 'Soziale Medien', newTab: ' (öffnet sich in einem neuen Tab)', blogNewTab: ' (öffnet sich in einem neuen Tab)',
     nav: { world: 'WELT', works: 'WERKE', about: 'ÜBER UNS', blog: 'BLOG', contact: 'KONTAKT' },
     dossier: { name: 'DOSSIER', field: 'BEREICH', software: 'SOFTWARE / WERKZEUGE', practice: 'PRAXIS', design: 'OPEN SOURCE / DESIGN', channels: 'KONTAKTWEGE', email: 'E-MAIL' },
-    notFound: { title: 'Seite nicht gefunden', home: 'Zur Startseite' },
+    errors: {
+      home: 'Zur Startseite', works: 'Projekte ansehen', retry: 'Seite neu laden', routing: 'ROUTING', service: 'DIENST',
+      notFound: { title: 'Seite nicht gefunden', detail: 'Der Link ist möglicherweise veraltet. Prüfen Sie die Adresse oder suchen Sie über die Startseite weiter.' },
+      request: { title: 'Anfrage nicht verfügbar', detail: 'Prüfen Sie den Link oder Ihre Zugriffsrechte oder kehren Sie zur Startseite zurück.' },
+      server: { title: 'Dienst vorübergehend nicht verfügbar', detail: 'Versuchen Sie es in Kürze erneut oder kehren Sie zur Startseite zurück.' },
+    },
   },
   world: {
     title: 'The Expanse', landscape: 'Sandrücken fassen ein blasses Tal ein. Hinter vereinzelten schiefen Säulen verliert sich ein größeres Bauwerk in der Ferne.',

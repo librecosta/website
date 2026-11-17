@@ -78,7 +78,7 @@ if (check) {
     await mkdir(dist, { recursive: true });
     await rm(destination, { recursive: true, force: true });
     await rename(output, destination);
-    console.log(`${label} dist/${id}: ${pages} pages + 404, ${files} files, ${bytes} bytes; largest: ${largest.path} (${largest.size} bytes).`);
+    console.log(`${label} dist/${id}: ${pages} pages plus error documents, ${files} files, ${bytes} bytes; largest: ${largest.path} (${largest.size} bytes).`);
   } finally {
     await rm(project, { recursive: true, force: true });
   }

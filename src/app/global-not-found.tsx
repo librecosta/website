@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { siteCopy } from '@/site/content';
-import { NotFoundCopy } from '@/site/NotFoundCopy';
+import { ErrorDocument } from '@/components/errors/ErrorDocument';
 import { publication } from '@/site/publication';
-import './globals.css';
 
 const { defaultLocale, publishedLocales } = publication;
-const fallback = siteCopy[defaultLocale].shared.notFound;
-const labels = Object.fromEntries([defaultLocale, ...publishedLocales].map(locale => [locale, siteCopy[locale].shared.notFound]));
 
-export const metadata: Metadata = { title: `${fallback.title} | LibreCosta` };
+export const metadata: Metadata = { robots: { index: false } };
 
 export default function GlobalNotFound() {
-  return <html lang={defaultLocale}><body>
-    <NotFoundCopy defaultLocale={defaultLocale} labels={labels} />
-  </body></html>;
+  return <ErrorDocument kind="notFound" defaultLocale={defaultLocale} publishedLocales={publishedLocales} />;
 }

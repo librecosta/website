@@ -6,7 +6,12 @@ export const fr = {
     social: 'Réseaux sociaux', newTab: ' (s’ouvre dans un nouvel onglet)', blogNewTab: ' (s’ouvre dans un nouvel onglet)',
     nav: { world: 'MONDE', works: 'PROJETS', about: 'À PROPOS', blog: 'BLOG', contact: 'CONTACT' },
     dossier: { name: 'DOSSIER', field: 'DOMAINE', software: 'LOGICIELS / OUTILS', practice: 'PRATIQUE', design: 'OPEN SOURCE / DESIGN', channels: 'CANAUX', email: 'E-MAIL' },
-    notFound: { title: 'Page introuvable', home: 'Retour à l’accueil' },
+    errors: {
+      home: 'Retour à l’accueil', works: 'Voir les projets', retry: 'Recharger la page', routing: 'ROUTAGE', service: 'SERVICE',
+      notFound: { title: 'Page introuvable', detail: 'Ce lien est peut-être obsolète. Vérifiez l’adresse ou reprenez votre navigation depuis l’accueil.' },
+      request: { title: 'Requête indisponible', detail: 'Vérifiez le lien ou vos droits d’accès, ou reprenez votre navigation depuis l’accueil.' },
+      server: { title: 'Service momentanément indisponible', detail: 'Réessayez dans un instant ou retournez à l’accueil.' },
+    },
   },
   world: {
     title: 'The Expanse', landscape: 'Des crêtes de sable encadrent une vallée pâle. Au-delà des quelques colonnes inclinées, un édifice plus imposant se perd dans le lointain.',

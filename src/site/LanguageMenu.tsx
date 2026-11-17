@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { localeIds, localePath, locales, type SiteRoute } from './locale-contract';
+import { localeIds, localePath, locales, type Locale, type SiteRoute } from './locale-contract';
 import { useSiteCopy, useSiteLocale } from './LocaleProvider';
 import styles from './language-menu.module.css';
 
@@ -14,7 +14,9 @@ const panelDuration = .4;
 const itemDuration = .312;
 const itemStep = Math.min(.0344, (panelDuration - itemDuration) / (localeIds.length - 1));
 
-export function LanguageMenu({ route, reduced }: { route: SiteRoute; reduced: boolean }) {
+export function LanguageMenu({ route, reduced, onLocaleChange }: {
+  route: SiteRoute; reduced: boolean; onLocaleChange?: (locale: Locale) => void;
+}) {
   const { locale, defaultLocale, publishedLocales } = useSiteLocale();
   const { cue } = useSiteAudio();
   const copy = useSiteCopy().shared;
@@ -108,8 +110,10 @@ export function LanguageMenu({ route, reduced }: { route: SiteRoute; reduced: bo
               transition={{ ease, duration: instant ? 0 : itemDuration, delay: instant ? 0 : delay }}>
               {!available ? <span className={styles.option} aria-disabled="true" aria-current={current || undefined}>
                 {label}<small>{copy.pending}</small>
-              </span> : current ? <button className={styles.option} type="button" aria-current="true"
-                data-language-choice onClick={select}>{label}<span aria-hidden="true">✓</span></button> :
+              </span> : current || onLocaleChange ? <button className={styles.option} type="button" aria-current={current || undefined}
+                data-language-choice onClick={() => { select(); onLocaleChange?.(choice); }}>
+                {label}{current && <span aria-hidden="true">✓</span>}
+              </button> :
                 <Link className={styles.option} href={localePath(route, choice, defaultLocale)} hrefLang={choice}
                   prefetch={false} data-language-choice onClick={select}>{label}</Link>}
             </m.li>;
