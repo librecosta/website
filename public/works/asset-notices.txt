@@ -1,21 +1,16 @@
 LibreCosta WORKS assets
 
-Portions of the camera, interaction and panel logic are adapted from Wenz Louie Rejas's
-Interactive 3D Portfolio, commit 0319381ab0310cdabaca734d4e9c92bfcee79a49.
+The single-island camera framing and model fitting adapt code from Wenz Louie
+Rejas's Interactive 3D Portfolio, commit 0319381ab0310cdabaca734d4e9c92bfcee79a49.
 Source: https://github.com/wenzrejas/wenzrejas.github.io
 Copyright (c) 2026 Wenz Louie Rejas. See wenz-license.txt (MIT).
 
-The three modified islands below include original Blender geometry and baked
-lighting textures authored by Wenz Louie Rejas and distributed alongside his
-source under the same MIT license. The glTF subtrees were extracted,
-recompressed, and stripped of unrelated props and project signage.
+Orbit Reel geometry and retargeting adapt the TuneShape Orbit Reel export.
+Copyright (c) 2026 TuneShape contributors. See ../License/tuneshape-orbit-reel.txt (MIT).
 
-islands/bay.glb — Cozy Isle, Cozy_Isle subtree without café signage and boat.
-Retained as a legacy asset pending the W4 asset and license review.
-islands/foundry.glb — Buildshore, BeeSigned workshop terrain and honey glass. Retained
-as a legacy asset pending the W4 asset and license review.
-islands/signal.glb — Lumina Point, MainIsland terrain and tower without contact props.
-Retained as a legacy asset pending the WORKS asset and license review.
+Three.js and the Motion packages used by WORKS are listed in runtime-licenses.txt (MIT).
+The Draco glTF WASM decoder and JavaScript wrapper match the Three.js r187
+distribution. See draco-license.txt (Apache 2.0).
 
 islands/harvest.glb (891,716 bytes) — The Collector's Workshop. Original LibreCosta
 Blender model, surface atlases and baked contact/daylight shading. The editable
@@ -63,14 +58,13 @@ Blender geometry, packed PBR atlases and baked contact, daylight and interior
 shading, with independent glazing and amber lights. Editable source and export
 script: assets/works/uptime/. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
 
-The eight active islands, field archive interface, and map symbols are LibreCosta
-artwork. The Draco glTF WASM decoder and JavaScript wrapper come from the installed
-Three.js r187 distribution under the Apache License 2.0. See draco-license.txt.
+The eight islands, field archive interface and reel placeholder glyphs are
+LibreCosta artwork.
 
 Project previews
 
-GoFurry, Tool4Furry, LibreCosta Uptime, GopherAtlas and SoFarAway now use the
-shared assets documented in ../about/asset-notices.txt for their dossiers.
+The GoFurry, Tool4Furry, LibreCosta Uptime, GopherAtlas and SoFarAway dossiers use
+the shared images documented in ../about/asset-notices.txt.
 
 previews/*.webp: LibreCosta renders of the eight original islands listed above.
 All eight use the single-island viewer's orthographic camera settings, authored
@@ -95,16 +89,10 @@ with the terracotta vault, glazed gallery and curved harbor walk.
 previews/librecosta-uptime.webp (36,682 bytes) was captured from the same viewer
 after U2, with the octagonal lantern room and stepped approach.
 
-GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
-gofurry.webp is a capture of the local GoFurry /start page (f19016b).
-Tool4Furry: tool4furry.webp is a capture of the Chinese /tools/ listing from
-the local Tool4Furry static build. tool4furry-mark.webp uses the official OG mark.
-Harvest: harvest.webp shows the verbatim output of the local Harvest
-command-line tool's --help (349730b), typeset as a terminal preview.
-LibreCosta Uptime: https://github.com/librecosta/uptime/blob/master/docs/assets/uptime-dashboard.webp
-Liquid Glass: https://github.com/librecosta/liquid-glass/blob/main/docs/playground.webp
-GopherAtlas: gopheratlas.webp is a capture of the public Chinese homepage,
-https://gopheratlas.com/.
+harvest.webp — Harvest command-line --help at 349730b, typeset as a terminal preview.
+liquid-glass.webp — Liquid Glass Playground screenshot.
+Source: https://github.com/librecosta/liquid-glass/blob/main/docs/playground.webp
+Upstream license: https://github.com/librecosta/liquid-glass/blob/main/LICENSE
 
 BSD 3-Clause License
 
@@ -114,7 +102,6 @@ Copyright (c) 2026, LibreCosta (The Makers' Studio island and preview)
 Copyright (c) 2026, LibreCosta (The Wave Loom island and previews)
 Copyright (c) 2026, LibreCosta (The Discovery Harbor island and preview)
 Copyright (c) 2026, LibreCosta (The Vigil Station island and preview)
-Copyright (c) 2026, Faolan Grey (Tool4Furry)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:

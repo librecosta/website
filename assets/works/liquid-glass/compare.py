@@ -23,8 +23,8 @@ CASES=(
     ('Liquid Glass / L1 source','liquid-glass-l1.blend','LIQUID GLASS',0),
     ('Harvest / H2 source',HERE.parent/'harvest'/'harvest.blend','HARVEST',0),
     ('Harvest / H2 GLB',ISLANDS/'harvest.glb',None,0),
-    ('Bay / GLB',ISLANDS/'bay.glb',None,85),
-    ('Foundry / GLB',ISLANDS/'foundry.glb',None,24),
+    ('Bay / GLB','bay.glb',None,85),
+    ('Foundry / GLB','foundry.glb',None,24),
     ('Prism / reference GLB','prism-l1.glb',None,30),
 )
 WIDTH, HEIGHT = 760, 608
@@ -116,6 +116,8 @@ def main():
     args.scratch.mkdir(parents=True,exist_ok=True)
     for name, relative_path in (
         ('liquid-glass-l1.blend', 'assets/works/liquid-glass/liquid-glass.blend'),
+        ('bay.glb', 'public/works/islands/bay.glb'),
+        ('foundry.glb', 'public/works/islands/foundry.glb'),
         ('prism-l1.glb', 'public/works/islands/prism.glb'),
     ):
         with (args.scratch/name).open('wb') as output:

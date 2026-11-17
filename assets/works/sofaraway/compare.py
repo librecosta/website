@@ -3,6 +3,7 @@
 import argparse
 import math
 from pathlib import Path
+import subprocess
 import sys
 
 import bpy
@@ -16,7 +17,8 @@ from fabric import collection, object_in
 from studio import FRONT, lights, render_device, vertices, view
 
 
-ISLANDS=HERE.parents[2]/'public'/'works'/'islands'
+REPO=HERE.parents[2]
+S1_REVISION='6a7b1893129bc078e4dae26a9f55ddd5a84e67a3'
 CELL=(760,650)
 
 
@@ -102,13 +104,17 @@ def main():
     parser.add_argument('--device',choices=['CPU','CUDA','OPTIX'],default='CPU')
     args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
     args.scratch.mkdir(parents=True,exist_ok=True)
+    for name in ('bay.glb','foundry.glb','signal.glb'):
+        with (args.scratch/name).open('wb') as output:
+            subprocess.run(['git','show',f'{S1_REVISION}:public/works/islands/{name}'],
+                           cwd=REPO,stdout=output,check=True)
     refs=(
         ('SoFarAway / S1',args.source,'SOFARAWAY',0),
         ('Harvest / H2',HERE.parent/'harvest'/'harvest.blend','HARVEST',0),
         ('Liquid Glass / L2',HERE.parent/'liquid-glass'/'liquid-glass.blend','LIQUID GLASS',0),
-        ('Bay / Wenz GLB',ISLANDS/'bay.glb',None,85),
-        ('Foundry / Wenz GLB',ISLANDS/'foundry.glb',None,24),
-        ('Signal / Wenz GLB',ISLANDS/'signal.glb',None,45),
+        ('Bay / Wenz GLB',args.scratch/'bay.glb',None,85),
+        ('Foundry / Wenz GLB',args.scratch/'foundry.glb',None,24),
+        ('Signal / Wenz GLB',args.scratch/'signal.glb',None,45),
     )
     panels=[]
     for i,(label,path,prefix,rotation) in enumerate(refs,1):
