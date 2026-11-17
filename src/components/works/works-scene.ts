@@ -42,7 +42,8 @@ function prepareIsland(project: Project, model: T.Object3D) {
   carrier.updateMatrixWorld(true);
   // The original Blender assets carry calibrated PBR and baked shading.
   if (project.island.model === 'harvest' || project.island.model === 'liquid-glass' ||
-      project.island.model === 'sofaraway' || project.island.model === 'gopher-atlas') return carrier;
+      project.island.model === 'sofaraway' || project.island.model === 'gopher-atlas' ||
+      project.island.model === 'tool4furry') return carrier;
   const seen = new Set<T.Material>();
   model.traverse(node => {
     if (!(node instanceof T.Mesh)) return;
@@ -112,18 +113,18 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
   renderer.setClearColor(0, 0);
   const scene = new T.Scene();
   const beatline = project.island.model === 'sofaraway';
-  const observatory = project.island.model === 'gopher-atlas';
+  const neutralDaylight = project.island.model === 'gopher-atlas' || project.island.model === 'tool4furry';
   const optical = project.island.model === 'liquid-glass' || beatline;
   const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 900);
   camera.position.copy(offset);
   camera.lookAt(0, 0, 0);
-  const hemisphere = optical || observatory
+  const hemisphere = optical || neutralDaylight
     ? new T.HemisphereLight('#f0f4f8', '#85988c', 2.25)
     : new T.HemisphereLight('#f0f2dd', '#7b9185', 2.1);
-  const sun = new T.DirectionalLight(optical || observatory ? '#fff3df' : '#fff1cb', optical ? 2.35 : 2.05);
+  const sun = new T.DirectionalLight(optical || neutralDaylight ? '#fff3df' : '#fff1cb', optical ? 2.35 : 2.05);
   sun.position.set(-70, 120, 48);
   scene.add(hemisphere, sun);
-  if (project.island.model === 'harvest' || optical || observatory) {
+  if (project.island.model === 'harvest' || optical || neutralDaylight) {
     // Neutral reflected daylight brings up the copper and timber on the camera side.
     const fill = new T.DirectionalLight('#e6edfa', optical ? .85 : .64);
     fill.position.set(86, 72, 118);

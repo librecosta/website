@@ -11,7 +11,8 @@ source under the same MIT license. The glTF subtrees were extracted,
 recompressed, and stripped of unrelated props and project signage.
 
 islands/bay.glb — Cozy Isle, Cozy_Isle subtree without café signage and boat.
-islands/foundry.glb — Buildshore, BeeSigned workshop terrain and honey glass.
+islands/foundry.glb — Buildshore, BeeSigned workshop terrain and honey glass. Retained
+as a legacy asset pending the W4 asset and license review.
 islands/signal.glb — Lumina Point, MainIsland terrain and tower without contact props.
 islands/wave.glb — Buildshore, Qoves terrain batch without the external logo mesh.
 LibreCosta added a closed rear cliff in the island's local coordinates. Original cliff faces
@@ -41,8 +42,14 @@ with independent PBR glazing and warm lights. Editable source and export
 scripts are in assets/works/gopher-atlas/ in the website repository.
 Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
 
-The Harvest, Liquid Glass, SoFarAway and GopherAtlas islands, field archive
-interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
+islands/tool4furry.glb (1,831,560 bytes) — The Makers' Studio. Original LibreCosta
+Blender model, packed PBR surface atlases, baked contact/daylight shading, and
+separate clear and diffuse glazing and warm lights. Editable source and export
+script: assets/works/tool4furry/. Copyright (c) 2026 LibreCosta. See the BSD
+3-Clause License below.
+
+The Harvest, Liquid Glass, SoFarAway, GopherAtlas and Tool4Furry islands, field
+archive interface, and map symbols are LibreCosta artwork. The Draco glTF WASM decoder
 and JavaScript wrapper come from the installed Three.js r187 distribution and
 are provided under the Apache License 2.0. See draco-license.txt.
 
@@ -51,7 +58,7 @@ Project previews
 GoFurry, Tool4Furry, LibreCosta Uptime, GopherAtlas and SoFarAway now use the
 shared assets documented in ../about/asset-notices.txt for their dossiers.
 
-previews/*.webp: LibreCosta renders of the four Wenz-derived and four original
+previews/*.webp: LibreCosta renders of the three active Wenz-derived and five original
 islands listed above. All eight use the same orthographic camera, authored
 model bearings, materials and lighting as the single-island viewer. Captured
 with transparency at 800 × 600, then resized to 560 × 420 and encoded as WebP.
@@ -63,6 +70,9 @@ previews/sofaraway.webp (60,904 bytes) was captured from the same viewer after S
 integration, with baked shading, layered glazing and static rhythm lights.
 previews/gopheratlas.webp (34,898 bytes) was captured from the same viewer after
 G2 integration, with baked stone, slate and timber and inset glazing.
+previews/tool4furry.webp (48,776 bytes) was captured from the same viewer after
+T2 integration, with the warm timber interior, clear workshop windows and
+translucent clerestory glazing.
 
 GoFurry: logo-mini.svg from apps/web/src/assets in the GoFurry workspace.
 gofurry.webp is a capture of the local GoFurry /start page (f19016b).
@@ -80,6 +90,7 @@ BSD 3-Clause License
 
 Copyright (c) 2026, LibreCosta (GoFurry, Harvest, Sofaraway, Wavefield)
 Copyright (c) 2026, LibreCosta (The Atlas Observatory island and preview)
+Copyright (c) 2026, LibreCosta (The Makers' Studio island and preview)
 Copyright (c) 2026, Faolan Grey (Tool4Furry)
 
 Redistribution and use in source and binary forms, with or without

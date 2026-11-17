@@ -4,7 +4,7 @@ type Island = {
   name: string;
   width: number;
   bearing: number;
-  model: 'bay' | 'foundry' | 'signal' | 'liquid-glass' | 'wave' | 'harvest' | 'sofaraway' | 'gopher-atlas';
+  model: 'bay' | 'tool4furry' | 'signal' | 'liquid-glass' | 'wave' | 'harvest' | 'sofaraway' | 'gopher-atlas';
 };
 
 export type Project = {
@@ -30,7 +30,7 @@ export const projects: readonly Project[] = [
   },
   {
     slug: 'tool4furry', name: 'Tool4Furry', type: '创作者工具', status: '开发中',
-    island: { name: '砧石屿', width: 35, bearing: 24, model: 'foundry' },
+    island: { name: '砧石屿', width: 35, bearing: 71, model: 'tool4furry' },
     description: '面向 Furry 创作者的开源浏览器工具箱。',
     links: [{ label: 'GitHub 源码', href: 'https://github.com/librecosta/tool4furry' }],
     media: projectPreviews.tool4furry,

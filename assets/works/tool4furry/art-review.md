@@ -26,3 +26,27 @@ WEB-V0.1-W4-T1。主工作室以高低两片折边金属屋面夹出连续采光
 blender --background --factory-startup --python-exit-code 1 --python assets/works/tool4furry/build.py -- --output .local/tool4furry-t1/rebuild --renders front rear top studio workbench interior
 blender --background --factory-startup --python-exit-code 1 --python assets/works/tool4furry/review.py -- --source .local/tool4furry-t1/rebuild/tool4furry.blend --scratch .local/tool4furry-t1/compare --output .local/tool4furry-t1/comparison.png
 ```
+
+## T2 · 烘焙与 WORKS 验收
+
+在 Blender 5.3 复开并比对 T1 的 2,154 个对象。几何、层级、变换和倒角参数一致，网页保留全部倒角。沿用 Harvest 的 UV 投影与两张 512 × 512 内嵌 PBR 图集，按表面保留木材顺纹、石材、折边金属与五金的亮度、粗糙度和金属度变化。屋檐、台阶、窗龛、护栏和家具的接触 AO 与柔和日照遮挡烘入不透明批次的角点。浅灰屋面收敛到中性冷灰，Lavender 集中在滑轨、拉手和样张。
+
+清透窗与漫射采光带沿用 T1 的实体厚度。网页分别用正面 PBR 混合和 16%／33% 不透明度来保留低反射的窗面及采光带，降低多层窗格对室内观察的影响。正面、两侧斜视、背面和 1.65 倍缩放下检查了木梁、工位、备料家具、双联样张和室外色卡，交叠窗格仍可透视室内。暖灯以独立低强度发光材质呈现。WORKS 的模型方位为 71°，接近 T1 正面图的水平观察角度。
+
+| Chrome 157，1440 × 900，DPR 1 | GLB 字节 | 主画面三角面 | 每次重绘 Draw Calls |
+| --- | ---: | ---: | ---: |
+| 创作者工坊 T2 | 1,831,560 | 91,354 | 4 |
+| Harvest H2 | 891,716 | 40,610 | 3 |
+| 折光屿 L2 | 1,081,908 | 52,462 | 8 + 1 透射预通道 |
+| 远拍岛 S2 | 1,111,248 | 58,340 | 9 + 4 透射预通道 |
+| 页港 G2 | 1,873,704 | 93,110 | 3 |
+
+静态构建在 Chrome 实测 1920 × 1080、1440 × 900、960 × 720、390 × 844、320 × 568。验证拖动、触屏捏合、键盘旋转、缩放、重置、相邻作品切换和回到轮盘后的焦点恢复。18 张卡片首次呈现时的 GLB、Draco 请求和 WebGL 上下文数量均为零。进入八个项目各自只请求对应 GLB，其余七座岛的绘制数与 G2 基准一致。
+
+工坊静止时按需停止重绘，连续五次退出均观测到缓冲、纹理与 WebGL 上下文释放。慢速加载退出后可以再次打开。阻断模型请求或禁用 WebGL 时，560 × 420 静态预览与项目档案均正常显示。`pnpm check` 通过。[WORKS 正面](./renders/web-front.webp) · [窗格近景](./renders/web-glazing.webp) · [正式 GLB](../../../public/works/islands/tool4furry.glb) · [正式渲染器生成的透明预览](../../../public/works/previews/tool4furry.webp)
+
+从更新后的源文件复现导出，核对 GLB 的 SHA-256 一致。若从 T1 版本开始，可追加 `--blend` 和另存路径得到内嵌材质图集的可编辑源文件。
+
+```powershell
+blender --background assets/works/tool4furry/tool4furry.blend --python-exit-code 1 --python assets/works/tool4furry/bake_web.py -- --glb public/works/islands/tool4furry.glb
+```
