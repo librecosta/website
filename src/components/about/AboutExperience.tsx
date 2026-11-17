@@ -190,7 +190,7 @@ export function AboutExperience() {
   useEffect(() => setReady(true), []);
 
   return <LazyMotion features={domAnimation}>
-    <WorkshopFrame route="/about" className={styles.about} reduced={reduced}
+    <WorkshopFrame route="about" className={styles.about} reduced={reduced}
       sectionNav={<AboutSectionNav progress={scrollYProgress} reduced={reduced} />}
       scrollGauge={<AboutScrollGauge progress={scrollYProgress} reduced={reduced} />}>
       <main className={styles.main}>

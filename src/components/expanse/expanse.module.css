@@ -73,7 +73,9 @@
   gap: clamp(8px, 1.1vw, 14px);
 }
 .brand {
-  width: clamp(122px, 13vw, 174px);
+  width: clamp(144px, 15vw, 209px);
+  max-width: 100%;
+  gap: clamp(6px, .6vw, 10px);
   min-height: var(--brand-height);
   display: flex;
   align-items: center;
@@ -81,7 +83,14 @@
   pointer-events: auto;
 }
 .brand svg, .wordmarkSamples svg { display: block; width: 100%; height: auto; }
-.brand svg { filter: drop-shadow(0 0 1.5px var(--instrument-glint)); }
+.brandMark {
+  flex: none;
+  width: clamp(18px, 1.6vw, 27px);
+  aspect-ratio: 1;
+  background: currentColor;
+  mask: url('/brand/librecosta-mark.svg') center / contain no-repeat;
+}
+.brand svg { min-width: 0; filter: drop-shadow(0 0 1.5px var(--instrument-glint)); }
 .wordmarkNoise {
   fill: currentColor;
   stroke: none;
@@ -348,6 +357,7 @@
     gap: 0 8px;
   }
   .brandCluster { align-self: start; }
+  .stage .instrumentHeader > [data-language-menu] { align-self: end; }
   .chapterGauge { justify-self: end; min-height: 24px; }
   .soundToggle { justify-self: end; min-height: 30px; font-size: 10px; }
   .soundToggle > span { inline-size: auto; }
@@ -361,7 +371,7 @@
   .instrumentNav, .chapterGauge { font-size: 10px; }
 }
 @media (max-width: 400px) {
-  .brand { width: 104px; }
+  .brand { width: 126px; }
 }
 .journey[data-reduced='true'] :is(.reticle, .socialLinks svg) { transition: none; }
 .journey[data-reduced='true'] .instrument { animation: none; }

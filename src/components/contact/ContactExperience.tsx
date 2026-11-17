@@ -25,7 +25,7 @@ export function ContactExperience() {
   }, [clock, reduced]);
 
   return <LazyMotion features={domAnimation}>
-    <WorkshopFrame route="/contact" reduced={reduced}>
+    <WorkshopFrame route="contact" reduced={reduced}>
       <main className={styles.screen} aria-labelledby="contact-title">
         <div className={styles.content}>
           <m.h1 id="contact-title" className={styles.title} lang={usesOriginalLayout(locale) ? 'en' : undefined} style={reduced ? undefined : title} data-contact-reveal>

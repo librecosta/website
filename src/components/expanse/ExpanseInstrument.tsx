@@ -4,7 +4,7 @@ import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { usesOriginalLayout } from '@/site/content';
 import { LanguageMenu } from '@/site/LanguageMenu';
-import { localePath, type Locale, type SiteRoute } from '@/site/locale-contract';
+import { homePage, pagePath, type Locale, type SitePage } from '@/site/locale-contract';
 import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
 import { EncryptedLabel, useEncryptedText } from './EncryptedText';
@@ -137,33 +137,33 @@ export function InstrumentCorners() {
   </svg>)}</>;
 }
 
-export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/', className, onLocaleChange }: {
-  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: SiteRoute | null;
+export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = 'world', className, onLocaleChange }: {
+  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: SitePage | null;
   onLocaleChange?: (locale: Locale) => void;
   className?: string;
 }) {
   const { enabled, cue } = useSiteAudio();
-  const { locale, defaultLocale } = useSiteLocale();
+  const { locale, publication } = useSiteLocale();
   const { shared: copy, world: { audio } } = useSiteCopy();
-  const pagePath = (route: SiteRoute) => localePath(route, locale, defaultLocale);
+  const href = (page: SitePage) => pagePath(page, locale, publication);
   const brand = useEncryptedText('LIBRECOSTA', reduced);
   return <header className={className ? `${styles.instrumentHeader} ${className}` : styles.instrumentHeader}>
     <div className={styles.brandCluster}>
-      <Link href={pagePath('/')} className={styles.brand} aria-label={copy.home}
+      <Link href={href(homePage(publication.id))} className={styles.brand} aria-label={copy.home}
         onPointerEnter={event => { if (event.pointerType === 'mouse') { cue('hover'); brand.play(); } }}
         onFocus={event => { if (event.currentTarget.matches(':focus-visible')) brand.play(); }}
-        onClick={() => cue('click')}><Wordmark noise={brand.noise} /></Link>
+        onClick={() => cue('click')}><span className={styles.brandMark} aria-hidden="true" /><Wordmark noise={brand.noise} /></Link>
       {soundToggle && <span className={styles.soundIndicator} role="img"
         aria-label={enabled ? audio.indicatorOn : audio.indicatorOff} data-enabled={enabled} />}
     </div>
     {soundToggle}
-    <LanguageMenu route={currentPage ?? '/'} reduced={reduced} onLocaleChange={onLocaleChange} />
+    <LanguageMenu page={currentPage} reduced={reduced} onLocaleChange={onLocaleChange} />
     <nav className={styles.instrumentNav} aria-label={copy.navigation} data-audio-ui>
-      {currentPage !== '/' && <InstrumentLink href={pagePath('/')} text={copy.nav.world} reduced={reduced} />}
-      <InstrumentLink href={pagePath('/works')} text={copy.nav.works} reduced={reduced} current={currentPage === '/works'} />
-      <InstrumentLink href={pagePath('/about')} text={copy.nav.about} reduced={reduced} current={currentPage === '/about'} />
+      <InstrumentLink href={href('world')} text={copy.nav.world} reduced={reduced} current={currentPage === 'world'} />
+      <InstrumentLink href={href('works')} text={copy.nav.works} reduced={reduced} current={currentPage === 'works'} />
+      <InstrumentLink href={href('about')} text={copy.nav.about} reduced={reduced} current={currentPage === 'about'} />
       <InstrumentLink href="https://gopheratlas.com/" text={copy.nav.blog} reduced={reduced} external />
-      <InstrumentLink href={pagePath('/contact')} text={copy.nav.contact} reduced={reduced} current={currentPage === '/contact'} />
+      <InstrumentLink href={href('contact')} text={copy.nav.contact} reduced={reduced} current={currentPage === 'contact'} />
     </nav>
     {gauge}
   </header>;

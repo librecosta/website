@@ -2,21 +2,21 @@ import { useEffect, type ReactNode } from 'react';
 import { stagger, useAnimate } from 'motion/react';
 import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
 import { usesOriginalLayout } from '@/site/content';
-import type { Locale, SiteRoute } from '@/site/locale-contract';
+import type { Locale, SitePage } from '@/site/locale-contract';
 import { InstrumentCorners, InstrumentHeader, InstrumentSocialLinks } from './expanse/ExpanseInstrument';
 import instrument from './expanse/expanse.module.css';
 import styles from './workshop-frame.module.css';
 
 const dossiers = {
-  '/about': {
+  'about': {
     id: 'LC-01',
     title: 'about',
   },
-  '/contact': {
+  'contact': {
     id: 'LC-02',
     title: 'contact',
   },
-  '/works': {
+  'works': {
     id: 'LC-03',
     title: 'works',
   },
@@ -48,7 +48,7 @@ function Dossier({ entry, reduced }: { entry: DossierEntry; reduced: boolean }) 
 }
 
 export function WorkshopFrame({ route, reduced, className, sectionNav, scrollGauge, statusDossier, onLocaleChange, children }: {
-  route?: SiteRoute;
+  route?: SitePage;
   reduced: boolean;
   className?: string;
   sectionNav?: ReactNode;
@@ -58,18 +58,18 @@ export function WorkshopFrame({ route, reduced, className, sectionNav, scrollGau
   children: ReactNode;
 }) {
   const { dossier, nav } = useSiteCopy().shared;
-  const page = route && route !== '/' ? dossiers[route] : undefined;
+  const page = route && route !== 'world' ? dossiers[route] : undefined;
   const entry: DossierEntry | undefined = statusDossier ?? (page ? {
     id: page.id,
     title: nav[page.title],
-    rows: route === '/about' ? [[dossier.field, dossier.software], [dossier.practice, dossier.design]]
-      : route === '/contact' ? [[dossier.channels, `${dossier.email} / X`]] : [],
+    rows: route === 'about' ? [[dossier.field, dossier.software], [dossier.practice, dossier.design]]
+      : route === 'contact' ? [[dossier.channels, `${dossier.email} / X`]] : [],
   } : undefined);
   const shades = <div className={styles.shades} aria-hidden="true" />;
   return <div className={className ? `${styles.page} ${className}` : styles.page}>
-    {route === '/works' && shades}
+    {route === 'works' && shades}
     <div className={`${instrument.instrument} ${styles.frame}`}>
-      {route !== '/works' && shades}
+      {route !== 'works' && shades}
       <InstrumentCorners />
       <InstrumentHeader currentPage={route ?? null} reduced={reduced} className={styles.header} onLocaleChange={onLocaleChange} />
       {sectionNav}

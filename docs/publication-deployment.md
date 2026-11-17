@@ -1,11 +1,11 @@
 # Dual-region static publication
 
-Both deployments use the same Next.js static export. Each artifact serves 24 pages across six languages, with a separate `404.html`. The default locale uses unprefixed paths and every other locale uses a prefix. Internal navigation and language selection stay on the serving origin.
+Both deployments use the same Next.js static export. CN exports eight pages in Chinese and English. INTL exports 24 pages in six languages. Both include a separate `404.html`. The default locale uses unprefixed paths. Internal navigation and language selection stay on the serving origin. The site switch follows the [regional route matrix](publication-routing.md).
 
 | Region | Default locale | Build | Static directory | Production origin |
 | --- | --- | --- | --- | --- |
 | INTL · Cloudflare Workers Static Assets | `en` | `pnpm build:intl` | `dist/intl` | `https://librecosta.com` |
-| CN · EdgeOne Makers | `zh` | `pnpm build:cn` | `dist/cn` | Unset in `config/publications/cn.json` |
+| CN · EdgeOne Makers | `zh` | `pnpm build:cn` | `dist/cn` | `https://librecosta.cn` |
 
 ## Git and build settings
 
@@ -22,17 +22,17 @@ Pin Node **24.18.0** in both managed builds. Install with `npx --yes pnpm@12.8.1
 
 ### EdgeOne Makers CN
 
-1. In the Git import form select the static or custom framework preset and repository root. `edgeone.json` sets Node 24.18.0, the pinned installation and build commands, and `dist/cn`. Inspect the Git build log for both tool versions and the published output directory. When enabling Production, set `PUBLICATION_REQUIRE_RELEASE=1` in that environment to fail the build if the origin or approved audio is missing. [Makers project configuration](https://pages.edgeone.ai/document/edgeone-json) · [Next.js static export](https://pages.edgeone.ai/document/framework-nextjs)
+1. In the Git import form select the static or custom framework preset and repository root. `edgeone.json` sets Node 24.18.0, the pinned installation and build commands, and `dist/cn`. Inspect the Git build log for both tool versions and the published output directory. When enabling Production, set `PUBLICATION_REQUIRE_RELEASE=1` in that environment to fail the build until the production origin, indexing approval and audio checks pass. [Makers project configuration](https://pages.edgeone.ai/document/edgeone-json) · [Next.js static export](https://pages.edgeone.ai/document/framework-nextjs)
 2. Use the exported directory indexes and root `404.html` with native static routing. Leave rewrites and cache overrides empty. Makers documents revalidation for unversioned assets and longer caching for fingerprinted assets. Before accepting the managed preview, check deep links, slash redirects, actual HTTP 404 responses, and MIME types for JS, CSS, fonts, GLB, WASM and both audio formats. [Custom 404](https://edgeone.ai/document/192123212580007936) · [Makers cache policy](https://pages.edgeone.ai/document/configuring-cache)
-3. Verify preview URL access from an unauthenticated browser before sending a link. Makers' temporary preview links can behave differently inside and outside mainland China. Use a verified access-protected preview or keep verification local. The future domain is configured under Domain Name Management after CN origin and filing requirements are settled. For rollback, redeploy the last verified Git commit or upload its retained static artifact. [Domain access and filing](https://pages.edgeone.ai/document/domain-overview) · [Manage deploys](https://pages.edgeone.ai/document/manage-deploys)
+3. Verify preview URL access from an unauthenticated browser before sending a link. Makers' temporary preview links can behave differently inside and outside mainland China. Use a verified access-protected preview or keep verification local. The future domain is configured under Domain Name Management after connectivity and filing requirements are verified. For rollback, redeploy the last verified Git commit or upload its retained static artifact. [Domain access and filing](https://pages.edgeone.ai/document/domain-overview) · [Manage deploys](https://pages.edgeone.ai/document/manage-deploys)
 
 ## Expanse audio and release checks
 
 A Git-only build ships the committed music in Opus and MP3. Interface cues are generated in Web Audio. The Mixkit source and locally generated versions are held outside source control, so a clean checkout cannot provide the wind. Both builds exclude the workstation's `public/audio/local/` by default. The page can still play music and interface cues when wind is missing. [Local asset notice](../public/License/mixkit-arctic-winds.txt) · [Mixkit SFX license](https://mixkit.co/license/modal/sfxFree/)
 
-For release, prepare the approved **end-product** loop with `python scripts/prepare-audio.py --wind <local-wav>` using FFmpeg and an authorized local copy, or supply an approved first-party loop with the same circular encoder padding. Set `PUBLICATION_WIND_DIR` to the private directory containing only the two named build inputs, `expanse-wind.opus` and `expanse-wind.mp3`. The regional build copies only those files to their existing public URLs. Keep the WAV and private build inputs out of Git. A CI runner with authorized access can stage the two files and build the artifact for the platform's static upload if the managed Git builders cannot have the approved inputs staged. Until that input is provisioned on the actual release path, both regions are blocked. CN is also blocked on its production origin.
+For release, prepare the approved **end-product** loop with `python scripts/prepare-audio.py --wind <local-wav>` using FFmpeg and an authorized local copy, or supply an approved first-party loop with the same circular encoder padding. Set `PUBLICATION_WIND_DIR` to the private directory containing only the two named build inputs, `expanse-wind.opus` and `expanse-wind.mp3`. The regional build copies only those files to their existing public URLs. Keep the WAV and private build inputs out of Git. A CI runner with authorized access can stage the two files and build the artifact for the platform's static upload if the managed Git builders cannot have the approved inputs staged. Until that input is provisioned on the actual release path, both regions are blocked.
 
-Run `pnpm check:release cn` or `pnpm check:release intl` against the corresponding freshly built artifact. This verifies the static output and the presence and expected format of both wind files. Final release approval also requires the managed platform and domain checks below.
+Run `pnpm check:release cn` or `pnpm check:release intl` against the corresponding freshly built artifact. This verifies the static output, indexing approval and the presence and expected format of both wind files. Final release approval also requires the managed platform and domain checks below.
 
 ## Prepublication verification
 
@@ -54,10 +54,22 @@ Repeat the same checks at each protected remote preview. Open a prefixed route w
 | Local static build and Chromium verification | Passed | Passed |
 | Managed Git builder | Pending platform integration | Pending platform integration |
 | Protected remote preview | Pending access configuration and validation | Pending access configuration and validation |
-| Production | Approved wind input and release approval pending | Approved wind input, CN origin and release approval pending |
+| Production | Approved wind input, HTTPS and indexing approval pending | Approved wind input, HTTPS, filing and indexing approval pending |
 
-Windows builds and a clean Linux x86-64 container build passed. The Linux run used Node 24.18.0 and pnpm 12.8.1 with the frozen lockfile. Each Git-only export contained 208 files (about 17.8 MB). The largest file was `gopher-atlas.glb` at 1,873,704 bytes. Cloudflare's local emulator served the INTL artifact with canonical directory redirects, correct MIME types and actual 404 responses. Its packaging dry run also passed.
+During P2, Windows builds and a clean Linux x86-64 container build passed. The Linux run used Node 24.18.0 and pnpm 12.8.1 with the frozen lockfile. Each Git-only export contained 208 files (about 17.8 MB). The largest file was `gopher-atlas.glb` at 1,873,704 bytes. Cloudflare's local emulator served the INTL artifact with canonical directory redirects, correct MIME types and actual 404 responses. Its packaging dry run also passed.
 
 Desktop Chromium loaded the WORLD scene, played the committed music, and verified missing-wind fallback and all eight on-demand WORKS models. Mobile browser emulation covered language switching, refresh, ABOUT motion and CONTACT. The WORKS toolbar now clears the two-row mobile header so the return button can be tapped at 320 and 390 pixels. A separate local Linux build using the two existing encoded wind inputs passed the INTL artifact release check. The Git-only artifacts still fail the wind requirement, as intended.
 
-P3 owns the brand and discovery assets, including favicon, OG, Canonical, hreflang and Sitemap. P4 owns protected platform verification, final branch promotion, domain and DNS setup, and public indexing after approval.
+## Search metadata and preview isolation
+
+Each regional build writes candidate Canonical and hreflang targets, robots rules and a sitemap to `dist/seo-review/<region>/`, outside both upload directories. Chinese canonicals belong to CN. English, Japanese, German, French and Spanish canonicals belong to INTL. Each logical page shares its own set of language alternates, and `x-default` points to the corresponding English INTL page. The CN sitemap has four entries and INTL has twenty. [Google localized versions](https://developers.google.com/search/docs/specialty/international/localized-versions)
+
+Both preview artifacts use `noindex, nofollow` and disallow crawling in `robots.txt`. Their title, description, Open Graph and X card metadata are available. Production Canonical, hreflang, JSON-LD and sitemap require approval in `config/publications/indexing.ts`. Keep remote previews access-protected and confirm both target origins over HTTPS in P4 before approving production indexing. P4 also owns platform verification, final branch promotion, DNS and filing requirements.
+
+## P3 verification
+
+The supplied LibreCosta brand kit provides the exact monochrome SVG and 1200×630 OG image. The original charcoal cutout supplies the three ICO sizes, the 96px favicon, the 180px Apple icon and the 512px logo. The 16px favicon uses the brand's white background for contrast in dark browser chrome.
+
+- Both Windows regional builds passed the static verifier. CN exports eight pages, INTL exports 24, and each serves its own 404. Each localized page has its own title, description and sharing metadata.
+- Chrome desktop and mobile emulation covered all 32 pages at 1440, 390 and 320 CSS pixels. Tests covered same-origin language navigation, cross-origin routing against the local artifacts, language fallback, keyboard and touch, and real HTTP 404 responses.
+- Isolated local builds exercised the approved-indexing branch for all 32 HTML heads and checked both sitemap inventories. The preview artifacts keep the indexing gate closed, with clean-checkout wind files still required for release. Platform, HTTPS and production checks remain for P4.

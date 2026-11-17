@@ -4,6 +4,7 @@ export const ja = {
   shared: {
     language: '言語', pending: '未公開', navigation: 'サイト内ナビゲーション', home: 'LibreCosta のホーム',
     social: 'ソーシャルメディア', newTab: '（新しいタブで開きます）', blogNewTab: '（新しいタブで開きます）',
+    siteSwitch: { label: "サイトを切り替え", cn: "中国サイト", intl: "国際サイト", fallback: "{language}で開きます" },
     nav: { world: '世界', works: '作品', about: '紹介', blog: 'ブログ', contact: 'お問い合わせ' },
     dossier: { name: '資料', field: '分野', software: 'ソフトウェア／ツール', practice: '活動', design: 'オープンソース／デザイン', channels: '連絡先', email: 'メール' },
     errors: {

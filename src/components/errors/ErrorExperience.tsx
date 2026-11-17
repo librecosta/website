@@ -7,7 +7,7 @@ import { useSoftFocus } from '@/components/soft-focus';
 import { siteCopy, usesOriginalLayout } from '@/site/content';
 import type { ErrorScreenKind } from '@/site/copy/types';
 import { LocaleProvider } from '@/site/LocaleProvider';
-import { isLocale, localePath, type Locale } from '@/site/locale-contract';
+import { homePage, isLocale, pagePath, type Publication } from '@/site/locale-contract';
 import styles from './error-screen.module.css';
 
 const statusCodes = { notFound: '404', request: '4XX', server: '5XX' } as const;
@@ -33,12 +33,12 @@ const prepareErrorPaint = `(() => {
 
 export type ErrorExperienceProps = {
   kind: ErrorScreenKind;
-  defaultLocale: Locale;
-  publishedLocales: readonly Locale[];
+  publication: Publication;
   retry?: () => void;
 };
 
-export function ErrorExperience({ kind, defaultLocale, publishedLocales, retry }: ErrorExperienceProps) {
+export function ErrorExperience({ kind, publication, retry }: ErrorExperienceProps) {
+  const { defaultLocale, publishedLocales } = publication;
   const [locale, setLocale] = useState(defaultLocale);
   const [ready, setReady] = useState(false);
   const frame = useRef<HTMLDivElement>(null);
@@ -53,8 +53,8 @@ export function ErrorExperience({ kind, defaultLocale, publishedLocales, retry }
   const titles = Object.fromEntries([defaultLocale, ...publishedLocales].map(lang =>
     [lang, `${code} · ${siteCopy[lang].shared.errors[kind].title} | LibreCosta`],
   ));
-  const home = localePath('/', locale, defaultLocale);
-  const works = localePath('/works', locale, defaultLocale);
+  const home = pagePath(homePage(publication.id), locale, publication);
+  const works = pagePath('works', locale, publication);
 
   useLayoutEffect(() => {
     // One exported error document can be served at a requested locale's URL.
@@ -86,7 +86,7 @@ export function ErrorExperience({ kind, defaultLocale, publishedLocales, retry }
     return () => entrance.stop();
   }, [clock, ready, reduced]);
 
-  return <LocaleProvider value={{ locale, defaultLocale, publishedLocales }}>
+  return <LocaleProvider value={{ locale, publication }}>
     <title suppressHydrationWarning>{ready ? titles[locale] : `${code} | LibreCosta`}</title>
     <div ref={frame} className={styles.frame} data-default-locale={defaultLocale} data-error-titles={JSON.stringify(titles)}
       data-error-animate={ready && !reduced || undefined} suppressHydrationWarning>

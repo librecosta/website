@@ -4,20 +4,24 @@ import Link from 'next/link';
 import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { localeIds, localePath, locales, type Locale, type SiteRoute } from './locale-contract';
+import { homePage, localeIds, locales, pagePath, type Locale, type SitePage } from './locale-contract';
 import { useSiteCopy, useSiteLocale } from './LocaleProvider';
+import { publications } from './publication-catalog';
 import styles from './language-menu.module.css';
 
 // TuneShape Dropdown Menu, MIT. See public/License/tuneshape-dropdown.txt.
 const ease = [.25, .1, .25, 1] as const;
 const panelDuration = .4;
 const itemDuration = .312;
-const itemStep = Math.min(.0344, (panelDuration - itemDuration) / (localeIds.length - 1));
 
-export function LanguageMenu({ route, reduced, onLocaleChange }: {
-  route: SiteRoute; reduced: boolean; onLocaleChange?: (locale: Locale) => void;
+export function LanguageMenu({ page, reduced, onLocaleChange }: {
+  page: SitePage | null; reduced: boolean; onLocaleChange?: (locale: Locale) => void;
 }) {
-  const { locale, defaultLocale, publishedLocales } = useSiteLocale();
+  const { locale, publication } = useSiteLocale();
+  const choices = localeIds.filter(choice => publication.publishedLocales.includes(choice));
+  const target = publications[publication.id === 'cn' ? 'intl' : 'cn'];
+  const targetLocale = target.publishedLocales.includes(locale) ? locale : target.defaultLocale;
+  const targetPath = pagePath(page ?? homePage(target.id), targetLocale, target);
   const { cue } = useSiteAudio();
   const copy = useSiteCopy().shared;
   const reduceMotion = useReducedMotion();
@@ -28,6 +32,11 @@ export function LanguageMenu({ route, reduced, onLocaleChange }: {
   const panel = useRef<HTMLDivElement>(null);
   const pendingFocus = useRef<'first' | 'last' | null>(null);
   const [open, setOpen] = useState(false);
+  const step = Math.min(.0344, (panelDuration - itemDuration) / Math.max(1, choices.length));
+  function itemTransition(index: number) {
+    const delay = (open ? index : choices.length - index) * step;
+    return { ease, duration: instant ? 0 : itemDuration, delay: instant ? 0 : delay };
+  }
   const itemChoices = () => Array.from(panel.current?.querySelectorAll<HTMLElement>('[data-language-choice]') ?? []);
   const transition = { duration: instant ? 0 : panelDuration, ease };
 
@@ -82,7 +91,7 @@ export function LanguageMenu({ route, reduced, onLocaleChange }: {
     setOpen(false);
   }
 
-  return <div ref={root} className={styles.language} data-audio-ui onKeyDown={onKeyDown}
+  return <div ref={root} className={styles.language} data-audio-ui data-language-menu onKeyDown={onKeyDown}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <LazyMotion features={domAnimation}>
       <button type="button" ref={trigger} className={styles.trigger} aria-expanded={open} aria-controls={id}
@@ -100,24 +109,33 @@ export function LanguageMenu({ route, reduced, onLocaleChange }: {
         <m.div className={styles.surface} aria-hidden="true" initial={false}
           animate={open ? { y: 0, scale: 1, opacity: 1 } : { y: -7, scale: .985, opacity: 0 }} transition={transition} />
         <ul aria-label={copy.language}>
-          {localeIds.map((choice, index) => {
+          {choices.map((choice, index) => {
             const current = choice === locale;
-            const available = publishedLocales.includes(choice);
-            // Keep the .4 s envelope, reversing the stagger on close.
-            const delay = (open ? index : localeIds.length - 1 - index) * itemStep;
             const label = <span lang={choice}>{locales[choice].name}</span>;
             return <m.li key={choice} initial={false} animate={{ opacity: open ? 1 : 0 }}
-              transition={{ ease, duration: instant ? 0 : itemDuration, delay: instant ? 0 : delay }}>
-              {!available ? <span className={styles.option} aria-disabled="true" aria-current={current || undefined}>
-                {label}<small>{copy.pending}</small>
-              </span> : current || onLocaleChange ? <button className={styles.option} type="button" aria-current={current || undefined}
+              transition={itemTransition(index)}>
+              {current || onLocaleChange ? <button className={styles.option} type="button" aria-current={current || undefined}
                 data-language-choice onClick={() => { select(); onLocaleChange?.(choice); }}>
                 {label}{current && <span aria-hidden="true">✓</span>}
               </button> :
-                <Link className={styles.option} href={localePath(route, choice, defaultLocale)} hrefLang={choice}
+                <Link className={styles.option} href={pagePath(page ?? homePage(publication.id), choice, publication)} hrefLang={choice}
                   prefetch={false} data-language-choice onClick={select}>{label}</Link>}
             </m.li>;
           })}
+          {target.origin && <m.li className={styles.siteSwitch} initial={false} animate={{ opacity: open ? 1 : 0 }}
+            transition={itemTransition(choices.length)}>
+            <p className={styles.siteLabel}>{copy.siteSwitch.label}</p>
+            <a className={styles.option} href={target.origin + targetPath} hrefLang={targetLocale}
+              data-language-choice data-region-switch onClick={select}>
+              <span>
+                {copy.siteSwitch[target.id]}
+                {locale !== targetLocale && <small className={styles.siteHint}>
+                  {copy.siteSwitch.fallback.replace('{language}', locales[targetLocale].name)}
+                </small>}
+              </span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          </m.li>}
         </ul>
       </div>
     </LazyMotion>

@@ -317,7 +317,7 @@ export function WorksReel() {
     goTo(Math.round(position.get() + Math.max(-2.2, Math.min(2.2, fling))));
   }
 
-  return <WorkshopFrame route="/works" reduced={reduced}>
+  return <WorkshopFrame route="works" reduced={reduced}>
     <main ref={stageRef} className={styles.stage} aria-label={copy.archive} data-reel-view={view} data-project={project !== null ? numberAt(project) : undefined}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}

@@ -1,6 +1,6 @@
 {
   "id": "cn",
   "defaultLocale": "zh",
-  "origin": null,
-  "publishedLocales": ["zh", "en", "ja", "de", "fr", "es"]
+  "origin": "https://librecosta.cn",
+  "publishedLocales": ["zh", "en"]
 }

@@ -5,7 +5,7 @@ import { usesOriginalLayout } from './content';
 import { LocaleProvider } from './LocaleProvider';
 import type { Locale } from './locale-contract';
 import { publication } from './publication';
-import { isPublicationPreview } from './publication-config';
+import { brandIcons, indexingAllowed } from './seo';
 import { instrumentFont } from './instrument-font';
 import '@/app/globals.css';
 
@@ -13,14 +13,14 @@ export function siteMetadata(locale: Locale): Metadata {
   return {
     title: locale === 'zh' ? 'LibreCosta — 远岸开物' : 'LibreCosta',
     description: locale === 'zh' ? 'LibreCosta 官方网站。' : undefined,
-    robots: isPublicationPreview(publication) ? { index: false, follow: false } : undefined,
+    icons: brandIcons,
+    robots: indexingAllowed(publication) ? undefined : { index: false, follow: false },
   };
 }
 
 export function SiteLayout({ locale, children }: { locale: Locale; children: ReactNode }) {
-  const { defaultLocale, publishedLocales } = publication;
   return <html lang={locale} className={instrumentFont.variable} data-localized={!usesOriginalLayout(locale) || undefined}><body>
-    <LocaleProvider value={{ locale, defaultLocale, publishedLocales }}>
+    <LocaleProvider value={{ locale, publication }}>
       <AudioProvider>{children}</AudioProvider>
     </LocaleProvider>
   </body></html>;

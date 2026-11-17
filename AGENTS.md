@@ -1,6 +1,6 @@
 # LibreCosta Website
 
-This repository contains the LibreCosta site. The Expanse, its first interactive act, is the home page at `/`.
+This repository contains the LibreCosta site. The Expanse, its first interactive act, is the INTL home page at `/` and runs at `/world/` in CN. ABOUT is the CN home page.
 
 ## Find the right context
 

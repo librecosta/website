@@ -6,8 +6,7 @@ import type { Locale, Publication } from './locale-contract';
 
 type SiteLocale = {
   locale: Locale;
-  defaultLocale: Locale;
-  publishedLocales: Publication['publishedLocales'];
+  publication: Publication;
 };
 
 const LocaleContext = createContext<SiteLocale | null>(null);

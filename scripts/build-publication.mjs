@@ -3,6 +3,8 @@ import { cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/pro
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isPublicationPreview, parsePublication } from '../src/site/publication-config.ts';
+import { indexingAllowed, pageAlternates, robotsText, sitemapXml } from '../src/site/seo.ts';
+import { pagePath, sitePages } from '../src/site/locale-contract.ts';
 import { verifyExport, windFiles } from './verify-publication.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
@@ -25,6 +27,7 @@ function reportRelease(windAvailable, required) {
   const blockers = [];
   if (isPublicationPreview(publication)) blockers.push(`default locale ${publication.defaultLocale} has no published content`);
   if (!publication.origin) blockers.push('production origin has not been set');
+  if (!indexingAllowed(publication)) blockers.push('P4 production indexing approval is pending');
   if (!windAvailable) blockers.push('approved Expanse wind files are missing');
   if (!blockers.length) {
     console.log(`${label} artifact release checks passed.`);
@@ -73,11 +76,25 @@ if (check) {
     await writeFile(join(project, 'config', 'publications', 'active.ts'), `export { default } from './${id}.json';\n`);
     await buildNext(project);
     const output = join(project, 'out');
+    const sitemap = sitemapXml(publication);
+    if (indexingAllowed(publication)) await writeFile(join(output, 'sitemap.xml'), sitemap);
     const { pages, files, bytes, largest, windAvailable } = await verifyExport(output, publication);
     reportRelease(windAvailable, process.env.PUBLICATION_REQUIRE_RELEASE === '1');
     await mkdir(dist, { recursive: true });
     await rm(destination, { recursive: true, force: true });
     await rename(output, destination);
+
+    // Keep candidate search URLs outside the directory uploaded by either host.
+    const review = join(dist, 'seo-review', id);
+    await mkdir(review, { recursive: true });
+    const pagesForReview = Object.fromEntries(publication.publishedLocales.flatMap(locale =>
+      sitePages.map(page => [pagePath(page, locale, publication), pageAlternates(page, locale)]),
+    ));
+    await Promise.all([
+      writeFile(join(review, 'sitemap.xml'), sitemap),
+      writeFile(join(review, 'robots.txt'), robotsText(publication, true)),
+      writeFile(join(review, 'pages.json'), JSON.stringify(pagesForReview, null, 2) + '\n'),
+    ]);
     console.log(`${label} dist/${id}: ${pages} pages plus error documents, ${files} files, ${bytes} bytes; largest: ${largest.path} (${largest.size} bytes).`);
   } finally {
     await rm(project, { recursive: true, force: true });

@@ -4,6 +4,7 @@ export const de = {
   shared: {
     language: 'Sprache', pending: 'Noch nicht verfügbar', navigation: 'Seitennavigation', home: 'Startseite von LibreCosta',
     social: 'Soziale Medien', newTab: ' (öffnet sich in einem neuen Tab)', blogNewTab: ' (öffnet sich in einem neuen Tab)',
+    siteSwitch: { label: "Website wechseln", cn: "Website für China", intl: "Internationale Website", fallback: "Öffnet auf {language}" },
     nav: { world: 'WELT', works: 'WERKE', about: 'ÜBER UNS', blog: 'BLOG', contact: 'KONTAKT' },
     dossier: { name: 'DOSSIER', field: 'BEREICH', software: 'SOFTWARE / WERKZEUGE', practice: 'PRAXIS', design: 'OPEN SOURCE / DESIGN', channels: 'KONTAKTWEGE', email: 'E-MAIL' },
     errors: {

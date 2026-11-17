@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import { ErrorDocument } from '@/components/errors/ErrorDocument';
 import { publication } from '@/site/publication';
+import { brandIcons } from '@/site/seo';
 
-const { defaultLocale, publishedLocales } = publication;
-
-export const metadata: Metadata = { robots: { index: false } };
+export const metadata: Metadata = { icons: brandIcons, robots: { index: false, follow: false } };
 
 export default function GlobalNotFound() {
-  return <ErrorDocument kind="notFound" defaultLocale={defaultLocale} publishedLocales={publishedLocales} />;
+  return <ErrorDocument kind="notFound" publication={publication} />;
 }

@@ -2,7 +2,7 @@
 
 ## Static site and scene ownership
 
-- App Router owns route metadata and the HTML shell. `/` hosts The Expanse. The other public pages live at `/works/`, `/about/`, and `/contact/`. The default locale uses these paths. Enabled alternatives retain the same pages under a locale prefix. The root layouts share the locale and audio providers. [Routes](../src/app/) · [Next.js config](../next.config.ts) · [Publication contract](../docs/publication-routing.md)
+- App Router owns route metadata and the HTML shell. INTL serves The Expanse at `/` and ABOUT at `/about/`. CN serves ABOUT at `/` and The Expanse at `/world/`. Both use `/works/` and `/contact/`. Published non-default languages add a locale prefix. The root layouts share the locale and audio providers. [Routes](../src/app/) · [Next.js config](../next.config.ts) · [Publication contract](../docs/publication-routing.md)
 - `ExpanseExperience` owns native scroll, ScrollTrigger progress, reduced motion, and the HTML fallback. It lazy-loads a single client-only Canvas. Keep the instrument and narrative HTML independent of WebGL initialization. `/?debug=1` enables diagnostics in development. The transform inspector loads when opened. [ExpanseExperience](../src/components/expanse/ExpanseExperience.tsx)
 - `ExpanseCanvas` maps the smoothed progress into the configured camera path and composes the local pointer offset. The R3F frame callback is the sole camera writer. The Canvas uses demand rendering, with a capped scheduler for live world effects and no rendering in hidden tabs. Reuse that scheduler and refs for per-frame work. [ExpanseCanvas](../src/components/expanse/ExpanseCanvas.tsx) · [Journey mapping](../src/components/expanse/journey-timing.ts)
 

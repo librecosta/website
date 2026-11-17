@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-LibreCosta's website uses a static Next.js export. The home page presents **The Expanse**, its first interactive act, which follows a pale desert valley toward a distant city and its segmented ring.
+LibreCosta's website uses a static Next.js export. The international home page presents **The Expanse**, its first interactive act, which follows a pale desert valley toward a distant city and its segmented ring.
 
 ## Run locally
 
@@ -13,8 +13,8 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-- [The Expanse](http://127.0.0.1:3000/) is the home page. Scroll to explore and scroll back to retrace the journey.
-- With `pnpm dev`, the [Expanse debug view](http://127.0.0.1:3000/?debug=1) exposes camera stops and progress, reduced motion, sky and wind layers, observation anchors, the transform inspector, and audio levels.
+- [The Expanse](http://127.0.0.1:3000/world/) is WORLD in the default CN development build. ABOUT is the home page. Scroll to explore and scroll back to retrace the journey.
+- With `pnpm dev`, the [Expanse debug view](http://127.0.0.1:3000/world/?debug=1) exposes camera stops and progress, reduced motion, sky and wind layers, observation anchors, the transform inspector, and audio levels.
 
 Sound starts after user activation. The original ambient track ships with the site. Optional local wind preparation is described in [the audio notes](docs/research/audio.md).
 
@@ -34,7 +34,7 @@ pnpm preview
 | CN | `pnpm build:cn` | `dist/cn/` | EdgeOne Makers |
 | INTL | `pnpm build:intl` | `dist/intl/` | Cloudflare |
 
-Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. Run `pnpm check:release cn` or `pnpm check:release intl` after building and before publishing. Each export includes Chinese, English, Japanese, German, French, and Spanish. See the [publication contract](docs/publication-routing.md) and [deployment settings and release prerequisites](docs/publication-deployment.md).
+Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. Run `pnpm check:release cn` or `pnpm check:release intl` after building and before publishing. CN includes Chinese and English. INTL includes all six languages. See the [publication contract](docs/publication-routing.md) and [deployment settings and release prerequisites](docs/publication-deployment.md).
 
 ## Project documentation
 

@@ -4,6 +4,7 @@ export const zh = {
   shared: {
     language: '页面语言', pending: '未开放', navigation: '站点导航', home: 'LibreCosta 首页',
     social: '社交媒体', newTab: '（在新标签页打开）', blogNewTab: ' (opens in a new tab)',
+    siteSwitch: { label: "切换站点", cn: "中国站", intl: "国际站", fallback: "将以{language}打开" },
     nav: { world: 'WORLD', works: 'WORKS', about: 'ABOUT', blog: 'BLOG', contact: 'CONTACT' },
     dossier: { name: 'DOSSIER', field: 'FIELD', software: 'SOFTWARE / TOOLS', practice: 'PRACTICE', design: 'OPEN SOURCE / DESIGN', channels: 'CHANNELS', email: 'EMAIL' },
     errors: {

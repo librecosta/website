@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-LibreCosta 官网使用 Next.js 静态导出。首页呈现第一幕 **The Expanse · 荒原**，沿苍白浅谷走向远方的城市和分段巨环。
+LibreCosta 官网使用 Next.js 静态导出。国际站首页呈现第一幕 **The Expanse · 荒原**，沿苍白浅谷走向远方的城市和分段巨环。
 
 ## 本地运行
 
@@ -13,8 +13,8 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-- [The Expanse](http://127.0.0.1:3000/) 是正式首页。向下滚动探索，向上滚动可原路返回。
-- 使用 `pnpm dev` 时，[荒原调试视图](http://127.0.0.1:3000/?debug=1) 提供机位和进度、减少动态效果、天空与风沙分层、观测锚点、物体变换和声音音量检查。
+- 本地默认运行 CN 版，ABOUT 为首页。[The Expanse](http://127.0.0.1:3000/world/) 位于 WORLD 页。向下滚动探索，向上滚动可原路返回。
+- 使用 `pnpm dev` 时，[荒原调试视图](http://127.0.0.1:3000/world/?debug=1) 提供机位和进度、减少动态效果、天空与风沙分层、观测锚点、物体变换和声音音量检查。
 
 声音由用户主动开启。原创环境音乐随站点提供，风声可按需在本地生成。 [声音研究](docs/research/audio.md)
 
@@ -34,7 +34,7 @@ pnpm preview
 | CN | `pnpm build:cn` | `dist/cn/` | EdgeOne Makers |
 | INTL | `pnpm build:intl` | `dist/intl/` | Cloudflare |
 
-使用 `pnpm preview cn` 或 `pnpm preview intl` 预览对应静态产物。构建后、发布前运行 `pnpm check:release cn` 或 `pnpm check:release intl`。两份产物均包含中文、英语、日语、德语、法语和西班牙语。详见[地区与路由契约](docs/publication-routing.md)及[部署设置和发布前置条件](docs/publication-deployment.md)。
+使用 `pnpm preview cn` 或 `pnpm preview intl` 预览对应静态产物。构建后、发布前运行 `pnpm check:release cn` 或 `pnpm check:release intl`。CN 包含中文与英语。INTL 包含中文、英语、日语、德语、法语和西班牙语。详见[地区与路由契约](docs/publication-routing.md)及[部署设置和发布前置条件](docs/publication-deployment.md)。
 
 ## 项目文档
 

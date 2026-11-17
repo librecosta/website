@@ -11,6 +11,7 @@ export type ErrorScreenKind = 'notFound' | 'request' | 'server';
 export type SiteCopy = {
   shared: {
     language: string; pending: string; navigation: string; home: string; social: string; newTab: string; blogNewTab: string;
+    siteSwitch: { label: string; cn: string; intl: string; fallback: `${string}{language}${string}` };
     nav: Record<'world' | 'works' | 'about' | 'blog' | 'contact', string>;
     dossier: { name: string; field: string; software: string; practice: string; design: string; channels: string; email: string };
     errors: Record<ErrorScreenKind, { title: string; detail: string }> & {

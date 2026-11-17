@@ -4,6 +4,7 @@ export const en = {
   shared: {
     language: 'Language', pending: 'Unavailable', navigation: 'Site Navigation', home: 'LibreCosta home',
     social: 'Social Media', newTab: ' (Opens in a New Tab)', blogNewTab: ' (Opens in a New Tab)',
+    siteSwitch: { label: "Switch site", cn: "China site", intl: "International site", fallback: "Opens in {language}" },
     nav: { world: 'WORLD', works: 'WORKS', about: 'ABOUT', blog: 'BLOG', contact: 'CONTACT' },
     dossier: { name: 'DOSSIER', field: 'FIELD', software: 'SOFTWARE / TOOLS', practice: 'PRACTICE', design: 'OPEN SOURCE / DESIGN', channels: 'CHANNELS', email: 'EMAIL' },
     errors: {

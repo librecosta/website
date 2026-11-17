@@ -5,7 +5,7 @@ const region = process.argv[2];
 if (region && region !== 'cn' && region !== 'intl') throw new Error('Usage: pnpm preview [cn|intl]');
 const root = path.resolve(region ? `dist/${region}` : 'out');
 const port = Number(process.env.PORT || 3000);
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.txt': 'text/plain; charset=utf-8', '.wasm': 'application/wasm', '.woff2': 'font/woff2', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.opus': 'audio/ogg', '.mp3': 'audio/mpeg' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.txt': 'text/plain; charset=utf-8', '.wasm': 'application/wasm', '.woff2': 'font/woff2', '.glb': 'model/gltf-binary', '.ico': 'image/x-icon', '.xml': 'application/xml; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.opus': 'audio/ogg', '.mp3': 'audio/mpeg' };
 http.createServer(async (req,res) => {
   try {
     const url = new URL(req.url, 'http://localhost');

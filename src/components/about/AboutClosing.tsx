@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type PointerEvent, type RefObject } from 'react';
 import { AnimatePresence, animate, m, useInView, useMotionValue, useSpring } from 'motion/react';
-import { localePath } from '@/site/locale-contract';
+import { pagePath } from '@/site/locale-contract';
 import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
 import { useSoftFocus } from '../soft-focus';
 import styles from './about-closing.module.css';
 
 const links = [
-  { label: 'WORKS', href: '/works', image: '/about/closing/works-world.webp', aspect: 720 / 450, width: 252 },
+  { label: 'WORKS', page: 'works', image: '/about/closing/works-world.webp', aspect: 720 / 450, width: 252 },
   { label: 'GOPHERATLAS', href: 'https://gopheratlas.com/', image: '/about/gopheratlas-og.png', aspect: 1200 / 630, width: 252 },
   { label: 'GITHUB', href: 'https://github.com/librecosta', image: '/about/closing/librecosta-github.webp', aspect: 1, width: 160 },
 ] as const;
@@ -16,7 +16,7 @@ const previewEase = [.2, .8, .2, 1] as const;
 const previewSpring = { stiffness: 280, damping: 34, mass: .65 };
 
 export function AboutClosing({ reduced }: { reduced: boolean }) {
-  const { locale, defaultLocale } = useSiteLocale();
+  const { locale, publication } = useSiteLocale();
   const text = useSiteCopy().about.closing;
   const copy = useRef<HTMLDivElement>(null);
   const inView = useInView(copy, { amount: .3 });
@@ -39,7 +39,7 @@ export function AboutClosing({ reduced }: { reduced: boolean }) {
       <m.h2 id="closing-title" className={styles.title} lang="en" style={reduced ? undefined : title} data-closing-reveal>LET’S TALK.</m.h2>
       <m.p className={styles.intro} style={reduced ? undefined : intro} data-closing-reveal>{text.intro}</m.p>
       <m.div className={styles.contact} style={reduced ? undefined : contact} data-closing-reveal>
-        <Link href={localePath('/contact', locale, defaultLocale)} prefetch={false}>{text.contact}
+        <Link href={pagePath('contact', locale, publication)} prefetch={false}>{text.contact}
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M2 8h11M8 3l5 5-5 5" />
           </svg>
@@ -91,7 +91,7 @@ function planPreview(target: Target, row: DOMRect, copy: DOMRect, width: number,
 }
 
 function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null>; reduced: boolean }) {
-  const { locale, defaultLocale } = useSiteLocale();
+  const { locale, publication } = useSiteLocale();
   const { about, shared } = useSiteCopy();
   const row = useRef<HTMLElement>(null);
   const hovered = useRef<Target | null>(null);
@@ -153,7 +153,8 @@ function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null
       hovered.current = focused.current = null;
       show(null);
     }}>
-    {links.map(({ label, href }, index) => {
+    {links.map((link, index) => {
+      const { label } = link;
       const handlers = {
         onPointerEnter(event: PointerEvent<HTMLAnchorElement>) {
           if (event.pointerType !== 'touch') show(hovered.current = point(event, index));
@@ -175,9 +176,9 @@ function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null
           show(hovered.current);
         },
       };
-      return href === '/works'
-        ? <Link key={href} href={localePath(href, locale, defaultLocale)} prefetch={false} {...handlers}>{about.closing.works}</Link>
-        : <a key={href} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${label}${shared.newTab}`} {...handlers}>{label}</a>;
+      return 'page' in link
+        ? <Link key={label} href={pagePath(link.page, locale, publication)} prefetch={false} {...handlers}>{about.closing.works}</Link>
+        : <a key={label} href={link.href} target="_blank" rel="noopener noreferrer" aria-label={`${label}${shared.newTab}`} {...handlers}>{label}</a>;
     })}
     <m.div className={styles.previewPosition} style={{ x, y, rotate, width, height }} aria-hidden="true">
       <AnimatePresence>

@@ -84,3 +84,24 @@
 .option[aria-disabled='true'] { color: #a0acbc; }
 .option > :first-child { min-inline-size: 0; overflow-wrap: anywhere; }
 .option small { flex: none; font-size: 10px; white-space: nowrap; }
+
+.siteSwitch {
+  margin-block-start: 3px;
+  padding-block-start: 4px;
+  border-block-start: 1px solid #394652;
+}
+
+.siteLabel {
+  margin: 3px 10px 0;
+  color: #a0acbc;
+  font-size: 10px;
+}
+
+.option .siteHint {
+  display: block;
+  margin-block-start: 4px;
+  color: #a0acbc;
+  white-space: normal;
+}
+
+.siteSwitch .option { padding-block: 6px; }

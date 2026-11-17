@@ -7,7 +7,7 @@ import { ErrorExperience, type ErrorExperienceProps } from './ErrorExperience';
 import '@/app/globals.css';
 
 export function ErrorDocument(props: ErrorExperienceProps) {
-  const { defaultLocale } = props;
+  const { defaultLocale } = props.publication;
   return <html lang={defaultLocale} className={instrumentFont.variable} data-localized={!usesOriginalLayout(defaultLocale) || undefined}>
     <body>
       <AudioProvider><ErrorExperience {...props} /></AudioProvider>
