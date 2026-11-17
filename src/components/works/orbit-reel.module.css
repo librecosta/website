@@ -224,6 +224,10 @@
   .detail .back { padding-inline-start: 8px; }
 }
 
+@media (max-width: 720px) {
+  .detail { padding-block-start: calc(var(--edge-top) + var(--rail) + 84px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pause { display: none; }
   .mode::after { transition: none; }

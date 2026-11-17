@@ -4,10 +4,10 @@
 
 `config/publications/cn.json` and `intl.json` define the region, default locale, production Origin, and published locales. `src/site/locale-contract.ts` defines the supported locales (`zh`, `en`, `ja`, `de`, `fr`, `es`), the four public routes, and the same-origin path builder. The default locale uses `/`, `/works/`, `/about/`, and `/contact/`. Other published locales add their prefix. Locale is selected by the path. Region is selected by the build.
 
-| Region | Default | Enabled routes | Release gate |
-| --- | --- | --- | --- |
-| CN | `zh` | Chinese at the root paths, others under `/en/`, `/ja/`, `/de/`, `/fr/`, `/es/` | Production Origin pending. |
-| INTL | `en` | English at the root paths, others under `/zh/`, `/ja/`, `/de/`, `/fr/`, `/es/` | Origin and default language checks pass. |
+| Region | Default | Enabled routes |
+| --- | --- | --- |
+| CN | `zh` | Chinese at the root paths, others under `/en/`, `/ja/`, `/de/`, `/fr/`, `/es/` |
+| INTL | `en` | English at the root paths, others under `/zh/`, `/ja/`, `/de/`, `/fr/`, `/es/` |
 
 The language menu shows six selectable native language names and keeps the current page and region. The exported 404 uses the build's default language for its initial document and reads a recognized prefix from the requested path once JavaScript runs. The home link then points to that language within the same region. The path always determines the language on valid pages.
 
@@ -15,8 +15,8 @@ The language menu shows six selectable native language names and keeps the curre
 
 - EdgeOne Makers will use `pnpm build:cn` with `dist/cn/`. Cloudflare will use `pnpm build:intl` with `dist/intl/`.
 - `pnpm preview cn` and `pnpm preview intl` serve the region's export locally. The preview server resolves directory indexes and returns the exported 404 page for missing routes. `pnpm dev`, `pnpm build`, and `pnpm check` use the CN configuration by default. The default build continues to write `out/` for `pnpm preview`.
-- Regional builds run Next in separate temporary project snapshots. They verify the exact page set, document language, and preview robots metadata before replacing only their own output directory. The source configuration and default build cache stay in place.
-- `pnpm check:release <cn|intl>` exits nonzero while the production Origin or the reviewed default language is missing. An engineering export can still build for QA. Use the release check before publishing either region.
+- Regional builds run Next in separate temporary project snapshots. They verify the exact page set, document language, internal asset references and output limits before replacing their own output directory.
+- Run `pnpm check:release <cn|intl>` against the completed export. The gate checks the production origin, reviewed default language and approved wind files. See the [deployment instructions](./publication-deployment.md) for artifact and platform verification.
 
 The `(default)` and `[locale]` route branches share the same page renderers and root providers. `generateStaticParams()` enumerates published non-default locales. The prefixed branch is registered only when that list has entries because this Next version requires a nonempty static parameter set for an exported dynamic route. Navigation within a locale preserves the root audio provider. Switching locales crosses root layouts and starts a new document and opt-in audio session.
 

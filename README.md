@@ -34,7 +34,7 @@ pnpm preview
 | CN | `pnpm build:cn` | `dist/cn/` | EdgeOne Makers |
 | INTL | `pnpm build:intl` | `dist/intl/` | Cloudflare |
 
-Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. Run `pnpm check:release cn` or `pnpm check:release intl` before publishing. Each export includes Chinese, English, Japanese, German, French, and Spanish. CN awaits its production origin. See the [publication contract](docs/publication-routing.md).
+Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. Run `pnpm check:release cn` or `pnpm check:release intl` after building and before publishing. Each export includes Chinese, English, Japanese, German, French, and Spanish. See the [publication contract](docs/publication-routing.md) and [deployment settings and release prerequisites](docs/publication-deployment.md).
 
 ## Project documentation
 
