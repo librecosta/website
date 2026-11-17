@@ -159,7 +159,7 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = 'w
     {soundToggle}
     <LanguageMenu page={currentPage} reduced={reduced} onLocaleChange={onLocaleChange} />
     <nav className={styles.instrumentNav} aria-label={copy.navigation} data-audio-ui>
-      <InstrumentLink href={href('world')} text={copy.nav.world} reduced={reduced} current={currentPage === 'world'} />
+      {currentPage !== 'world' && <InstrumentLink href={href('world')} text={copy.nav.world} reduced={reduced} />}
       <InstrumentLink href={href('works')} text={copy.nav.works} reduced={reduced} current={currentPage === 'works'} />
       <InstrumentLink href={href('about')} text={copy.nav.about} reduced={reduced} current={currentPage === 'about'} />
       <InstrumentLink href="https://gopheratlas.com/" text={copy.nav.blog} reduced={reduced} external />

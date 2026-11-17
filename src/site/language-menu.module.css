@@ -87,14 +87,15 @@
 
 .siteSwitch {
   margin-block-start: 3px;
-  padding-block-start: 4px;
+  padding-block-start: 8px;
   border-block-start: 1px solid #394652;
 }
 
-.siteLabel {
-  margin: 3px 10px 0;
+.siteSwitch .siteLabel {
+  margin: 0 10px 6px;
   color: #a0acbc;
   font-size: 10px;
+  line-height: 1.3;
 }
 
 .option .siteHint {

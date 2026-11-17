@@ -37,6 +37,10 @@
 .canvas { position: absolute !important; inset: 0; opacity: 0; transition: opacity 600ms ease; pointer-events: none; touch-action: pan-y; }
 .journey[data-ready='true'] .canvas { opacity: 1; }
 .instrument {
+  --corner-width: clamp(68px, 8vw, 103px);
+  /* The inner rails are at x=16 and y=15 in the corner's 103×57 viewBox. */
+  --corner-content-inline: calc(var(--corner-width) * 16 / 103 + 8px);
+  --corner-content-bottom: calc(var(--corner-width) * 15 / 103 + 5px);
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -45,7 +49,7 @@
 }
 .corner {
   position: absolute;
-  width: clamp(68px, 8vw, 103px);
+  width: var(--corner-width);
   height: auto;
   color: var(--instrument-corner, #34453ccc);
 }
@@ -58,7 +62,7 @@
   --brand-height: 44px;
   position: absolute;
   top: calc(var(--edge-top) + var(--rail) - 8px);
-  left: calc(var(--edge-left) + var(--rail));
+  left: calc(var(--edge-left) + var(--corner-content-inline));
   right: calc(var(--edge-right) + var(--rail));
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(4, auto);
@@ -254,8 +258,8 @@
 .progress span { display: block; height: 100%; background: var(--instrument-fill, linear-gradient(90deg, #476458, #263a32)); transform: scaleX(0); transform-origin: left center; }
 .observationData {
   position: absolute;
-  bottom: calc(var(--edge-bottom) + var(--rail) - 4px);
-  left: calc(var(--edge-left) + var(--rail));
+  bottom: calc(var(--edge-bottom) + var(--corner-content-bottom));
+  left: calc(var(--edge-left) + var(--corner-content-inline));
   display: grid;
   gap: 4px;
   color: var(--instrument-muted);
