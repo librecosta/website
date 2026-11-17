@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { m, useMotionValue, useMotionValueEvent, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { useEnglish } from '@/site/LocaleProvider';
+import { englishAbout } from './copy';
 import styles from './about-controls.module.css';
 import { createSidebarField, sectionOffset, sidebarEase } from './sidebar-field';
 
@@ -22,6 +24,8 @@ export function scrollToAboutSection(id: string, reduced: boolean) {
 }
 
 export function AboutSectionNav({ progress, reduced }: ControlsProps) {
+  const english = useEnglish();
+  const sectionLabel = ({ id, label }: typeof sections[number]) => english ? englishAbout.sections[id] : label;
   const [active, setActive] = useState(0);
   const [pointed, setPointed] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -117,7 +121,7 @@ export function AboutSectionNav({ progress, reduced }: ControlsProps) {
   }
 
   const poseTransition = { duration: reduced ? 0 : .4, ease: sidebarEase };
-  return <nav className={styles.sectionNav} ref={nav} aria-label="ABOUT 章节"
+  return <nav className={styles.sectionNav} ref={nav} aria-label={english ? 'Chapter Navigation' : 'ABOUT 章节'}
     data-expanded={expanded} onPointerEnter={movePointer} onPointerMove={movePointer}
     onPointerLeave={event => { if (event.pointerType !== 'touch') leave(); }}
     onPointerDown={event => {
@@ -141,8 +145,8 @@ export function AboutSectionNav({ progress, reduced }: ControlsProps) {
       leave();
     }}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) leave(); }}>
-    {sections.map(({ id, label }, index) => <m.button key={id} type="button" className={styles.sectionMark}
-      ref={node => { buttons.current[index] = node; }} aria-label={label} aria-controls={id} aria-current={index === active ? 'location' : undefined}
+    {sections.map((section, index) => <m.button key={section.id} type="button" className={styles.sectionMark}
+      ref={node => { buttons.current[index] = node; }} aria-label={sectionLabel(section)} aria-controls={section.id} aria-current={index === active ? 'location' : undefined}
       tabIndex={index === active ? 0 : -1} initial={false} animate={{ y: sectionOffset(index, sections.length, expanded) }}
       transition={poseTransition} onFocus={event => { if (event.currentTarget.matches(':focus-visible')) pointAt(index); }}
       onClick={event => {
@@ -153,7 +157,7 @@ export function AboutSectionNav({ progress, reduced }: ControlsProps) {
     <m.span className={styles.sectionLabel} aria-hidden="true" style={{ y: labelY }} initial={false}
       animate={expanded ? { scale: 1, opacity: 1 } : { scale: .96, opacity: 0 }}
       transition={reduced ? { duration: 0 } : { duration: .3384615, ease: sidebarEase, opacity: { duration: .2153846 } }}>
-      {sections[pointed].label}
+      {sectionLabel(sections[pointed])}
     </m.span>
   </nav>;
 }
@@ -170,6 +174,7 @@ function scrollToProgress(value: number) {
 }
 
 export function AboutScrollGauge({ progress, reduced }: ControlsProps) {
+  const english = useEnglish();
   const track = useRef<HTMLSpanElement>(null);
   const drag = useRef<AbortController | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -222,7 +227,7 @@ export function AboutScrollGauge({ progress, reduced }: ControlsProps) {
   }
 
   return <div className={styles.scrollControl} role="slider" tabIndex={0} aria-orientation="vertical"
-    aria-label="页面滚动位置" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${percent}%`}
+    aria-label={english ? 'Page Scroll Position' : '页面滚动位置'} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${percent}%`}
     data-dragging={dragging} onKeyDown={handleKey} onPointerDown={startDrag}>
     <span ref={track} className={styles.scrollTrack} aria-hidden="true">
       <m.span className={styles.scrollFill} style={{ height: position }} />

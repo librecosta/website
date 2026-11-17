@@ -20,3 +20,7 @@ export function useSiteLocale() {
   if (!value) throw new Error('LocaleProvider is missing');
   return value;
 }
+
+export function useEnglish() {
+  return useSiteLocale().locale === 'en';
+}

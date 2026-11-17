@@ -5,7 +5,7 @@ import { useSiteAudio } from '@/components/audio/AudioProvider';
 import { languageControlCopy } from '@/site/content';
 import { LanguageMenu } from '@/site/LanguageMenu';
 import { localePath, type SiteRoute } from '@/site/locale-contract';
-import { useSiteLocale } from '@/site/LocaleProvider';
+import { useEnglish, useSiteLocale } from '@/site/LocaleProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
 import { EncryptedLabel, useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
@@ -59,10 +59,11 @@ function InstrumentLink({ href, text, reduced, external = false, current = false
   href: string; text: string; reduced: boolean; external?: boolean; current?: boolean;
 }) {
   const { cue } = useSiteAudio();
+  const english = useEnglish();
   const { play, noise } = useEncryptedText(text, reduced);
   const props: ComponentPropsWithoutRef<'a'> = {
     lang: 'en',
-    'aria-label': external ? `${text} (opens in a new tab)` : text,
+    'aria-label': external ? `${text}${english ? languageControlCopy.en.newTab : ' (opens in a new tab)'}` : text,
     'aria-current': current ? 'page' : undefined,
     onPointerEnter: event => {
       if (event.pointerType === 'mouse') {
@@ -148,7 +149,8 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/
         onPointerEnter={event => { if (event.pointerType === 'mouse') { cue('hover'); brand.play(); } }}
         onFocus={event => { if (event.currentTarget.matches(':focus-visible')) brand.play(); }}
         onClick={() => cue('click')}><Wordmark noise={brand.noise} /></Link>
-      {soundToggle && <span className={styles.soundIndicator} role="img" aria-label={enabled ? '声音开启' : '声音关闭'} data-enabled={enabled} />}
+      {soundToggle && <span className={styles.soundIndicator} role="img"
+        aria-label={locale === 'en' ? (enabled ? 'Sound On' : 'Sound Off') : (enabled ? '声音开启' : '声音关闭')} data-enabled={enabled} />}
     </div>
     {soundToggle}
     <LanguageMenu route={currentPage} reduced={reduced} />
@@ -164,6 +166,7 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/
 }
 
 function ChapterGauge() {
+  const english = useEnglish();
   return <div className={styles.chapterGauge}>
     <svg viewBox="0 0 65 16" aria-hidden="true" fill="none" stroke="currentColor">
       <path d="M1.5 4 4.5 1h54l2 2v10l-2 2h-54l-3-3Z M61 5h3v6h-3" />
@@ -171,7 +174,7 @@ function ChapterGauge() {
       <path className={styles.unlitCells} d="M17 4h8v8h-8z M28 4h8v8h-8z M39 4h8v8h-8z M50 4h8v8h-8z"
         fill="currentColor" stroke="none" />
     </svg>
-    <span className={styles.srOnly}>第 1 章，共 5 章</span>
+    <span className={styles.srOnly}>{english ? 'Chapter 1 of 5' : '第 1 章，共 5 章'}</span>
     <span aria-hidden="true">01 <span className={styles.gaugeSlash}>/</span> 05</span>
   </div>;
 }
@@ -217,6 +220,7 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
   progressFill: RefObject<HTMLSpanElement | null>;
   cameraRef: RefObject<Camera | null>;
 }) {
+  const english = useEnglish();
   return <div className={styles.instrument}>
     <InstrumentCorners />
     <InstrumentHeader reduced={reduced} gauge={<ChapterGauge />}
@@ -229,13 +233,13 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
     {!unavailable && <ObservationReadout cameraRef={cameraRef} />}
     <InstrumentSocialLinks />
     {!unavailable && <div className={styles.readout}>
-      {reduced ? <p className={styles.staticNote}>静态观览 · <a href="#expanse-transcript">阅读本幕</a></p> : <>
+      {reduced ? <p className={styles.staticNote}>{english ? 'Static View' : '静态观览'} · <a href="#expanse-transcript">{english ? 'Read Act I' : '阅读本幕'}</a></p> : <>
         <p ref={hint} className={styles.hint} lang="en">
           <svg viewBox="0 0 10 12" aria-hidden="true" fill="currentColor"><path d="M1 2h8L5 6zm0 5h8l-4 4z" /></svg>
           Scroll to explore
         </p>
         <div className={styles.trackLabel} lang="en"><span>01</span><span>The Expanse</span></div>
-        <InstrumentProgress progressBar={progressBar} progressFill={progressFill} />
+        <InstrumentProgress progressBar={progressBar} progressFill={progressFill} label={english ? 'Journey Progress' : undefined} />
       </>}
     </div>}
   </div>;

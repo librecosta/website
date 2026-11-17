@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { expanseBrand, narrativeTiming, observationIds, observationRecords, witnessRecords, witnessSequence,
+import { useEnglish } from '@/site/LocaleProvider';
+import { englishExpanseBrand, englishObservationRecords, englishWitnessSequence, expanseBrand, narrativeTiming, observationIds, observationRecords, witnessRecords, witnessSequence,
   type NarrativeEndpoint, type WitnessId, type WitnessRecord } from './narrative';
 import expanseStyles from './expanse.module.css';
 import styles from './narrative.module.css';
@@ -10,15 +11,13 @@ const charactersPerSecond = 14;
 const subtitleHoldSeconds = 2.5;
 const subtitleFadeSeconds = .42;
 
-const entryCharacters = Object.fromEntries(witnessSequence.map(record => [record.id, record.lines.map(line => Array.from(line))]));
-
 function WitnessSubtitle({ record, playing, onFinish }: {
   record: WitnessRecord & { id: WitnessId }; playing: boolean; onFinish: (id: WitnessId) => void;
 }) {
   const { cue } = useSiteAudio();
   const element = useRef<HTMLDivElement>(null);
   const timeline = useRef<gsap.core.Timeline | null>(null);
-  const lines = entryCharacters[record.id];
+  const lines = useMemo(() => record.lines.map(line => Array.from(line)), [record.lines]);
   const total = lines.reduce((sum, line) => sum + line.length, 0);
   const hold = record.id === witnessRecords.arrival.id ? narrativeTiming.arrivalHoldSeconds - subtitleFadeSeconds : subtitleHoldSeconds;
   const [count, setCount] = useState(0);
@@ -69,17 +68,20 @@ function WitnessSubtitle({ record, playing, onFinish }: {
 }
 
 function BrandReveal({ cinematic = false, active = true }: { cinematic?: boolean; active?: boolean }) {
+  const english = useEnglish();
+  const brand = english ? englishExpanseBrand : expanseBrand;
   return <section className={cinematic ? styles.brandReveal : styles.brandStatic}
     data-brand-reveal={cinematic ? '' : undefined} inert={!active} aria-hidden={!active}>
-    <h2 data-reveal-part="title">{expanseBrand.title}</h2>
-    <p data-reveal-part="description">{expanseBrand.description[0]}<br />{expanseBrand.description[1]}</p>
-    <p className={styles.signature} data-reveal-part="signature">{expanseBrand.signature}</p>
+    <h2 data-reveal-part="title">{brand.title}</h2>
+    <p data-reveal-part="description">{brand.description[0]}<br />{brand.description[1]}</p>
+    <p className={styles.signature} data-reveal-part="signature">{brand.signature}</p>
   </section>;
 }
 
 export function ExpanseNarrative({ subtitles, endpointState, ready, reduced, unavailable }: {
   subtitles: readonly WitnessId[]; endpointState: NarrativeEndpoint; ready: boolean; reduced: boolean; unavailable: boolean;
 }) {
+  const english = useEnglish();
   const { stopTextCue } = useSiteAudio();
   const layer = useRef<HTMLDivElement>(null);
   const brandTimeline = useRef<gsap.core.Timeline | null>(null);
@@ -89,7 +91,7 @@ export function ExpanseNarrative({ subtitles, endpointState, ready, reduced, una
   const finishSubtitle = useCallback((id: WitnessId) => setFinished(previous => [...previous, id]), []);
   const cinematic = ready && !reduced && !unavailable;
   const playing = cinematic && visible;
-  const active = witnessSequence.filter(record => subtitles.includes(record.id) && !finished.includes(record.id));
+  const active = (english ? englishWitnessSequence : witnessSequence).filter(record => subtitles.includes(record.id) && !finished.includes(record.id));
   const canReveal = cinematic && finished.includes(witnessRecords.arrival.id) && !active.length;
   const brandActive = canReveal && brandStarted && endpointState !== 'away';
 
@@ -130,7 +132,7 @@ export function ExpanseNarrative({ subtitles, endpointState, ready, reduced, una
     else brandTimeline.current?.reverse();
   }, [brandActive, cinematic, visible]);
 
-  return <div className={styles.layer} ref={layer} lang="zh-CN">
+  return <div className={styles.layer} ref={layer}>
     <div className={styles.subtitles} hidden={!cinematic}>
       {active.map(record => <WitnessSubtitle key={record.id} record={record} playing={playing} onFinish={finishSubtitle} />)}
     </div>
@@ -139,16 +141,18 @@ export function ExpanseNarrative({ subtitles, endpointState, ready, reduced, una
 }
 
 export function ExpanseTranscript() {
-  return <article id="expanse-transcript" className={styles.transcript} lang="zh-CN">
-    <h2>第一幕 · 荒原</h2>
-    {witnessSequence.map(record => <section key={record.id} aria-label={`独白 ${record.id}`}>
+  const english = useEnglish();
+  const records = english ? englishObservationRecords : observationRecords;
+  return <article id="expanse-transcript" className={styles.transcript}>
+    <h2>{english ? 'Act I · The Expanse' : '第一幕 · 荒原'}</h2>
+    {(english ? englishWitnessSequence : witnessSequence).map(record => <section key={record.id} aria-label={`${english ? 'Witness narrative' : '独白'} ${record.id}`}>
       {record.lines.map((line, index) => <p key={index}>{line}</p>)}
     </section>)}
     <section className={styles.transcriptSignals} aria-labelledby="expanse-transcript-signals">
-      <h3 id="expanse-transcript-signals">观测记录</h3>
+      <h3 id="expanse-transcript-signals">{english ? 'Observation records' : '观测记录'}</h3>
       {observationIds.map(id => <details key={id}>
-        <summary>{observationRecords[id].id} · {observationRecords[id].name}</summary>
-        {observationRecords[id].lines.map(line => <p key={line}>{line}</p>)}
+        <summary>{records[id].id} · {records[id].name}</summary>
+        {records[id].lines.map(line => <p key={line}>{line}</p>)}
       </details>)}
     </section>
     <BrandReveal />

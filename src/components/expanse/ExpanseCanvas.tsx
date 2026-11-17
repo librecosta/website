@@ -24,6 +24,7 @@ import { EntranceRuin, FutureCity } from './FutureCity';
 import { ObservationProjection, type BoardPreviews, type ObservationElements } from './ObservationProjection';
 import type { ExpanseEditorMount } from './ExpanseTransformEditor';
 import { observationIds, type ObservationId } from './narrative';
+import { useEnglish } from '@/site/LocaleProvider';
 import styles from './expanse.module.css';
 
 type Props = { stage: RefObject<HTMLElement | null>; signal: RefObject<JourneySignal>; mobile: boolean; reduced: boolean; debug: boolean;
@@ -64,9 +65,9 @@ function Instances({ items, geometry, material, distant = false }: {
     receiveShadow={!distant} dispose={null} />;
 }
 
-function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere, observationElements, editor, stage, signal, editorDragging }:
+function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere, observationElements, editor, stage, signal, editorDragging, english }:
   Pick<Props, 'mobile' | 'windView' | 'skyView' | 'reduced' | 'debug' | 'observationElements' | 'editor' | 'stage' | 'signal' | 'editorDragging'> &
-  { visible: boolean; atmosphere: Atmosphere }) {
+  { visible: boolean; atmosphere: Atmosphere; english: boolean }) {
   const { invalidate, gl } = useThree();
   const opaque = useRef<Group>(null);
   const anchors = useRef<Partial<Record<ObservationId, Object3D | null>>>({});
@@ -146,7 +147,7 @@ function World({ mobile, windView, skyView, visible, reduced, debug, atmosphere,
       <Instances items={distantStelae} geometry={stelaGeometry} material={resources.distant} distant />
     </group>
     <object3D ref={attach.dune} position={[duneX, groundHeight(duneX, duneZ) + duneOffset, duneZ]} />
-    <ObservationProjection anchors={anchors.current} elements={observationElements} opaque={opaque} mobile={mobile} reduced={reduced}
+    <ObservationProjection anchors={anchors.current} elements={observationElements} opaque={opaque} mobile={mobile} reduced={reduced} english={english}
       terrain={terrain.geometry.boundingBox!} ground={groundHeight} previews={previews} />
     {ExpanseTransformEditor && editor && <Suspense fallback={null}>
       <ExpanseTransformEditor mount={editor} stage={stage} signal={signal} reduced={reduced}
@@ -326,6 +327,7 @@ function Observation({ stage, signal, mobile, reduced, debug: inspect, onReady, 
 }
 
 export default function ExpanseCanvas(props: Props) {
+  const english = useEnglish();
   const [visible, setVisible] = useState(true);
   const windView = props.reduced ? 'static' : props.windView;
   const atmosphere = useMemo(createAtmosphere, []);
@@ -360,7 +362,7 @@ export default function ExpanseCanvas(props: Props) {
       renderer.toneMapping = ACESFilmicToneMapping; renderer.toneMappingExposure = a.exposure;
       renderer.outputColorSpace = SRGBColorSpace; renderer.shadowMap.autoUpdate = false;
       return renderer;
-    }} fallback={<p>苍白荒原与半埋巨构。三维视图需要 WebGL2。</p>}>
+    }} fallback={<p>{english ? 'This 3D experience requires WebGL 2.' : '苍白荒原与半埋巨构。三维视图需要 WebGL2。'}</p>}>
     <color attach="background" args={[atmosphere.horizon]} />
     <fog attach="fog" args={[atmosphere.horizon, ...atmosphere.fogRange]} />
     <hemisphereLight color={daylight.hemisphereSky} groundColor={daylight.hemisphereGround} intensity={daylight.hemisphereIntensity} />
@@ -370,7 +372,7 @@ export default function ExpanseCanvas(props: Props) {
       shadow-radius={a.shadowRadius[quality]} shadow-bias={a.shadowBias} shadow-normalBias={a.shadowNormalBias}>
       <orthographicCamera attach="shadow-camera" args={[...daylight.shadowBounds]} />
     </directionalLight>
-    <World mobile={props.mobile} windView={windView} skyView={props.skyView} reduced={props.reduced}
+    <World mobile={props.mobile} windView={windView} skyView={props.skyView} reduced={props.reduced} english={english}
       visible={visible} debug={props.debug} atmosphere={atmosphere} observationElements={props.observationElements}
       editor={props.editor} stage={props.stage} signal={props.signal} editorDragging={props.editorDragging} />
     <Observation {...props} visible={visible} />

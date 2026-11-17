@@ -2,9 +2,10 @@
 
 import { animate, cancelFrame, frame, useMotionValue, useMotionValueEvent, useTransform } from 'motion/react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEnglish } from '@/site/LocaleProvider';
 import { WorkshopFrame } from '../WorkshopFrame';
 import { ProjectDetail } from './ProjectDetail';
-import { islandPreview, projects } from './projects';
+import { englishProjects, islandPreview, projects } from './projects';
 import {
   arcStep, orbitCount, orbitDuration, orbitEase, orbitFlip, orbitIndex, orbitPose,
   orbitTransform, projectPose, ringSpin, wrapOrbit,
@@ -12,7 +13,7 @@ import {
 import styles from './orbit-reel.module.css';
 
 const cards = Array.from({ length: orbitCount }, (_, index) => ({
-  index, number: String(index + 1).padStart(2, '0'), pose: orbitPose(index, 0, 0), project: projects[index],
+  index, number: String(index + 1).padStart(2, '0'), pose: orbitPose(index, 0, 0),
 }));
 const numberAt = (index: number) => cards[index].number;
 const motionPreference = '(prefers-reduced-motion: reduce)';
@@ -53,6 +54,8 @@ function CardGlyph({ index }: { index: number }) {
 }
 
 export function WorksReel() {
+  const english = useEnglish();
+  const localizedProjects = english ? englishProjects : projects;
   const reduced = useSyncExternalStore(subscribeMotionPreference, prefersReducedMotion, serverMotionPreference);
   const [view, setView] = useState<View>('ring');
   const [selection, setSelection] = useState(0);
@@ -314,44 +317,47 @@ export function WorksReel() {
   }
 
   return <WorkshopFrame route="/works" reduced={reduced}>
-    <main ref={stageRef} className={styles.stage} aria-label="作品档案轮盘" data-reel-view={view} data-project={project !== null ? numberAt(project) : undefined}
+    <main ref={stageRef} className={styles.stage} aria-label={english ? 'Project Archive' : '作品档案轮盘'} data-reel-view={view} data-project={project !== null ? numberAt(project) : undefined}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
       onLostPointerCapture={(event) => { if (event.target === event.currentTarget) endDrag(event); }}
       onPointerLeave={(event) => { if (!drag.current?.moved) endDrag(event); }}>
       <h1 className={styles.srOnly}>WORKS</h1>
       <div ref={centerRef} className={styles.center} aria-hidden="true" />
-      {cards.map(({ index, number, pose, project: entry }) => <button
-        key={number} ref={(element) => { cardsRef.current[index] = element; }}
-        type="button" className={styles.card} data-reel-card={number} data-entry={entry?.slug}
-        aria-label={entry ? `${number} · ${entry.name} · ${entry.type}` : `${number} · 预留档案`} aria-disabled={!entry || undefined}
-        tabIndex={index === 0 ? 0 : -1}
-        style={{ '--card-scale': pose.scale.toFixed(5), transform: orbitTransform(pose), zIndex: pose.depth } as CSSProperties}
-        onClick={(event) => {
-          if (entry && (event.detail === 0 || !suppressClick.current)) showProject(index, event.currentTarget);
-        }}>
-        <span className={styles.face}>
-          <span className={styles.number}>{number}</span>
-          {entry ? <>
-            <span className={styles.cardRules} aria-hidden="true" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className={styles.cardPreview} src={islandPreview(entry)} alt="" width={560} height={420} draggable={false} decoding="async" />
-            <span className={styles.cardLabel}><strong>{entry.name}</strong><span>{entry.type}</span></span>
-          </> : <CardGlyph index={index} />}
-        </span>
-      </button>)}
+      {cards.map(({ index, number, pose }) => {
+        const entry = localizedProjects[index];
+        return <button
+          key={number} ref={(element) => { cardsRef.current[index] = element; }}
+          type="button" className={styles.card} data-reel-card={number} data-entry={entry?.slug}
+          aria-label={`${number} · ${entry ? `${entry.name} · ${entry.type}` : english ? 'Reserved Slot' : '预留档案'}`} aria-disabled={!entry || undefined}
+          tabIndex={index === 0 ? 0 : -1}
+          style={{ '--card-scale': pose.scale.toFixed(5), transform: orbitTransform(pose), zIndex: pose.depth } as CSSProperties}
+          onClick={(event) => {
+            if (entry && (event.detail === 0 || !suppressClick.current)) showProject(index, event.currentTarget);
+          }}>
+          <span className={styles.face}>
+            <span className={styles.number}>{number}</span>
+            {entry ? <>
+              <span className={styles.cardRules} aria-hidden="true" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className={styles.cardPreview} src={islandPreview(entry)} alt="" width={560} height={420} draggable={false} decoding="async" />
+              <span className={styles.cardLabel}><strong>{entry.name}</strong><span>{entry.type}</span></span>
+            </> : <CardGlyph index={index} />}
+          </span>
+        </button>;
+      })}
       {project === null && <>
         <button type="button" className={`${styles.control} ${styles.mode}`} data-reel-control
           ref={viewButton} onClick={() => setMode(view === 'ring' ? 'arc' : 'ring')}>
-          {view === 'ring' ? '展开浏览' : '返回总览'}
+          {view === 'ring' ? (english ? 'Expand to Browse' : '展开浏览') : (english ? 'Back to Overview' : '返回总览')}
         </button>
-        {view === 'arc' && <div className={styles.pager} aria-label="档案切换">
-          <button className={styles.control} data-reel-control type="button" aria-label="上一张档案" onClick={() => goTo(currentSlot() - 1)}><span aria-hidden="true">‹</span></button>
+        {view === 'arc' && <div className={styles.pager} aria-label={english ? 'Browse cards' : '档案切换'}>
+          <button className={styles.control} data-reel-control type="button" aria-label={english ? 'Previous Card' : '上一张档案'} onClick={() => goTo(currentSlot() - 1)}><span aria-hidden="true">‹</span></button>
           <output aria-live="polite">{numberAt(selection)} / {orbitCount}</output>
-          <button className={styles.control} data-reel-control type="button" aria-label="下一张档案" onClick={() => goTo(currentSlot() + 1)}><span aria-hidden="true">›</span></button>
+          <button className={styles.control} data-reel-control type="button" aria-label={english ? 'Next Card' : '下一张档案'} onClick={() => goTo(currentSlot() + 1)}><span aria-hidden="true">›</span></button>
         </div>}
         {!reduced && view === 'ring' && <button type="button" className={`${styles.control} ${styles.pause}`} data-reel-control
-          aria-label={paused ? '继续自动旋转' : '暂停自动旋转'} aria-pressed={paused} onClick={() => setPaused(!paused)}>
+          aria-label={english ? (paused ? 'Resume Rotation' : 'Pause Rotation') : (paused ? '继续自动旋转' : '暂停自动旋转')} aria-pressed={paused} onClick={() => setPaused(!paused)}>
           {paused ? <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m4 2 6 4-6 4Z" fill="currentColor" /></svg>
             : <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2v8m4-8v8" stroke="currentColor" strokeWidth="1.4" /></svg>}
         </button>}
@@ -359,18 +365,18 @@ export function WorksReel() {
       {project !== null && <section className={styles.detail} aria-label={projects[project].name}>
         <div className={styles.detailToolbar}>
           <button ref={backButton} className={`${styles.control} ${styles.back}`} data-reel-control type="button" onClick={closeProject}>
-            <span aria-hidden="true">‹</span> 返回轮盘
+            <span aria-hidden="true">‹</span> {english ? 'Back to Reel' : '返回轮盘'}
           </button>
-          <div className={styles.detailPager} role="group" aria-label="翻阅作品">
-            <button className={styles.control} data-reel-control type="button" aria-label="上一件作品"
+          <div className={styles.detailPager} role="group" aria-label={english ? 'Browse projects' : '翻阅作品'}>
+            <button className={styles.control} data-reel-control type="button" aria-label={english ? 'Previous Project' : '上一件作品'}
               disabled={!showArchive || leaving} onClick={() => stepProject(-1)}><span aria-hidden="true">‹</span></button>
-            <button className={styles.control} data-reel-control type="button" aria-label="下一件作品"
+            <button className={styles.control} data-reel-control type="button" aria-label={english ? 'Next Project' : '下一件作品'}
               disabled={!showArchive || leaving} onClick={() => stepProject(1)}><span aria-hidden="true">›</span></button>
             <span className={styles.srOnly} role="status">{projects[project].name}</span>
           </div>
         </div>
         <div className={styles.detailContent}>
-          {showArchive && <ProjectDetail project={projects[project]} reveal={archiveReveal} closing={leaving} />}
+          {showArchive && <ProjectDetail project={localizedProjects[project]} reveal={archiveReveal} closing={leaving} />}
         </div>
       </section>}
     </main>

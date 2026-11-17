@@ -5,3 +5,11 @@ export const projectPreviews = {
   uptime: { src: '/about/uptime-dashboard.webp', alt: 'LibreCosta Uptime 仪表盘，显示服务状态、可用率和监测时间线', width: 1672, height: 941, background: '#f1f6fd' },
   sofaraway: { src: '/about/sofaraway.webp', alt: 'SoFarAway 主菜单和青色节奏赛道', width: 800, height: 450, background: '#101a20' },
 } as const;
+
+export const englishPreviewAlt = {
+  gofurry: 'GoFurry logo and wordmark on a light orange background',
+  tool4furry: 'White Tool4Furry logo and wordmark on a dark gray background',
+  gopheratlas: 'GopherAtlas wordmark on a dark background',
+  uptime: 'LibreCosta Uptime dashboard showing service status, availability, and monitoring history',
+  sofaraway: 'SoFarAway main menu and a cyan rhythm track',
+} as const;

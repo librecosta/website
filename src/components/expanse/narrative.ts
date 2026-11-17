@@ -17,10 +17,24 @@ export const observationRecords = {
 export type ObservationId = keyof typeof observationRecords;
 export const observationIds = Object.keys(observationRecords) as ObservationId[];
 
+export const englishObservationRecords = {
+  bones: { id: 'S01', name: 'Bones in the Sand', lines: ['Animal bones…', 'Life once existed in this pale wasteland.'] },
+  ruin: { id: 'S02', name: 'Signal Tower Ruins', lines: ['A signal tower… It should be able to send and receive signals.', "But it's abandoned now."] },
+  ring: { id: 'S03', name: 'The Segmented Ring', lines: ['An enormous ring, moving in silence. I can see it even through the sandstorm.', 'Unbelievable.'] },
+  airship: { id: 'S04', name: 'Distant Airship', lines: ['An immense airship… perhaps carrying the dreams of many.'] },
+  dune: { id: 'S05', name: 'Wind-Carved Dunes', lines: ['Perhaps the wind and drifting sand shaped this land.'] },
+} as const satisfies Record<ObservationId, WitnessRecord & { name: string }>;
+
 export const expanseBrand = {
   title: '从荒原，到远岸。',
   description: ['我们用心创造软件、工具与数字体验。', '敢于想象，同时也付出实践。'],
   signature: 'LibreCosta · 远岸开物',
+} as const;
+
+export const englishExpanseBrand = {
+  title: 'From the wasteland to distant shores.',
+  description: ['We craft software, tools, and digital experiences with care.', 'We dare to imagine, and do the work to make it real.'],
+  signature: 'LibreCosta',
 } as const;
 
 export const narrativeTiming = {
@@ -37,4 +51,11 @@ export const witnessSequence = [
   { ...witnessRecords.arrival, path: narrativeTiming.arrival },
 ] as const;
 export type WitnessId = typeof witnessSequence[number]['id'];
+const englishWitnessLines = {
+  '01': ['Where… am I?', 'What is that?'],
+  '02': ['A city…', 'It looks different from what I remember…'],
+  '03': ["I want to… see what's inside."],
+} as const satisfies Record<WitnessId, readonly string[]>;
+
+export const englishWitnessSequence = witnessSequence.map(record => ({ ...record, lines: englishWitnessLines[record.id] }));
 export type NarrativeEndpoint = 'away' | 'near' | 'reached';

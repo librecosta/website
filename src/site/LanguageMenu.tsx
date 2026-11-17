@@ -95,9 +95,9 @@ export function LanguageMenu({ route, reduced }: { route: SiteRoute; reduced: bo
           <path d="m2.5 4.5 3.5 3 3.5-3" stroke="currentColor" strokeWidth="1.25" />
         </m.svg>
       </button>
-      <m.div ref={panel} id={id} className={styles.panel} inert={!open} aria-hidden={!open} data-language-panel
-        initial={false} animate={open ? { y: 0, scale: 1, opacity: 1 } : { y: -7, scale: .985, opacity: 0 }}
-        transition={transition}>
+      <div ref={panel} id={id} className={styles.panel} inert={!open} aria-hidden={!open} data-language-panel>
+        <m.div className={styles.surface} aria-hidden="true" initial={false}
+          animate={open ? { y: 0, scale: 1, opacity: 1 } : { y: -7, scale: .985, opacity: 0 }} transition={transition} />
         <ul aria-label={copy.label}>
           {localeIds.map((choice, index) => {
             const current = choice === locale;
@@ -105,7 +105,7 @@ export function LanguageMenu({ route, reduced }: { route: SiteRoute; reduced: bo
             // Keep the .4 s envelope, reversing the stagger on close.
             const delay = (open ? index : localeIds.length - 1 - index) * itemStep;
             const label = <span lang={choice}>{locales[choice].name}</span>;
-            return <m.li key={choice} initial={false} animate={open ? { y: 0, opacity: 1 } : { y: -4, opacity: 0 }}
+            return <m.li key={choice} initial={false} animate={{ opacity: open ? 1 : 0 }}
               transition={{ ease, duration: instant ? 0 : itemDuration, delay: instant ? 0 : delay }}>
               {!available ? <span className={styles.option} aria-disabled="true" aria-current={current || undefined}>
                 {label}<small>{copy.pending}</small>
@@ -116,7 +116,7 @@ export function LanguageMenu({ route, reduced }: { route: SiteRoute; reduced: bo
             </m.li>;
           })}
         </ul>
-      </m.div>
+      </div>
     </LazyMotion>
   </div>;
 }

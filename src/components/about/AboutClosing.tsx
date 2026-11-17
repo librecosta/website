@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type FocusEvent, type Pointer
 import { AnimatePresence, animate, m, useInView, useMotionValue, useSpring } from 'motion/react';
 import { localePath } from '@/site/locale-contract';
 import { useSiteLocale } from '@/site/LocaleProvider';
+import { englishAbout } from './copy';
 import { useSoftFocus } from '../soft-focus';
 import styles from './about-closing.module.css';
 
@@ -17,6 +18,7 @@ const previewSpring = { stiffness: 280, damping: 34, mass: .65 };
 
 export function AboutClosing({ reduced }: { reduced: boolean }) {
   const { locale, defaultLocale } = useSiteLocale();
+  const english = locale === 'en';
   const copy = useRef<HTMLDivElement>(null);
   const inView = useInView(copy, { amount: .3 });
   const clock = useMotionValue(0);
@@ -36,9 +38,9 @@ export function AboutClosing({ reduced }: { reduced: boolean }) {
   return <section className={styles.closing} id="closing" aria-labelledby="closing-title">
     <div className={styles.copy} ref={copy}>
       <m.h2 id="closing-title" className={styles.title} lang="en" style={reduced ? undefined : title} data-closing-reveal>LET’S TALK.</m.h2>
-      <m.p className={styles.intro} style={reduced ? undefined : intro} data-closing-reveal>想交流软件、开源或交互设计，欢迎联系我们。</m.p>
+      <m.p className={styles.intro} style={reduced ? undefined : intro} data-closing-reveal>{english ? englishAbout.closing.intro : '想交流软件、开源或交互设计，欢迎联系我们。'}</m.p>
       <m.div className={styles.contact} style={reduced ? undefined : contact} data-closing-reveal>
-        <Link href={localePath('/contact', locale, defaultLocale)} prefetch={false}>联系我们
+        <Link href={localePath('/contact', locale, defaultLocale)} prefetch={false}>{english ? englishAbout.closing.contact : '联系我们'}
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M2 8h11M8 3l5 5-5 5" />
           </svg>
@@ -145,7 +147,7 @@ function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null
     return { index, link: event.currentTarget, point: { x: event.clientX, y: event.clientY } };
   }
 
-  return <nav className={styles.links} ref={row} lang="en" aria-label="更多 LibreCosta 链接"
+  return <nav className={styles.links} ref={row} lang="en" aria-label={locale === 'en' ? englishAbout.closing.links : '更多 LibreCosta 链接'}
     onKeyDown={event => {
       if (event.key !== 'Escape') return;
       hovered.current = focused.current = null;

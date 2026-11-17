@@ -1,11 +1,13 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
-import { observationIds, observationRecords, type ObservationId } from './narrative';
+import { useEnglish } from '@/site/LocaleProvider';
+import { englishObservationRecords, observationIds, observationRecords, type ObservationId } from './narrative';
 import type { ObservationElements } from './ObservationProjection';
 import styles from './signals.module.css';
 
 function SignalCard({ id, elements, invalidate }: {
   id: ObservationId; elements: RefObject<ObservationElements>; invalidate: () => void;
 }) {
+  const english = useEnglish();
   const panel = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     elements.current.card = { id, node: panel.current! };
@@ -15,9 +17,9 @@ function SignalCard({ id, elements, invalidate }: {
       invalidate();
     };
   }, [id, elements, invalidate]);
-  const record = observationRecords[id];
+  const record = (english ? englishObservationRecords : observationRecords)[id];
   return <section ref={panel} id="expanse-signal-card" className={styles.srOnly}
-    aria-labelledby="expanse-signal-name" data-signal-card={id} lang="zh-CN">
+    aria-labelledby="expanse-signal-name" data-signal-card={id}>
     <h2 id="expanse-signal-name">{record.name}</h2>
     {record.lines.map(line => <p key={line}>{line}</p>)}
   </section>;
@@ -27,12 +29,14 @@ export function ExpanseSignals({ elements, enabled, active, read, onSelect, inva
   elements: RefObject<ObservationElements>; enabled: boolean; active: ObservationId | null;
   read: ReadonlySet<ObservationId>; onSelect: (id: ObservationId) => void; invalidate: () => void;
 }) {
+  const english = useEnglish();
+  const records = english ? englishObservationRecords : observationRecords;
   return <div className={styles.signals} hidden={!enabled}>
     {observationIds.map(id => {
-      const record = observationRecords[id];
+      const record = records[id];
       return <button key={id} className={styles.marker} type="button" data-observation={id}
         ref={button => { elements.current.buttons[id] = button; }}
-        aria-label={`${record.id} · ${record.name}${read.has(id) ? '，已阅读' : ''}`}
+        aria-label={`${record.id} · ${record.name}${read.has(id) ? (english ? ', read' : '，已阅读') : ''}`}
         aria-expanded={active === id} aria-controls={active === id ? 'expanse-signal-card' : undefined}
         data-read={read.has(id)} onClick={() => onSelect(id)}>
         <svg className={styles.locator} viewBox="0 0 44 44" fill="none" aria-hidden="true">

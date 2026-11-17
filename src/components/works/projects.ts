@@ -1,4 +1,4 @@
-import { projectPreviews } from '../project-previews';
+import { englishPreviewAlt, projectPreviews } from '../project-previews';
 
 type Island = {
   name: string;
@@ -87,3 +87,47 @@ export const projects: readonly Project[] = [
     media: projectPreviews.gopheratlas,
   },
 ];
+
+const englishCopy = {
+  gofurry: {
+    type: 'Resource Discovery', status: 'In Development', links: ['View Source'], alt: englishPreviewAlt.gofurry,
+    description: 'A customizable browser start page and resource discovery hub for the furry community.',
+  },
+  tool4furry: {
+    type: 'Creator Tools', status: 'In Development', links: ['View Source'], alt: englishPreviewAlt.tool4furry,
+    description: 'An open-source browser toolbox for furry creators.',
+  },
+  uptime: {
+    type: 'Uptime Monitoring', status: 'Released', links: ['View Releases'], alt: englishPreviewAlt.uptime,
+    description: 'A self-hosted HTTP/HTTPS uptime monitor with a built-in status dashboard.',
+  },
+  harvest: {
+    type: 'Data Collection Engine', status: 'Open Source', links: ['View Documentation'],
+    description: 'A distributed data collection engine with persistent scheduling and extensible providers.',
+    alt: 'Harvest command-line help listing control plane, worker, and health check commands',
+  },
+  'liquid-glass': {
+    type: 'SVG Refraction Library', status: 'Released', links: ['Documentation & Usage', 'View Releases'],
+    description: 'An open-source library that brings customizable SVG glass refraction to native HTML.',
+    alt: 'Refraction demo and controls in the Liquid Glass Playground',
+  },
+  wavefield: {
+    type: 'WebGPU Experiment', status: 'Open Source', links: ['View Project', 'Read the Article'],
+    description: 'An interactive wireframe terrain rendered with WebGPU.',
+    alt: 'A silver-blue wave grid stretches across a rocky valley between tension frames',
+  },
+  sofaraway: {
+    type: 'Browser Rhythm Game', status: 'In Development', links: ['View Project'], alt: englishPreviewAlt.sofaraway,
+    description: 'A high-speed browser rhythm flight game with music and visuals generated entirely at runtime.',
+  },
+  'gopher-atlas': {
+    type: 'Technical Publishing', status: 'Ongoing', links: ['Read Articles', 'Visit Blog'], alt: englishPreviewAlt.gopheratlas,
+    description: 'Go engineering articles and experiment notes from the LibreCosta team.',
+  },
+} satisfies Record<Island['model'], { type: string; status: string; links: string[]; alt: string; description: string }>;
+
+export const englishProjects = projects.map((project): Project => {
+  const { type, status, description, links, alt } = englishCopy[project.island.model];
+  return { ...project, type, status, description, media: { ...project.media, alt },
+    links: project.links.map(({ href }, index) => ({ href, label: links[index] })) };
+});

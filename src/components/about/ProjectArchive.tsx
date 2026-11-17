@@ -1,6 +1,8 @@
 import { useRef, useSyncExternalStore, type CSSProperties } from 'react';
 import { m, useMotionValueEvent, useScroll, useTransform, type MotionValue } from 'motion/react';
-import { projectPreviews } from '../project-previews';
+import { useEnglish } from '@/site/LocaleProvider';
+import { englishPreviewAlt, projectPreviews } from '../project-previews';
+import { englishAbout } from './copy';
 import styles from './project-archive.module.css';
 
 type ProjectCard = {
@@ -11,9 +13,10 @@ type ProjectCard = {
   status: string;
   entry?: { href: string; label: string };
   source?: string;
+  sourceLabel?: string;
 };
 
-const cards: readonly ProjectCard[] = [
+const chineseCards: readonly ProjectCard[] = [
   {
     number: '01',
     title: 'GoFurry',
@@ -55,6 +58,16 @@ const cards: readonly ProjectCard[] = [
     preview: projectPreviews.sofaraway,
   },
 ];
+const previewKeys = ['gofurry', 'tool4furry', 'gopheratlas', 'uptime', 'sofaraway'] as const;
+const archiveCopy = englishAbout.collections;
+const englishCards = chineseCards.map((card, index): ProjectCard => ({
+  ...card,
+  summary: archiveCopy.descriptions[index],
+  status: archiveCopy.statuses[index],
+  sourceLabel: archiveCopy.source,
+  preview: card.preview && { ...card.preview, alt: englishPreviewAlt[previewKeys[index]] },
+  entry: card.entry && { ...card.entry, label: previewKeys[index] === 'uptime' ? archiveCopy.releases : archiveCopy.site },
+}));
 const pairQuery = '(min-width: 1280px)';
 const hold = .28;
 
@@ -92,7 +105,7 @@ function ArchiveCard({ card, linksInert }: { card: ProjectCard; linksInert: Moti
       <span>{card.status}</span>
       <div className={styles.entries} ref={entries} inert={linksInert.get()}>
         {card.entry && <a href={card.entry.href} target="_blank" rel="noopener noreferrer" aria-label={`${card.entry.label} · ${card.title}`}>{card.entry.label}</a>}
-        {card.source && <a href={card.source} target="_blank" rel="noopener noreferrer" aria-label={`${card.title} GitHub 源码`}>GitHub 源码</a>}
+        {card.source && <a href={card.source} target="_blank" rel="noopener noreferrer" aria-label={`${card.title} ${card.sourceLabel ?? 'GitHub 源码'}`}>{card.sourceLabel ?? 'GitHub 源码'}</a>}
       </div>
     </footer>
   </article>;
@@ -131,6 +144,8 @@ function ArchiveGroup({ group, index, count, progress, reduced }: {
 }
 
 export function ProjectArchive({ reduced }: { reduced: boolean }) {
+  const english = useEnglish();
+  const cards = english ? englishCards : chineseCards;
   const section = useRef<HTMLElement>(null);
   const paired = useSyncExternalStore(subscribeToPairLayout, getPairLayout, getServerPairLayout);
   const columns = paired ? 2 : 1;
@@ -151,7 +166,7 @@ export function ProjectArchive({ reduced }: { reduced: boolean }) {
     style={{ '--group-count': groups.length, '--travel': travel } as CSSProperties}>
     <div className={styles.stage}>
       <div className={styles.archive}>
-        <h2 className={styles.heading} id="collections-title" tabIndex={0}>作品索引</h2>
+        <h2 className={styles.heading} id="collections-title" tabIndex={0}>{english ? archiveCopy.label : '作品索引'}</h2>
         <div className={styles.deck}>
           {groups.map((group, index) => <ArchiveGroup key={group[0].number} group={group} index={index}
             count={groups.length} progress={progress} reduced={reduced} />)}

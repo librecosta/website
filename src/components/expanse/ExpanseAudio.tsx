@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { gsap } from 'gsap';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
+import { useEnglish } from '@/site/LocaleProvider';
 import type { AudioBus } from '@/components/audio/site-audio';
 import { EncryptedLabel, useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
@@ -64,6 +65,7 @@ function AudioStartPrompt({ stage, onEnable }: { stage: RefObject<HTMLElement | 
 export function ExpanseSoundToggle({ stage, showPrompt, reduced }: {
   stage: RefObject<HTMLElement | null>; showPrompt: boolean; reduced: boolean;
 }) {
+  const english = useEnglish();
   const { enabled, enable, cue, windStatus, setWindActive } = useSiteAudio();
   const label = enabled ? 'SOUND ON' : 'SOUND OFF';
   const { play, noise } = useEncryptedText(label, reduced);
@@ -86,7 +88,8 @@ export function ExpanseSoundToggle({ stage, showPrompt, reduced }: {
   const start = useCallback(() => { void setSound(true); }, [setSound]);
 
   return <>
-    <button type="button" className={styles.soundToggle} lang="en" aria-label="Scene sound" aria-pressed={enabled}
+    <button type="button" className={styles.soundToggle} lang="en"
+      aria-label={english ? (enabled ? 'Sound On' : 'Sound Off') : 'Scene sound'} aria-pressed={enabled}
       aria-description={failed ? 'Audio could not start' : windStatus === 'missing' ? 'Local wind audio is unavailable' : undefined}
       onPointerEnter={event => { if (event.pointerType === 'mouse') { cue('hover'); play(); } }}
       onFocus={event => { if (event.currentTarget.matches(':focus-visible')) play(); }}

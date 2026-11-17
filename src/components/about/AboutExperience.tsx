@@ -7,6 +7,8 @@ import {
   type MotionValue,
 } from 'motion/react';
 import { WorkshopFrame } from '@/components/WorkshopFrame';
+import { useEnglish } from '@/site/LocaleProvider';
+import { englishAbout } from './copy';
 import { AboutSectionNav, AboutScrollGauge, scrollToAboutSection } from './AboutControls';
 import { AboutClosing } from './AboutClosing';
 import { ProjectArchive } from './ProjectArchive';
@@ -16,6 +18,8 @@ import styles from './about.module.css';
 const openingEase = [.22, .66, .24, 1] as const;
 
 function Opening({ reduced }: { reduced: boolean }) {
+  const english = useEnglish();
+  const copy = englishAbout.opening;
   const [scope, animate] = useAnimate<HTMLElement>();
   const { scrollYProgress } = useScroll({ target: scope, offset: ['start start', 'end start'] });
   const opacity = useTransform(scrollYProgress, [0, .22, .59], [1, 1, 0]);
@@ -53,14 +57,14 @@ function Opening({ reduced }: { reduced: boolean }) {
         </span>
       </h1>
       <m.p className={styles.openingCaption} style={reduced ? undefined : { y: captionY }} data-about-motion>
-        <span className={styles.captionMask}><strong data-opening-brand>LibreCosta · 远岸开物</strong></span>
-        <span className={styles.captionMask}><span data-opening-description>独立软件、效率工具与数字体验</span></span>
+        <span className={styles.captionMask}><strong data-opening-brand>{english ? copy.brand : 'LibreCosta · 远岸开物'}</strong></span>
+        <span className={styles.captionMask}><span data-opening-description>{english ? copy.description : '独立软件、效率工具与数字体验'}</span></span>
       </m.p>
     </m.div>
     <m.button type="button" className={styles.explore} aria-controls="studio"
       onClick={() => scrollToAboutSection('studio', reduced)} whileTap={reduced ? undefined : { scale: .96 }}>
       <svg viewBox="0 0 10 12" aria-hidden="true" fill="currentColor"><path d="M1 2h8L5 6zm0 5h8l-4 4z" /></svg>
-      探索 LibreCosta
+      {english ? copy.explore : '探索 LibreCosta'}
     </m.button>
   </section>;
 }
@@ -111,6 +115,8 @@ function StudioLine({ children, entrance, progress, index, reduced }: {
 }
 
 function Studio({ reduced }: { reduced: boolean }) {
+  const english = useEnglish();
+  const copy = englishAbout.studio;
   const statement = useRef<HTMLDivElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const entrance = useStudioEntrance(title, .72, reduced);
@@ -119,13 +125,13 @@ function Studio({ reduced }: { reduced: boolean }) {
   return <section id="studio" aria-labelledby="studio-statement">
     <div className={styles.statement} ref={statement}>
       <div>
-        <p className={styles.label}>从实用软件，到创意体验</p>
+        <p className={styles.label}>{english ? copy.label : '从实用软件，到创意体验'}</p>
         <h2 ref={title} className={`${styles.display} ${styles.studioTitle}`} id="studio-statement" lang="en" aria-label={studioLines.join(' ')}>
           {studioLines.map((line, index) => <StudioLine key={line} entrance={entrance} progress={scrollYProgress} index={index} reduced={reduced}>{line}</StudioLine>)}
         </h2>
         <p className={styles.statementCopy}>
-          我们从真实的需求出发，也始终为好奇心留下空间。<br />
-          每一个工具、每一次实验，都是让想法成为现实的更进一步。
+          {english ? copy.first : '我们从真实的需求出发，也始终为好奇心留下空间。'}<br />
+          {english ? copy.second : '每一个工具、每一次实验，都是让想法成为现实的更进一步。'}
         </p>
       </div>
     </div>
@@ -140,6 +146,8 @@ function StudioProfileMark({ className }: { className: string }) {
 }
 
 function StudioProfile({ reduced }: { reduced: boolean }) {
+  const english = useEnglish();
+  const copy = englishAbout.profile;
   const profile = useRef<HTMLDivElement>(null);
   const entrance = useStudioEntrance(profile, .47, reduced);
   const identityX = useTransform(entrance, [0, .77], [-16, 0], studioTransition);
@@ -154,14 +162,14 @@ function StudioProfile({ reduced }: { reduced: boolean }) {
       <StudioProfileMark className={styles.profileMarkLeft} />
       <h3 className={styles.label} lang="en">About LibreCosta</h3>
       <dl className={styles.details}>
-        <div><dt>品牌</dt><dd>LibreCosta · 远岸开物</dd></div>
-        <div><dt>运营主体</dt><dd>成都远岸开物科技有限公司</dd></div>
+        <div><dt>{english ? copy.brand : '品牌'}</dt><dd>{english ? 'LibreCosta' : 'LibreCosta · 远岸开物'}</dd></div>
+        <div><dt>{english ? copy.operator : '运营主体'}</dt><dd>{english ? copy.company : '成都远岸开物科技有限公司'}</dd></div>
       </dl>
     </m.div>
     <m.div className={styles.profileCopy} style={reduced ? undefined : copyStyle} data-about-motion>
       <StudioProfileMark className={styles.profileMarkRight} />
-      <p className={styles.lead}>LibreCosta 开发面向社群、创作者和开发者的软件产品，包括在线服务、效率工具和可自行部署的开源系统。同时，我们也投入网页交互、图形技术与数字体验的创作。</p>
-      <p>我们在 GitHub 维护开源项目，并通过 GopherAtlas 分享技术文章、实验记录与工程实践。从软件的实际用途到实现过程中的设计取舍，这些作品与记录都是我们持续探索的一部分。</p>
+      <p className={styles.lead}>{english ? copy.first : 'LibreCosta 开发面向社群、创作者和开发者的软件产品，包括在线服务、效率工具和可自行部署的开源系统。同时，我们也投入网页交互、图形技术与数字体验的创作。'}</p>
+      <p>{english ? copy.second : '我们在 GitHub 维护开源项目，并通过 GopherAtlas 分享技术文章、实验记录与工程实践。从软件的实际用途到实现过程中的设计取舍，这些作品与记录都是我们持续探索的一部分。'}</p>
     </m.div>
   </div>;
 }

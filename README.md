@@ -34,7 +34,7 @@ pnpm preview
 | CN | `pnpm build:cn` | `dist/cn/` | EdgeOne Makers |
 | INTL | `pnpm build:intl` | `dist/intl/` | Cloudflare |
 
-Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. Run `pnpm check:release cn` or `pnpm check:release intl` before publishing. CN has reviewed Chinese content and awaits its production origin. INTL is an internal, non-indexable export until English content is reviewed. See the [publication contract](docs/publication-routing.md).
+Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. Run `pnpm check:release cn` or `pnpm check:release intl` before publishing. Both exports have Chinese and English content. CN awaits its production origin. See the [publication contract](docs/publication-routing.md).
 
 ## Project documentation
 

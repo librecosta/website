@@ -46,7 +46,7 @@ function terrainOccludes(ray: Ray, distance: number, bounds: Box3, ground: (x: n
   return false;
 }
 
-export function ObservationProjection({ anchors, elements, opaque, terrain, ground, previews, mobile, reduced }: {
+export function ObservationProjection({ anchors, elements, opaque, terrain, ground, previews, mobile, reduced, english }: {
   anchors: ObservationAnchors;
   elements: RefObject<ObservationElements>;
   opaque: RefObject<Group | null>;
@@ -55,6 +55,7 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
   previews: RefObject<BoardPreviews>;
   mobile: boolean;
   reduced: boolean;
+  english: boolean;
 }) {
   const lastTrace = useRef(-Infinity);
   const lastView = useRef({ terrain, width: 0, height: 0 });
@@ -65,7 +66,7 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
     localRay: new Ray(), inverse: new Matrix4(), caster: new Raycaster(), hits: [] as Intersection[],
     meshes: [] as Mesh[],
   }), []);
-  const graphics = useMemo(createObservationGraphics, []);
+  const graphics = useMemo(() => createObservationGraphics(english), [english]);
   useEffect(() => () => graphics.dispose(), [graphics]);
   const placement = useRef({ card: null as SignalCard | null, id: undefined as ObservationId | undefined,
     draft: undefined as Transform | undefined, began: 0, blocked: '' });

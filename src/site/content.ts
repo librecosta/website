@@ -1,7 +1,7 @@
 import type { Locale } from './locale-contract';
 
 // Register a locale here once its four pages and shared controls have reviewed copy.
-export const reviewedContentLocales: readonly Locale[] = ['zh'];
+export const reviewedContentLocales: readonly Locale[] = ['zh', 'en'];
 
 export type LanguageControlCopy = {
   label: string;
@@ -19,6 +19,6 @@ export const languageControlCopy: Partial<Record<Locale, LanguageControlCopy>> &
 } = {
   zh: { label: '页面语言', pending: '未开放', navigation: '站点导航', home: 'LibreCosta 首页',
     social: '社交媒体', newTab: '（在新标签页打开）' },
-  en: { label: 'Language', pending: 'Unavailable', navigation: 'Site navigation', home: 'LibreCosta home',
-    social: 'Social media', newTab: ' (opens in a new tab)' },
+  en: { label: 'Language', pending: 'Unavailable', navigation: 'Site Navigation', home: 'LibreCosta home',
+    social: 'Social Media', newTab: ' (Opens in a New Tab)' },
 };

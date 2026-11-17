@@ -4,12 +4,12 @@
 
 `config/publications/cn.json` and `intl.json` define the region, default locale, production Origin, and published locales. `src/site/locale-contract.ts` defines the supported locales (`zh`, `en`, `ja`, `de`, `fr`, `es`), the four public routes, and the same-origin path builder. The default locale uses `/`, `/works/`, `/about/`, and `/contact/`. Other published locales add their prefix. Locale is selected by the path. Region is selected by the build.
 
-| Region | Default | P1-A routes | Release gate |
+| Region | Default | Enabled routes | Release gate |
 | --- | --- | --- | --- |
-| CN | `zh` | Four Chinese pages at the root paths | Chinese content ready. Production Origin pending. |
-| INTL | `en` | Four English internal shells at the root paths and four Chinese pages under `/zh/` | English content pending. All pages carry `noindex, nofollow`. |
+| CN | `zh` | Chinese at the root paths and English under `/en/` | Production Origin pending. |
+| INTL | `en` | English at the root paths and Chinese under `/zh/` | Origin and default language checks pass. |
 
-The language menu shows all six native language names. Only reviewed, published languages are selectable. English in the INTL shells identifies the engineering preview and is unavailable as a language switch destination. Japanese, German, French, and Spanish have no emitted routes. There is no automatic locale redirect.
+The language menu shows all six native language names. Chinese and English are selectable. Japanese, German, French, and Spanish have no emitted routes. There is no automatic locale redirect.
 
 ## Build and verify
 
@@ -20,9 +20,9 @@ The language menu shows all six native language names. Only reviewed, published 
 
 The `(default)` and `[locale]` route branches share the same page renderers and root providers. `generateStaticParams()` enumerates published non-default locales. The prefixed branch is registered only when that list has entries because this Next version requires a nonempty static parameter set for an exported dynamic route. Navigation within a locale preserves the root audio provider. Switching locales crosses root layouts and starts a new document and opt-in audio session.
 
-## Content to connect in P1-B
+## Locale content
 
-Add reviewed `en` entries via `SitePageContent` in `src/site/pages/`. Each entry supplies the metadata and the render function for one of the four experiences. Move the required copy into typed locale content as the page is adapted, keeping the current Chinese composition and wording.
+`SitePageContent` entries in `src/site/pages/` select the metadata and renderer for each locale. Both locales use the same experience components. English Localization Copy V1 is applied to the following surfaces.
 
 | Surface | Content |
 | --- | --- |
@@ -32,6 +32,6 @@ Add reviewed `en` entries via `SitePageContent` in `src/site/pages/`. Each entry
 | CONTACT | Message and control labels, with the existing contact destinations |
 | Shared UI | Language menu strings, navigation and social labels, dossiers, and audio control labels |
 
-When all four pages and the shared copy are reviewed, register `en` in `src/site/content.ts` and both publication files. The same routing contract applies to `ja`, `de`, `fr`, and `es` after their respective reviews. Site-wide SEO and cross-region alternate metadata will be addressed separately.
+Register additional locales in `src/site/content.ts` and the publication files after their four pages and shared copy are reviewed. Site-wide SEO and cross-region alternate metadata will be addressed separately.
 
 The language menu adapts the TuneShape Dropdown Menu Motion tracks. [MIT license](../public/License/tuneshape-dropdown.txt)

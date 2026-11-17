@@ -2,6 +2,7 @@ import { AboutExperience } from '@/components/about/AboutExperience';
 import { sitePage } from '../site-page';
 
 export const about = sitePage('/about', 'ABOUT', {
+  en: { metadata: { title: 'About | LibreCosta', description: 'LibreCosta builds software for communities, creators, and developers.' }, render: () => <AboutExperience /> },
   zh: {
     metadata: {
       title: 'About | LibreCosta',
