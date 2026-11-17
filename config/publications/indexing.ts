@@ -1,2 +1,2 @@
-// Activate only after both production origins and the P4 indexing checks are verified.
-export const publicationIndexingEnabled: boolean = false;
+// Enables production metadata, crawler access and sitemaps for reviewed publications.
+export const publicationIndexingEnabled: boolean = true;

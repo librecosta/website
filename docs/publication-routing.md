@@ -15,10 +15,10 @@ The language menu shows the languages published in its region and keeps the curr
 
 ## Build and verify
 
-- EdgeOne Makers will use `pnpm build:cn` with `dist/cn/`. Cloudflare will use `pnpm build:intl` with `dist/intl/`.
+- EdgeOne Makers uses `pnpm build:cn` with `dist/cn/`. Cloudflare uses `pnpm build:intl` with `dist/intl/`.
 - `pnpm preview cn` and `pnpm preview intl` serve the region's export locally. The preview server resolves directory indexes and returns the exported 404 page for missing routes. `pnpm dev`, `pnpm build`, and `pnpm check` use the CN configuration by default. The default build continues to write `out/` for `pnpm preview`.
 - Regional builds run Next in separate temporary project snapshots. They verify the exact page set, document language, internal asset references and output limits before replacing their own output directory.
-- Run `pnpm check:release <cn|intl>` against the completed export. The gate checks the production origin, reviewed default language, indexing approval and approved wind files. See the [deployment instructions](./publication-deployment.md) for artifact and platform verification.
+- Run `pnpm check:release <cn|intl>` against the completed export. Published pages are indexable, and error documents retain `noindex`. The gate checks the production origin, reviewed default language, indexing configuration and measured wind files. See the [deployment instructions](./publication-deployment.md) for artifact and platform verification.
 
 The `(default)` and `[locale]` route branches share the same page renderers and root providers. `generateStaticParams()` enumerates published non-default locales. The prefixed branch is registered only when that list has entries because this Next version requires a nonempty static parameter set for an exported dynamic route. Navigation within a locale preserves the root audio provider. Switching locales crosses root layouts and starts a new document and opt-in audio session.
 
