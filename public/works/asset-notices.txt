@@ -1,0 +1,151 @@
+LibreCosta WORKS assets
+
+The single-island camera framing and model fitting adapt code from Wenz Louie
+Rejas's Interactive 3D Portfolio, commit 0319381ab0310cdabaca734d4e9c92bfcee79a49.
+Source: https://github.com/wenzrejas/wenzrejas.github.io
+Copyright (c) 2026 Wenz Louie Rejas. See wenz-license.txt (MIT).
+
+Orbit Reel geometry and retargeting adapt the TuneShape Orbit Reel export.
+Copyright (c) 2026 TuneShape contributors. See ../License/tuneshape-orbit-reel.txt (MIT).
+
+Three.js and the Motion packages used by WORKS are listed in runtime-licenses.txt (MIT).
+The Draco glTF WASM decoder and JavaScript wrapper match the Three.js r187
+distribution. See draco-license.txt (Apache 2.0).
+
+islands/harvest.glb (891,716 bytes) — The Collector's Workshop. Original LibreCosta
+Blender model, surface atlases and baked contact/daylight shading. The editable
+source and export scripts are in assets/works/harvest/ in the website repository.
+Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+
+islands/liquid-glass.glb (1,081,908 bytes) — The Refraction Atelier. Original LibreCosta
+Blender model, opaque surface atlases and baked contact/daylight shading, with separate
+PBR transmission and thickness for the optical pieces. The editable source and export
+scripts are in assets/works/liquid-glass/ in the website repository.
+Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+
+islands/sofaraway.glb (1,111,248 bytes) — The Beatline. Original LibreCosta
+Blender model, opaque surface atlases and baked contact/daylight shading, with
+independent layered flight glazing, control window transmission and emissive
+rhythm lights. Editable source and export scripts are in assets/works/sofaraway/
+in the website repository. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause
+License below.
+
+islands/gopher-atlas.glb (1,873,704 bytes) — The Atlas Observatory. Original
+LibreCosta Blender model, packed PBR atlases and baked contact/daylight shading,
+with independent PBR glazing and warm lights. Editable source and export
+scripts are in assets/works/gopher-atlas/ in the website repository.
+Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+
+islands/tool4furry.glb (1,831,560 bytes) — The Makers' Studio. Original LibreCosta
+Blender model, packed PBR surface atlases, baked contact/daylight shading, and
+separate clear and diffuse glazing and warm lights. Editable source and export
+script: assets/works/tool4furry/. Copyright (c) 2026 LibreCosta. See the BSD
+3-Clause License below.
+
+islands/wavefield.glb (933,268 bytes) — The Wave Loom. Original LibreCosta Blender
+geometry, PBR surface atlases and baked contact/daylight shading, with independent
+silver-blue fibres, translucent gossamer and workshop windows. Editable source
+and export script: assets/works/wavefield/. Copyright (c) 2026 LibreCosta.
+See the BSD 3-Clause License below.
+
+islands/gofurry.glb (1,826,616 bytes) — The Discovery Harbor. Original LibreCosta
+Blender geometry with packed PBR surface atlases, baked contact and daylight
+shading, independent glazing and warm lights. Editable source and export script:
+assets/works/gofurry/. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+
+islands/uptime.glb (1,459,392 bytes) — The Vigil Station. Original LibreCosta
+Blender geometry, packed PBR atlases and baked contact, daylight and interior
+shading, with independent glazing and amber lights. Editable source and export
+script: assets/works/uptime/. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+
+The eight islands, field archive interface and reel placeholder glyphs are
+LibreCosta artwork.
+
+Project previews
+
+The GoFurry, Tool4Furry, LibreCosta Uptime, GopherAtlas and SoFarAway dossiers use
+the shared images documented in ../about/asset-notices.txt.
+
+previews/*.webp: LibreCosta renders of the eight original islands listed above.
+All eight use the single-island viewer's orthographic camera settings, authored
+model bearings, materials and lighting. Captured with transparency on an
+800 × 600 CSS-pixel stage, then resized to 560 × 420 and encoded as WebP.
+previews/harvest.webp (44,148 bytes) was recaptured after the Blender export using
+the WORKS single-island renderer, including Harvest's authored fill light.
+previews/liquid-glass.webp (46,278 bytes) was captured from the same viewer after L2
+integration, with the atlas shading, PBR transmission and atelier reflection lighting.
+previews/sofaraway.webp (60,904 bytes) was captured from the same viewer after S2
+integration, with baked shading, layered glazing and static rhythm lights.
+previews/gopheratlas.webp (34,898 bytes) was captured from the same viewer after
+G2 integration, with baked stone, slate and timber and inset glazing.
+previews/tool4furry.webp (48,776 bytes) was captured from the same viewer after
+T2 integration, with the warm timber interior, clear workshop windows and
+translucent clerestory glazing.
+previews/wavefield.webp (41,916 bytes) and wavefield-preview.webp (65,342 bytes)
+were captured from the same WORKS single-island viewer at 4:3 and 16:9 for the
+reel and dossier respectively. Both show LibreCosta's Wave Loom island.
+previews/gofurry.webp (37,066 bytes) was captured from the same viewer after GF2,
+with the terracotta vault, glazed gallery and curved harbor walk.
+previews/librecosta-uptime.webp (36,682 bytes) was captured from the same viewer
+after U2, with the octagonal lantern room and stepped approach.
+
+harvest.webp — Harvest command-line --help at 349730b, typeset as a terminal preview.
+liquid-glass.webp — Liquid Glass Playground screenshot.
+Source: https://github.com/librecosta/liquid-glass/blob/main/docs/playground.webp
+Upstream license: https://github.com/librecosta/liquid-glass/blob/main/LICENSE
+
+BSD 3-Clause License
+
+Copyright (c) 2026, LibreCosta (GoFurry, Harvest, Sofaraway, Wavefield)
+Copyright (c) 2026, LibreCosta (The Atlas Observatory island and preview)
+Copyright (c) 2026, LibreCosta (The Makers' Studio island and preview)
+Copyright (c) 2026, LibreCosta (The Wave Loom island and previews)
+Copyright (c) 2026, LibreCosta (The Discovery Harbor island and preview)
+Copyright (c) 2026, LibreCosta (The Vigil Station island and preview)
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+MIT License
+
+Copyright (c) 2026 LibreCosta (LibreCosta Uptime and Liquid Glass)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

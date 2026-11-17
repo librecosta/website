@@ -1,0 +1,166 @@
+.practice {
+  display: grid;
+  width: min(82%, 1080px);
+  min-height: 100svh;
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .76fr);
+  align-items: center;
+  column-gap: clamp(48px, 8vw, 120px);
+  padding-block: clamp(92px, 13svh, 144px) clamp(96px, 13svh, 144px);
+}
+
+.copy { min-width: 0; }
+
+.title {
+  overflow: clip;
+  font-size: clamp(40px, 4.1vw, 63px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.045em;
+  white-space: nowrap;
+}
+
+.title > span { display: block; }
+
+.copy .intro {
+  max-width: 25em;
+  margin-block-start: clamp(16px, 1.8vw, 28px);
+  color: var(--secondary);
+  font-size: clamp(15px, 1.3vw, 19px);
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.carousel { width: min(100%, 340px); justify-self: end; }
+
+.card {
+  position: relative;
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1.09;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: clamp(18px, 1.8vw, 24px);
+  overflow: clip;
+  border-radius: 14px;
+  backdrop-filter: blur(18px) saturate(1.08);
+  box-shadow: 0 14px 30px #040a1247, 0 3px 7px #040a1229;
+  color: #e9eef5;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+}
+
+.tint {
+  position: absolute;
+  inset: 0;
+  background: var(--card-tint);
+  pointer-events: none;
+}
+
+.cardHeader, .artwork, .caption { position: relative; }
+
+.cardHeader {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  font: 600 clamp(16px, 1.55vw, 20px)/1 var(--instrument-type);
+  letter-spacing: .065em;
+}
+
+.cardRules { display: grid; justify-items: end; gap: 6px; }
+.cardRules > span { display: block; background: #a1b0c1; }
+.cardRules > :first-child { width: 41px; height: 2px; opacity: .71; }
+.cardRules > :last-child { width: 16px; height: 1px; opacity: .49; }
+
+.artwork img, .liquidCanvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; visibility: hidden; pointer-events: none; }
+.artwork img { object-fit: contain; }
+.artwork img[data-current], .card[data-moving] .liquidCanvas { visibility: visible; }
+.card[data-moving] :is(.tint, .cardHeader, .artwork, .caption) { opacity: 0; }
+
+.cardTitle {
+  font-size: clamp(19px, 1.9vw, 24px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: .06em;
+  text-align: center;
+}
+
+.controls {
+  display: flex;
+  width: max-content;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  margin: 12px auto 0;
+}
+
+.controls button {
+  display: grid;
+  min-width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.arrow svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.6; }
+.controls .arrow:hover { color: var(--color); }
+.controls .page {
+  width: 24px;
+  min-width: 24px;
+  transition: width .2s cubic-bezier(.22, 1, .36, 1);
+}
+.controls .page[aria-pressed='true'] { width: 38px; }
+.pageTrack {
+  display: block;
+  width: 6px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #61718a;
+  pointer-events: none;
+  transition: width .2s cubic-bezier(.22, 1, .36, 1), background-color .2s ease-out;
+}
+.page[aria-pressed='true'] .pageTrack { width: 28px; background: #495668; }
+.page:hover .pageTrack { background: #7788a0; }
+.pageFill { display: block; width: 100%; height: 100%; background: #c9d8ed; transform-origin: left; }
+.page[aria-pressed='false'] .pageFill { visibility: hidden; }
+.card:focus-visible, .controls button:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
+
+@media (max-width: 1199px) {
+  .practice {
+    width: min(82%, 600px);
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: clamp(17px, 3.5vw, 34px);
+  }
+  .title { font-size: clamp(28px, 6.2vw, 58px); }
+  .copy { text-align: center; }
+  .copy .intro { margin-inline: auto; }
+  .carousel { justify-self: center; }
+}
+
+@media (max-width: 720px) {
+  .practice {
+    width: min(calc(100% - 2 * (var(--inset) + var(--rail))), 440px);
+    padding-block: clamp(100px, 15svh, 124px) clamp(72px, 12svh, 96px);
+  }
+  .title { font-size: clamp(28px, 8.2vw, 49px); }
+  .copy .intro { margin-block-start: 17px; font-size: 15px; }
+  .carousel { width: min(100%, 306px); }
+  .card { padding: 18px; }
+  .controls { margin-block-start: 8px; }
+}
+
+@media (max-width: 420px) and (max-height: 660px) {
+  .carousel { width: min(100%, clamp(208px, 37svh, 244px)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls .page, .pageTrack { transition: none; }
+}

@@ -1,0 +1,102 @@
+.closing {
+  display: grid;
+  min-height: 100svh;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(26px, 5.2svh, 52px);
+  padding: max(94px, calc(var(--edge-top) + 63px)) max(18px, calc(var(--edge-left) + var(--rail)))
+    max(100px, calc(var(--edge-bottom) + 70px)) max(18px, calc(var(--edge-right) + var(--rail)));
+  text-align: center;
+}
+
+.copy { display: grid; justify-items: center; min-width: 0; max-width: 40rem; }
+
+.title {
+  font-size: clamp(43px, 8vw, 88px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.055em;
+  white-space: nowrap;
+}
+
+.copy .intro {
+  margin-top: clamp(15px, 2.6svh, 25px);
+  color: var(--secondary);
+  font-size: clamp(14px, 1.12vw, 17px);
+  line-height: 1.65;
+  text-wrap: balance;
+}
+
+.contact { margin-top: clamp(20px, 3.4svh, 34px); }
+
+.contact a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 15px;
+  padding: 0 15px;
+  border: 1px solid #8fa5cc52;
+  color: var(--color);
+  font-family: var(--instrument-type);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .075em;
+  text-decoration: none;
+  transition: color .2s, border-color .2s;
+}
+
+.contact a:hover, .contact a:focus-visible { border-color: var(--secondary); }
+.contact svg { width: 15px; height: 15px; }
+
+.links {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 clamp(15px, 2.3vw, 34px);
+}
+
+.links a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--secondary);
+  font: 600 clamp(11px, .91vw, 13px)/1 var(--instrument-type);
+  letter-spacing: .09em;
+  text-decoration: none;
+  transition: color .18s;
+}
+
+.links a:hover, .links a:focus-visible { color: var(--color); }
+
+.previewPosition {
+  position: fixed;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+.preview {
+  width: 100%;
+  height: 100%;
+  translate: -50% -50%;
+  overflow: clip;
+  border-radius: 8px;
+  background: #151a20;
+  box-shadow: 0 12px 32px #03080e88;
+}
+
+.preview img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.copy:focus-within [data-closing-reveal] {
+  filter: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy [data-closing-reveal] { filter: none !important; opacity: 1 !important; transform: none !important; }
+  .links a, .contact a { transition: none; }
+}

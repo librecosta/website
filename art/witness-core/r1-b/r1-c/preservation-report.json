@@ -1,0 +1,66 @@
+{
+  "revision": "R1-C",
+  "blender_version": "5.2.3 LTS",
+  "source_sha256": "0282e079307af86501d1c0b720984229dc5724a860482ef5a805c114a54731e7",
+  "baseline_sha256": "426d9d71d7c2ec59e6f1c543b43adaa99b543ca81eb0d660e1693d029faacc52",
+  "material_parameters_sha256": "5d320124bbd850c76f874c2ffded190758a3d4ea6d4c9c6de19765a3a2369b3c",
+  "checks": {
+    "source_structure_animation_world_poses_identical": true,
+    "material_parameter_hash_matches": true,
+    "shader_values_match": true,
+    "precision_slots_used_on_all_rings": true,
+    "planar_corner_normals_within_quarter_degree": true,
+    "whole_asset_inside_every_video_frame": true,
+    "no_compositor_glow": true,
+    "five_external_studio_area_lights_only": true,
+    "actual_mesh_collision_validation": true
+  },
+  "baseline_signature": "0fa604f6deb155f04c998ef0847588537ebe8ea7689c1f90ba5410d7fb7c1067",
+  "material_asset_signature": "0fa604f6deb155f04c998ef0847588537ebe8ea7689c1f90ba5410d7fb7c1067",
+  "material_node_counts": {
+    "outer": 10,
+    "inner": 6,
+    "core": 2
+  },
+  "slot_usage": {
+    "RingA": [
+      0,
+      1
+    ],
+    "RingB": [
+      0,
+      1
+    ],
+    "RingC": [
+      0,
+      1
+    ]
+  },
+  "planar_corner_normal_max_error": {
+    "RingA": 0.0033155786062151,
+    "RingB": 0.0026096575851998617,
+    "RingC": 0.0020224784680220593,
+    "Core": 0.0014988518533546845
+  },
+  "video_framing": {
+    "frames_checked": 240,
+    "uv_bounds": [
+      0.10090398211773934,
+      0.06136395803168265,
+      0.8990968126108692,
+      0.9386355723559577
+    ],
+    "pass": true
+  },
+  "planar_corner_normal_max_degrees": {
+    "RingA": 0.18974563001050287,
+    "RingB": 0.1493534387237813,
+    "RingC": 0.11534990222982817,
+    "Core": 0.08622923062092014
+  },
+  "normal_tolerance_degrees": 0.25,
+  "geometry_adjustments": "None. Same vertices, polygons, parent hierarchy, local transforms and all quaternion keys.",
+  "normal_adjustments": "Explicit planar corner normals; weighted interpolation on existing bevels. Normal-only procedural bump; no displacement.",
+  "conservative_bounded_gap": 0.06610081995347172,
+  "pass": true
+}
