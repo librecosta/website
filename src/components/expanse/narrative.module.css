@@ -21,6 +21,7 @@
 }
 .subtitle:has(p) ~ .subtitle:has(p) { margin-block-start: var(--subtitle-gap); }
 .subtitle p { margin: 0; }
+:global(html[data-localized]) :is(.subtitles, .brandReveal, .transcript) { overflow-wrap: anywhere; }
 .transcriptSignals summary { cursor: pointer; }
 .transcriptSignals details + details { margin-block-start: .45rem; }
 .transcriptSignals details p { margin-inline-start: 1em; }

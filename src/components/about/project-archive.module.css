@@ -148,6 +148,8 @@
   color: inherit;
   text-underline-offset: 3px;
 }
+:global(html[data-localized]) :is(.description, .cardFooter) { overflow-wrap: anywhere; }
+:global(html[data-localized]) .entries { flex-shrink: 1; }
 @media (max-width: 720px) {
   .section {
     --entry-fade: 24px;

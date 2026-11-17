@@ -1,24 +1,27 @@
-import type { Locale } from './locale-contract';
+import { de } from './copy/de.ts';
+import { en } from './copy/en.ts';
+import { es } from './copy/es.ts';
+import { fr } from './copy/fr.ts';
+import { ja } from './copy/ja.ts';
+import { zh } from './copy/zh.ts';
+import type { SiteCopy } from './copy/types';
+import { localeIds, type Locale } from './locale-contract.ts';
 
-// Register a locale here once its four pages and shared controls have reviewed copy.
-export const reviewedContentLocales: readonly Locale[] = ['zh', 'en'];
+export const siteCopy: Readonly<Record<Locale, SiteCopy>> = { zh, en, ja, de, fr, es };
+export const reviewedContentLocales: readonly Locale[] = localeIds;
 
-export type LanguageControlCopy = {
-  label: string;
-  pending: string;
-  navigation: string;
-  home: string;
-  social: string;
-  newTab: string;
-};
+export function verifyLocaleCopy(locale: Locale) {
+  function verify(value: unknown, path: string) {
+    if (typeof value === 'string' && value.trim()) return;
+    if (value && typeof value === 'object') {
+      for (const [key, entry] of Object.entries(value)) verify(entry, `${path}.${key}`);
+      return;
+    }
+    throw new Error(`Missing locale copy at ${path}.`);
+  }
+  verify(siteCopy[locale], locale);
+}
 
-// P1-B/P1-C can add page-specific content alongside these shared controls.
-export const languageControlCopy: Partial<Record<Locale, LanguageControlCopy>> & {
-  zh: LanguageControlCopy;
-  en: LanguageControlCopy;
-} = {
-  zh: { label: '页面语言', pending: '未开放', navigation: '站点导航', home: 'LibreCosta 首页',
-    social: '社交媒体', newTab: '（在新标签页打开）' },
-  en: { label: 'Language', pending: 'Unavailable', navigation: 'Site Navigation', home: 'LibreCosta home',
-    social: 'Social Media', newTab: ' (Opens in a New Tab)' },
-};
+export function usesOriginalLayout(locale: Locale) {
+  return locale === 'zh' || locale === 'en';
+}

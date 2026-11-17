@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Frustum, InstancedMesh, Matrix4, Mesh, Ray, Raycaster, Vector3,
   type Box3, type Group, type Intersection, type Object3D } from 'three';
+import type { Locale } from '@/site/locale-contract';
 import { observationIds, type ObservationId } from './narrative';
 import { createObservationGraphics } from './observation-graphics';
 import { EXPANSE } from './parameters';
@@ -46,7 +47,7 @@ function terrainOccludes(ray: Ray, distance: number, bounds: Box3, ground: (x: n
   return false;
 }
 
-export function ObservationProjection({ anchors, elements, opaque, terrain, ground, previews, mobile, reduced, english }: {
+export function ObservationProjection({ anchors, elements, opaque, terrain, ground, previews, mobile, reduced, locale }: {
   anchors: ObservationAnchors;
   elements: RefObject<ObservationElements>;
   opaque: RefObject<Group | null>;
@@ -55,7 +56,7 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
   previews: RefObject<BoardPreviews>;
   mobile: boolean;
   reduced: boolean;
-  english: boolean;
+  locale: Locale;
 }) {
   const lastTrace = useRef(-Infinity);
   const lastView = useRef({ terrain, width: 0, height: 0 });
@@ -66,7 +67,7 @@ export function ObservationProjection({ anchors, elements, opaque, terrain, grou
     localRay: new Ray(), inverse: new Matrix4(), caster: new Raycaster(), hits: [] as Intersection[],
     meshes: [] as Mesh[],
   }), []);
-  const graphics = useMemo(() => createObservationGraphics(english), [english]);
+  const graphics = useMemo(() => createObservationGraphics(locale), [locale]);
   useEffect(() => () => graphics.dispose(), [graphics]);
   const placement = useRef({ card: null as SignalCard | null, id: undefined as ObservationId | undefined,
     draft: undefined as Transform | undefined, began: 0, blocked: '' });

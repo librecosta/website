@@ -1,13 +1,17 @@
 import type { Metadata } from 'next';
+import { siteCopy } from '@/site/content';
+import { NotFoundCopy } from '@/site/NotFoundCopy';
 import { publication } from '@/site/publication';
 import './globals.css';
 
-const chinese = publication.defaultLocale === 'zh';
-export const metadata: Metadata = { title: chinese ? '页面未找到 | LibreCosta' : 'Page not found | LibreCosta' };
+const { defaultLocale, publishedLocales } = publication;
+const fallback = siteCopy[defaultLocale].shared.notFound;
+const labels = Object.fromEntries([defaultLocale, ...publishedLocales].map(locale => [locale, siteCopy[locale].shared.notFound]));
+
+export const metadata: Metadata = { title: `${fallback.title} | LibreCosta` };
 
 export default function GlobalNotFound() {
-  return <html lang={publication.defaultLocale}><body><main>
-    <h1>{chinese ? '404 · 页面未找到' : '404 · Page not found'}</h1>
-    <a href="/">{chinese ? '返回首页' : 'Back to home'}</a>
-  </main></body></html>;
+  return <html lang={defaultLocale}><body>
+    <NotFoundCopy defaultLocale={defaultLocale} labels={labels} />
+  </body></html>;
 }

@@ -4,7 +4,8 @@ import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { createTransformInspector, type TransformInspector } from '@/tools/transform-inspector/editor';
 import { mountTransformInspector } from '@/tools/transform-inspector/panel';
 import { mapJourneyProgress } from './journey-timing';
-import { observationIds, observationRecords, type ObservationId } from './narrative';
+import { siteCopy } from '@/site/content';
+import { observationIds, type ObservationId } from './narrative';
 import type { BoardPreviews, ObservationAnchors } from './ObservationProjection';
 import { EXPANSE, type JourneySignal } from './parameters';
 
@@ -57,7 +58,7 @@ export default function ExpanseTransformEditor({ mount, stage, signal, reduced, 
         const pose = EXPANSE.observationBoards[id];
         const relative = 'relative' in pose;
         return {
-          id, label: observationRecords[id].name,
+          id, label: siteCopy.zh.world.observations[id].name,
           frameId: relative ? id + '-anchor' : 'scene-root',
           get parent() { return relative ? anchors[id] ?? undefined : undefined; },
           read: () => ({ position: [...pose.position], quaternion: [...pose.quaternion], scale: [...pose.scale] }),

@@ -6,10 +6,10 @@
 
 | Region | Default | Enabled routes | Release gate |
 | --- | --- | --- | --- |
-| CN | `zh` | Chinese at the root paths and English under `/en/` | Production Origin pending. |
-| INTL | `en` | English at the root paths and Chinese under `/zh/` | Origin and default language checks pass. |
+| CN | `zh` | Chinese at the root paths, others under `/en/`, `/ja/`, `/de/`, `/fr/`, `/es/` | Production Origin pending. |
+| INTL | `en` | English at the root paths, others under `/zh/`, `/ja/`, `/de/`, `/fr/`, `/es/` | Origin and default language checks pass. |
 
-The language menu shows all six native language names. Chinese and English are selectable. Japanese, German, French, and Spanish have no emitted routes. There is no automatic locale redirect.
+The language menu shows six selectable native language names and keeps the current page and region. The exported 404 uses the build's default language for its initial document and reads a recognized prefix from the requested path once JavaScript runs. The home link then points to that language within the same region. The path always determines the language on valid pages.
 
 ## Build and verify
 
@@ -22,7 +22,7 @@ The `(default)` and `[locale]` route branches share the same page renderers and 
 
 ## Locale content
 
-`SitePageContent` entries in `src/site/pages/` select the metadata and renderer for each locale. Both locales use the same experience components. English Localization Copy V1 is applied to the following surfaces.
+Each file in `src/site/copy/` satisfies the shared `SiteCopy` type. Site pages choose the locale's copy and metadata while using the same experience components. Project, observation, chapter, and principle keys tie copy to the existing render order. Publication configuration checks the enabled translations for blank strings before exporting.
 
 | Surface | Content |
 | --- | --- |
@@ -32,6 +32,6 @@ The `(default)` and `[locale]` route branches share the same page renderers and 
 | CONTACT | Message and control labels, with the existing contact destinations |
 | Shared UI | Language menu strings, navigation and social labels, dossiers, and audio control labels |
 
-Register additional locales in `src/site/content.ts` and the publication files after their four pages and shared copy are reviewed. Site-wide SEO and cross-region alternate metadata will be addressed separately.
+See the [P1-C terminology and verification record](./localization-review.md).
 
 The language menu adapts the TuneShape Dropdown Menu Motion tracks. [MIT license](../public/License/tuneshape-dropdown.txt)

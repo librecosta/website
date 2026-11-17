@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
 import { AudioProvider } from '@/components/audio/AudioProvider';
+import { usesOriginalLayout } from './content';
 import { LocaleProvider } from './LocaleProvider';
 import type { Locale } from './locale-contract';
 import { publication } from './publication';
@@ -28,7 +29,7 @@ export function siteMetadata(locale: Locale): Metadata {
 
 export function SiteLayout({ locale, children }: { locale: Locale; children: ReactNode }) {
   const { defaultLocale, publishedLocales } = publication;
-  return <html lang={locale} className={instrumentFont.variable}><body>
+  return <html lang={locale} className={instrumentFont.variable} data-localized={!usesOriginalLayout(locale) || undefined}><body>
     <LocaleProvider value={{ locale, defaultLocale, publishedLocales }}>
       <AudioProvider>{children}</AudioProvider>
     </LocaleProvider>

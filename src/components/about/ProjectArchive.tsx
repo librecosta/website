@@ -1,8 +1,7 @@
 import { useRef, useSyncExternalStore, type CSSProperties } from 'react';
 import { m, useMotionValueEvent, useScroll, useTransform, type MotionValue } from 'motion/react';
-import { useEnglish } from '@/site/LocaleProvider';
-import { englishPreviewAlt, projectPreviews } from '../project-previews';
-import { englishAbout } from './copy';
+import { useSiteCopy } from '@/site/LocaleProvider';
+import { projectPreviews } from '../project-previews';
 import styles from './project-archive.module.css';
 
 type ProjectCard = {
@@ -16,58 +15,13 @@ type ProjectCard = {
   sourceLabel?: string;
 };
 
-const chineseCards: readonly ProjectCard[] = [
-  {
-    number: '01',
-    title: 'GoFurry',
-    summary: '面向 Furry 社群的浏览器起始页与资源发现平台。',
-    status: '开发中',
-    source: 'https://github.com/librecosta/gofurry',
-    preview: projectPreviews.gofurry,
-  },
-  {
-    number: '02',
-    title: 'Tool4Furry',
-    summary: '面向 Furry 创作者的开源浏览器工具箱。',
-    status: '开发中',
-    source: 'https://github.com/librecosta/tool4furry',
-    preview: projectPreviews.tool4furry,
-  },
-  {
-    number: '03',
-    title: 'GopherAtlas',
-    summary: '面向 Go 开发者的技术出版平台，汇集原创实践、精选文章与专题阅读。',
-    status: '持续更新',
-    entry: { href: 'https://gopheratlas.com/', label: '访问官网' },
-    preview: projectPreviews.gopheratlas,
-  },
-  {
-    number: '04',
-    title: 'LibreCosta Uptime',
-    summary: '轻量、可自托管的 HTTP/HTTPS 可用性监测与告警工具。',
-    status: '已发布',
-    entry: { href: 'https://github.com/librecosta/uptime/releases', label: '查看发布版' },
-    preview: projectPreviews.uptime,
-  },
-  {
-    number: '05',
-    title: 'SoFarAway',
-    summary: '一款将高速飞行与音乐节奏融为一体的浏览器游戏，画面与音乐均在运行时程序化生成。',
-    status: '开发中',
-    entry: { href: 'https://sofaraway.librecosta.com/', label: '访问官网' },
-    preview: projectPreviews.sofaraway,
-  },
-];
-const previewKeys = ['gofurry', 'tool4furry', 'gopheratlas', 'uptime', 'sofaraway'] as const;
-const archiveCopy = englishAbout.collections;
-const englishCards = chineseCards.map((card, index): ProjectCard => ({
-  ...card,
-  summary: archiveCopy.descriptions[index],
-  status: archiveCopy.statuses[index],
-  sourceLabel: archiveCopy.source,
-  preview: card.preview && { ...card.preview, alt: englishPreviewAlt[previewKeys[index]] },
-  entry: card.entry && { ...card.entry, label: previewKeys[index] === 'uptime' ? archiveCopy.releases : archiveCopy.site },
-}));
+const archiveEntries = [
+  { id: 'gofurry', title: 'GoFurry', status: 'development', href: 'https://github.com/librecosta/gofurry', action: 'source' },
+  { id: 'tool4furry', title: 'Tool4Furry', status: 'development', href: 'https://github.com/librecosta/tool4furry', action: 'source' },
+  { id: 'gopheratlas', title: 'GopherAtlas', status: 'ongoing', href: 'https://gopheratlas.com/', action: 'site' },
+  { id: 'uptime', title: 'LibreCosta Uptime', status: 'released', href: 'https://github.com/librecosta/uptime/releases', action: 'releases' },
+  { id: 'sofaraway', title: 'SoFarAway', status: 'development', href: 'https://sofaraway.librecosta.com/', action: 'site' },
+] as const;
 const pairQuery = '(min-width: 1280px)';
 const hold = .28;
 
@@ -144,8 +98,12 @@ function ArchiveGroup({ group, index, count, progress, reduced }: {
 }
 
 export function ProjectArchive({ reduced }: { reduced: boolean }) {
-  const english = useEnglish();
-  const cards = english ? englishCards : chineseCards;
+  const { about: { collections: copy }, works } = useSiteCopy();
+  const cards = archiveEntries.map(({ id, title, status, href, action }, index): ProjectCard => ({
+    number: `0${index + 1}`, title, summary: copy.descriptions[id], status: works.statuses[status],
+    preview: { ...projectPreviews[id], alt: works.projects[id].alt },
+    ...(action === 'source' ? { source: href, sourceLabel: copy.source } : { entry: { href, label: copy[action] } }),
+  }));
   const section = useRef<HTMLElement>(null);
   const paired = useSyncExternalStore(subscribeToPairLayout, getPairLayout, getServerPairLayout);
   const columns = paired ? 2 : 1;
@@ -166,7 +124,7 @@ export function ProjectArchive({ reduced }: { reduced: boolean }) {
     style={{ '--group-count': groups.length, '--travel': travel } as CSSProperties}>
     <div className={styles.stage}>
       <div className={styles.archive}>
-        <h2 className={styles.heading} id="collections-title" tabIndex={0}>{english ? archiveCopy.label : '作品索引'}</h2>
+        <h2 className={styles.heading} id="collections-title" tabIndex={0}>{copy.label}</h2>
         <div className={styles.deck}>
           {groups.map((group, index) => <ArchiveGroup key={group[0].number} group={group} index={index}
             count={groups.length} progress={progress} reduced={reduced} />)}

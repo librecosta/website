@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { m, useMotionValue, useMotionValueEvent, useSpring, useTransform, type MotionValue } from 'motion/react';
-import { useEnglish } from '@/site/LocaleProvider';
-import { englishAbout } from './copy';
+import { useSiteCopy } from '@/site/LocaleProvider';
 import styles from './about-controls.module.css';
 import { createSidebarField, sectionOffset, sidebarEase } from './sidebar-field';
 
 const sections = [
-  { id: 'opening', label: '序幕' },
-  { id: 'studio', label: '创作宣言' },
-  { id: 'collections', label: '作品索引' },
-  { id: 'practice', label: '创作方法' },
-  { id: 'closing', label: '联系我们' },
+  { id: 'opening' },
+  { id: 'studio' },
+  { id: 'collections' },
+  { id: 'practice' },
+  { id: 'closing' },
 ] as const;
 
 type ControlsProps = { progress: MotionValue<number>; reduced: boolean };
@@ -24,8 +23,8 @@ export function scrollToAboutSection(id: string, reduced: boolean) {
 }
 
 export function AboutSectionNav({ progress, reduced }: ControlsProps) {
-  const english = useEnglish();
-  const sectionLabel = ({ id, label }: typeof sections[number]) => english ? englishAbout.sections[id] : label;
+  const copy = useSiteCopy().about;
+  const sectionLabel = ({ id }: typeof sections[number]) => copy.sections[id];
   const [active, setActive] = useState(0);
   const [pointed, setPointed] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -121,7 +120,7 @@ export function AboutSectionNav({ progress, reduced }: ControlsProps) {
   }
 
   const poseTransition = { duration: reduced ? 0 : .4, ease: sidebarEase };
-  return <nav className={styles.sectionNav} ref={nav} aria-label={english ? 'Chapter Navigation' : 'ABOUT 章节'}
+  return <nav className={styles.sectionNav} ref={nav} aria-label={copy.chapters}
     data-expanded={expanded} onPointerEnter={movePointer} onPointerMove={movePointer}
     onPointerLeave={event => { if (event.pointerType !== 'touch') leave(); }}
     onPointerDown={event => {
@@ -174,7 +173,7 @@ function scrollToProgress(value: number) {
 }
 
 export function AboutScrollGauge({ progress, reduced }: ControlsProps) {
-  const english = useEnglish();
+  const copy = useSiteCopy().about;
   const track = useRef<HTMLSpanElement>(null);
   const drag = useRef<AbortController | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -227,7 +226,7 @@ export function AboutScrollGauge({ progress, reduced }: ControlsProps) {
   }
 
   return <div className={styles.scrollControl} role="slider" tabIndex={0} aria-orientation="vertical"
-    aria-label={english ? 'Page Scroll Position' : '页面滚动位置'} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${percent}%`}
+    aria-label={copy.scrollPosition} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${percent}%`}
     data-dragging={dragging} onKeyDown={handleKey} onPointerDown={startDrag}>
     <span ref={track} className={styles.scrollTrack} aria-hidden="true">
       <m.span className={styles.scrollFill} style={{ height: position }} />

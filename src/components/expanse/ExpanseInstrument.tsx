@@ -2,10 +2,10 @@ import Link from 'next/link';
 import { useEffect, useRef, type ComponentPropsWithoutRef, type ReactNode, type RefObject } from 'react';
 import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { languageControlCopy } from '@/site/content';
+import { usesOriginalLayout } from '@/site/content';
 import { LanguageMenu } from '@/site/LanguageMenu';
 import { localePath, type SiteRoute } from '@/site/locale-contract';
-import { useEnglish, useSiteLocale } from '@/site/LocaleProvider';
+import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
 import { EncryptedLabel, useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
@@ -59,11 +59,12 @@ function InstrumentLink({ href, text, reduced, external = false, current = false
   href: string; text: string; reduced: boolean; external?: boolean; current?: boolean;
 }) {
   const { cue } = useSiteAudio();
-  const english = useEnglish();
+  const { locale } = useSiteLocale();
+  const { blogNewTab } = useSiteCopy().shared;
   const { play, noise } = useEncryptedText(text, reduced);
   const props: ComponentPropsWithoutRef<'a'> = {
-    lang: 'en',
-    'aria-label': external ? `${text}${english ? languageControlCopy.en.newTab : ' (opens in a new tab)'}` : text,
+    lang: usesOriginalLayout(locale) ? 'en' : undefined,
+    'aria-label': external ? `${text}${blogNewTab}` : text,
     'aria-current': current ? 'page' : undefined,
     onPointerEnter: event => {
       if (event.pointerType === 'mouse') {
@@ -95,6 +96,8 @@ const coordinateFormat = new Intl.NumberFormat('en', {
 });
 
 function ObservationReadout({ cameraRef }: { cameraRef: RefObject<Camera | null> }) {
+  const { locale } = useSiteLocale();
+  const { readout } = useSiteCopy().world;
   const time = useRef<HTMLElement>(null);
   const position = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -116,12 +119,12 @@ function ObservationReadout({ cameraRef }: { cameraRef: RefObject<Camera | null>
     return () => window.clearInterval(timer);
   }, [cameraRef]);
 
-  return <div className={styles.observationData} lang="en">
-    <p className={styles.observationSite}>SITE / EX-01</p>
-    <p>PALE BASIN <span aria-hidden="true">·</span> SECTOR 07</p>
+  return <div className={styles.observationData} lang={usesOriginalLayout(locale) ? 'en' : undefined}>
+    <p className={styles.observationSite}>{readout.site} / EX-01</p>
+    <p>{readout.basin} <span aria-hidden="true">·</span> {readout.sector} 07</p>
     <dl>
-      <div><dt>OBS T+</dt><dd ref={time}>00:00:00</dd></div>
-      <div><dt>POS X / Y / Z</dt><dd ref={position}>— / — / —</dd></div>
+      <div><dt>{readout.time}</dt><dd ref={time}>00:00:00</dd></div>
+      <div><dt>{readout.position}</dt><dd ref={position}>— / — / —</dd></div>
     </dl>
   </div>;
 }
@@ -140,7 +143,7 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/
 }) {
   const { enabled, cue } = useSiteAudio();
   const { locale, defaultLocale } = useSiteLocale();
-  const copy = languageControlCopy[locale] ?? languageControlCopy.en;
+  const { shared: copy, world: { audio } } = useSiteCopy();
   const pagePath = (route: SiteRoute) => localePath(route, locale, defaultLocale);
   const brand = useEncryptedText('LIBRECOSTA', reduced);
   return <header className={className ? `${styles.instrumentHeader} ${className}` : styles.instrumentHeader}>
@@ -150,23 +153,23 @@ export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/
         onFocus={event => { if (event.currentTarget.matches(':focus-visible')) brand.play(); }}
         onClick={() => cue('click')}><Wordmark noise={brand.noise} /></Link>
       {soundToggle && <span className={styles.soundIndicator} role="img"
-        aria-label={locale === 'en' ? (enabled ? 'Sound On' : 'Sound Off') : (enabled ? '声音开启' : '声音关闭')} data-enabled={enabled} />}
+        aria-label={enabled ? audio.indicatorOn : audio.indicatorOff} data-enabled={enabled} />}
     </div>
     {soundToggle}
     <LanguageMenu route={currentPage} reduced={reduced} />
     <nav className={styles.instrumentNav} aria-label={copy.navigation} data-audio-ui>
-      {currentPage !== '/' && <InstrumentLink href={pagePath('/')} text="WORLD" reduced={reduced} />}
-      <InstrumentLink href={pagePath('/works')} text="WORKS" reduced={reduced} current={currentPage === '/works'} />
-      <InstrumentLink href={pagePath('/about')} text="ABOUT" reduced={reduced} current={currentPage === '/about'} />
-      <InstrumentLink href="https://gopheratlas.com/" text="BLOG" reduced={reduced} external />
-      <InstrumentLink href={pagePath('/contact')} text="CONTACT" reduced={reduced} current={currentPage === '/contact'} />
+      {currentPage !== '/' && <InstrumentLink href={pagePath('/')} text={copy.nav.world} reduced={reduced} />}
+      <InstrumentLink href={pagePath('/works')} text={copy.nav.works} reduced={reduced} current={currentPage === '/works'} />
+      <InstrumentLink href={pagePath('/about')} text={copy.nav.about} reduced={reduced} current={currentPage === '/about'} />
+      <InstrumentLink href="https://gopheratlas.com/" text={copy.nav.blog} reduced={reduced} external />
+      <InstrumentLink href={pagePath('/contact')} text={copy.nav.contact} reduced={reduced} current={currentPage === '/contact'} />
     </nav>
     {gauge}
   </header>;
 }
 
 function ChapterGauge() {
-  const english = useEnglish();
+  const { readout } = useSiteCopy().world;
   return <div className={styles.chapterGauge}>
     <svg viewBox="0 0 65 16" aria-hidden="true" fill="none" stroke="currentColor">
       <path d="M1.5 4 4.5 1h54l2 2v10l-2 2h-54l-3-3Z M61 5h3v6h-3" />
@@ -174,15 +177,14 @@ function ChapterGauge() {
       <path className={styles.unlitCells} d="M17 4h8v8h-8z M28 4h8v8h-8z M39 4h8v8h-8z M50 4h8v8h-8z"
         fill="currentColor" stroke="none" />
     </svg>
-    <span className={styles.srOnly}>{english ? 'Chapter 1 of 5' : '第 1 章，共 5 章'}</span>
+    <span className={styles.srOnly}>{readout.chapter}</span>
     <span aria-hidden="true">01 <span className={styles.gaugeSlash}>/</span> 05</span>
   </div>;
 }
 
 export function InstrumentSocialLinks() {
   const { cue } = useSiteAudio();
-  const { locale } = useSiteLocale();
-  const copy = languageControlCopy[locale] ?? languageControlCopy.en;
+  const copy = useSiteCopy().shared;
   return <nav className={styles.socialLinks} aria-label={copy.social} onClick={() => cue('click')}>
     <a href="https://space.bilibili.com/37124259" target="_blank" rel="noopener noreferrer"
       aria-label={`Bilibili${copy.newTab}`} onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
@@ -201,10 +203,10 @@ export function InstrumentSocialLinks() {
   </nav>;
 }
 
-export function InstrumentProgress({ progressBar, progressFill, label = '旅程进度' }: {
+export function InstrumentProgress({ progressBar, progressFill, label }: {
   progressBar: RefObject<HTMLDivElement | null>;
   progressFill: RefObject<HTMLSpanElement | null>;
-  label?: string;
+  label: string;
 }) {
   return <div ref={progressBar} className={styles.progress} role="progressbar" aria-label={label}
     aria-valuemin={0} aria-valuemax={100} aria-valuenow={0}>
@@ -220,7 +222,8 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
   progressFill: RefObject<HTMLSpanElement | null>;
   cameraRef: RefObject<Camera | null>;
 }) {
-  const english = useEnglish();
+  const copy = useSiteCopy().world;
+  const { locale } = useSiteLocale();
   return <div className={styles.instrument}>
     <InstrumentCorners />
     <InstrumentHeader reduced={reduced} gauge={<ChapterGauge />}
@@ -233,13 +236,13 @@ export function ExpanseInstrument({ ready, reduced, unavailable, stage, hint, pr
     {!unavailable && <ObservationReadout cameraRef={cameraRef} />}
     <InstrumentSocialLinks />
     {!unavailable && <div className={styles.readout}>
-      {reduced ? <p className={styles.staticNote}>{english ? 'Static View' : '静态观览'} · <a href="#expanse-transcript">{english ? 'Read Act I' : '阅读本幕'}</a></p> : <>
-        <p ref={hint} className={styles.hint} lang="en">
+      {reduced ? <p className={styles.staticNote}>{copy.staticView} · <a href="#expanse-transcript">{copy.readAct}</a></p> : <>
+        <p ref={hint} className={styles.hint} lang={usesOriginalLayout(locale) ? 'en' : undefined}>
           <svg viewBox="0 0 10 12" aria-hidden="true" fill="currentColor"><path d="M1 2h8L5 6zm0 5h8l-4 4z" /></svg>
-          Scroll to explore
+          {copy.scroll}
         </p>
         <div className={styles.trackLabel} lang="en"><span>01</span><span>The Expanse</span></div>
-        <InstrumentProgress progressBar={progressBar} progressFill={progressFill} label={english ? 'Journey Progress' : undefined} />
+        <InstrumentProgress progressBar={progressBar} progressFill={progressFill} label={copy.progress} />
       </>}
     </div>}
   </div>;

@@ -1,29 +1,26 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { animate, m, useInView, useMotionValue, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
-import { useEnglish } from '@/site/LocaleProvider';
-import { englishAbout } from './copy';
+import { useSiteCopy } from '@/site/LocaleProvider';
 import { captureLiquidFrame, createLiquidRenderer, drawLiquidFace, measureLiquidCard, type LiquidDirection } from './practice-liquid';
 import styles from './practice.module.css';
 
-const chinesePrinciples = [
+const principleArt = [
   {
-    title: '实用优先', art: '/about/practice/useful-first.svg', tint: 'rgba(38, 46, 56, .52)',
+    id: 'useful-first', art: '/about/practice/useful-first.svg', tint: 'rgba(38, 46, 56, .52)',
   },
   {
-    title: '体验优先', art: '/about/practice/experience-first.svg', tint: 'rgba(20, 26, 36, .52)',
+    id: 'experience-first', art: '/about/practice/experience-first.svg', tint: 'rgba(20, 26, 36, .52)',
   },
   {
-    title: '长期主义', art: '/about/practice/built-to-last.svg', tint: 'rgba(38, 46, 56, .52)',
+    id: 'built-to-last', art: '/about/practice/built-to-last.svg', tint: 'rgba(38, 46, 56, .52)',
   },
 ] as const;
-const practiceCopy = englishAbout.practice;
-const englishPrinciples = chinesePrinciples.map((principle, index) => ({ ...principle, title: practiceCopy.titles[index] }));
 const autoplaySeconds = 3;
 const transitionSeconds = 1.6;
 
 export function PracticeSection({ reduced }: { reduced: boolean }) {
-  const english = useEnglish();
-  const principles = english ? englishPrinciples : chinesePrinciples;
+  const practiceCopy = useSiteCopy().about.practice;
+  const principles = useMemo(() => principleArt.map(art => ({ ...art, title: practiceCopy.titles[art.id] })), [practiceCopy]);
   const section = useRef<HTMLElement>(null);
   const copy = useRef<HTMLDivElement>(null);
   const carousel = useRef<HTMLDivElement>(null);
@@ -225,10 +222,10 @@ export function PracticeSection({ reduced }: { reduced: boolean }) {
         <m.span style={reduced ? undefined : { y: titleY }} data-about-motion>HOW WE BUILD</m.span>
       </h2>
       <m.p className={styles.intro} style={reduced ? undefined : { y: introY, opacity: introOpacity }} data-about-motion>
-        {english ? practiceCopy.intro : '我们关心的不只是做出功能，更是它为何存在、如何被使用，以及能否经得起时间。'}
+        {practiceCopy.intro}
       </m.p>
     </m.div>
-    <m.div className={styles.carousel} ref={carousel} role="group" aria-label={english ? practiceCopy.carousel : '建造原则轮播'} onKeyDown={keySelect}
+    <m.div className={styles.carousel} ref={carousel} role="group" aria-label={practiceCopy.carousel} onKeyDown={keySelect}
       style={reduced ? undefined : { y: cardY }} data-about-motion
       onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(true); }}
       onPointerLeave={event => { if (event.pointerType === 'mouse') setHovered(false); }}
@@ -253,8 +250,8 @@ export function PracticeSection({ reduced }: { reduced: boolean }) {
         </div>
         <canvas className={styles.liquidCanvas} ref={canvas} aria-hidden="true" />
       </article>
-      <div className={styles.controls} role="group" aria-label={english ? practiceCopy.pagination : '选择原则'}>
-        <button className={styles.arrow} type="button" aria-label={english ? practiceCopy.previous : '上一条原则'} aria-controls="practice-card"
+      <div className={styles.controls} role="group" aria-label={practiceCopy.pagination}>
+        <button className={styles.arrow} type="button" aria-label={practiceCopy.previous} aria-controls="practice-card"
           onClick={() => select(activeIndex.current - 1, -1)}><Chevron previous /></button>
         {principles.map(({ title }, index) => <button className={styles.page} key={title} type="button"
           ref={element => { pages.current[index] = element; }} data-practice-page={index}
@@ -264,9 +261,9 @@ export function PracticeSection({ reduced }: { reduced: boolean }) {
             <m.span className={styles.pageFill} style={{ scaleX: index === selected ? pageProgress : 0 }} />
           </span>
         </button>)}
-        <button className={styles.arrow} type="button" aria-label={english ? practiceCopy.next : '下一条原则'} aria-controls="practice-card"
+        <button className={styles.arrow} type="button" aria-label={practiceCopy.next} aria-controls="practice-card"
           onClick={() => select(activeIndex.current + 1, 1)}><Chevron /></button>
-        {!reduced && <button className={styles.arrow} type="button" aria-label={english ? (autoplay ? practiceCopy.pause : practiceCopy.resume) : (autoplay ? '暂停自动轮播' : '继续自动轮播')}
+        {!reduced && <button className={styles.arrow} type="button" aria-label={autoplay ? practiceCopy.pause : practiceCopy.resume}
           aria-controls="practice-card" onClick={() => setAutoplay(value => !value)}>
           <svg viewBox="0 0 18 18" aria-hidden="true" fill="none">
             <path d={autoplay ? 'M7 5v8m4-8v8' : 'm7 5 6 4-6 4Z'} />

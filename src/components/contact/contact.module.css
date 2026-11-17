@@ -18,6 +18,7 @@
   line-height: 1;
   letter-spacing: -.055em;
 }
+.title:lang(ja) { font-size: clamp(31px, 7.8vw, 72px); letter-spacing: .02em; }
 
 .content .intro {
   margin-top: clamp(14px, 2.6dvh, 25px);

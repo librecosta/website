@@ -1,5 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { stagger, useAnimate } from 'motion/react';
+import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
+import { usesOriginalLayout } from '@/site/content';
 import type { SiteRoute } from '@/site/locale-contract';
 import { InstrumentCorners, InstrumentHeader, InstrumentSocialLinks } from './expanse/ExpanseInstrument';
 import instrument from './expanse/expanse.module.css';
@@ -8,18 +10,15 @@ import styles from './workshop-frame.module.css';
 const dossiers = {
   '/about': {
     id: 'LC-01',
-    title: 'ABOUT',
-    rows: [['FIELD', 'SOFTWARE / TOOLS'], ['PRACTICE', 'OPEN SOURCE / DESIGN']],
+    title: 'about',
   },
   '/contact': {
     id: 'LC-02',
-    title: 'CONTACT',
-    rows: [['CHANNELS', 'EMAIL / X']],
+    title: 'contact',
   },
   '/works': {
     id: 'LC-03',
-    title: 'WORKS',
-    rows: [],
+    title: 'works',
   },
 } as const;
 
@@ -27,7 +26,11 @@ type WorkshopRoute = keyof typeof dossiers;
 
 function Dossier({ route, reduced }: { route: WorkshopRoute; reduced: boolean }) {
   const [scope, animate] = useAnimate<HTMLElement>();
-  const { id, title, rows } = dossiers[route];
+  const { id, title } = dossiers[route];
+  const { locale } = useSiteLocale();
+  const { dossier, nav } = useSiteCopy().shared;
+  const rows = route === '/about' ? [[dossier.field, dossier.software], [dossier.practice, dossier.design]]
+    : route === '/contact' ? [[dossier.channels, `${dossier.email} / X`]] : [];
 
   useEffect(() => {
     if (reduced || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -37,9 +40,9 @@ function Dossier({ route, reduced }: { route: WorkshopRoute; reduced: boolean })
     return () => animation.cancel();
   }, [animate, reduced]);
 
-  return <aside ref={scope} className={`${instrument.observationData} ${styles.dossier}`} lang="en" aria-label="LibreCosta dossier">
-    <p className={instrument.observationSite} data-dossier-line>DOSSIER / {id}</p>
-    <p data-dossier-line>LIBRECOSTA · {title}</p>
+  return <aside ref={scope} className={`${instrument.observationData} ${styles.dossier}`} lang={usesOriginalLayout(locale) ? 'en' : undefined} aria-label={usesOriginalLayout(locale) ? 'LibreCosta dossier' : `${dossier.name} · LibreCosta`}>
+    <p className={instrument.observationSite} data-dossier-line>{dossier.name} / {id}</p>
+    <p data-dossier-line>LIBRECOSTA · {nav[title]}</p>
     {rows.length > 0 && <dl>
       {rows.map(([label, value]) => <div key={label} data-dossier-line><dt>{label}</dt><dd>{value}</dd></div>)}
     </dl>}

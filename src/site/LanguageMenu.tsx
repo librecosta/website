@@ -4,9 +4,8 @@ import Link from 'next/link';
 import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { languageControlCopy } from './content';
 import { localeIds, localePath, locales, type SiteRoute } from './locale-contract';
-import { useSiteLocale } from './LocaleProvider';
+import { useSiteCopy, useSiteLocale } from './LocaleProvider';
 import styles from './language-menu.module.css';
 
 // TuneShape Dropdown Menu, MIT. See public/License/tuneshape-dropdown.txt.
@@ -18,7 +17,7 @@ const itemStep = Math.min(.0344, (panelDuration - itemDuration) / (localeIds.len
 export function LanguageMenu({ route, reduced }: { route: SiteRoute; reduced: boolean }) {
   const { locale, defaultLocale, publishedLocales } = useSiteLocale();
   const { cue } = useSiteAudio();
-  const copy = languageControlCopy[locale] ?? languageControlCopy.en;
+  const copy = useSiteCopy().shared;
   const reduceMotion = useReducedMotion();
   const instant = reduced || reduceMotion;
   const id = useId();
@@ -85,7 +84,7 @@ export function LanguageMenu({ route, reduced }: { route: SiteRoute; reduced: bo
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <LazyMotion features={domAnimation}>
       <button type="button" ref={trigger} className={styles.trigger} aria-expanded={open} aria-controls={id}
-        aria-label={`${copy.label} · ${locales[locale].name}`} data-language-trigger onClick={() => {
+        aria-label={`${copy.language} · ${locales[locale].name}`} data-language-trigger onClick={() => {
           cue('click');
           setOpen(value => !value);
         }}>
@@ -98,7 +97,7 @@ export function LanguageMenu({ route, reduced }: { route: SiteRoute; reduced: bo
       <div ref={panel} id={id} className={styles.panel} inert={!open} aria-hidden={!open} data-language-panel>
         <m.div className={styles.surface} aria-hidden="true" initial={false}
           animate={open ? { y: 0, scale: 1, opacity: 1 } : { y: -7, scale: .985, opacity: 0 }} transition={transition} />
-        <ul aria-label={copy.label}>
+        <ul aria-label={copy.language}>
           {localeIds.map((choice, index) => {
             const current = choice === locale;
             const available = publishedLocales.includes(choice);

@@ -1,17 +1,22 @@
-import { englishPreviewAlt, projectPreviews } from '../project-previews';
+import { siteCopy } from '@/site/content';
+import type { Locale } from '@/site/locale-contract';
+import type { ProjectAction, ProjectStatus } from '@/site/copy/types';
+import { projectPreviews, type ProjectId } from '../project-previews';
 
-type Island = {
-  name: string;
-  width: number;
-  bearing: number;
-  model: 'gofurry' | 'tool4furry' | 'uptime' | 'liquid-glass' | 'wavefield' | 'harvest' | 'sofaraway' | 'gopher-atlas';
-};
+type Island = { width: number; bearing: number; model: ProjectId | 'gopher-atlas' };
 
-export type Project = {
+type ProjectSource = {
+  id: ProjectId;
   slug: string;
   name: string;
-  type: string;
   island: Island;
+  status: ProjectStatus;
+  links: readonly { action: ProjectAction; href: string }[];
+};
+
+export type Project = Omit<ProjectSource, 'island' | 'status' | 'links'> & {
+  type: string;
+  island: Island & { name: string };
   status: string;
   description: string;
   links: readonly { label: string; href: string }[];
@@ -20,114 +25,64 @@ export type Project = {
 
 export function islandPreview(project: Project) { return `/works/previews/${project.slug}.webp`; }
 
-export const projects: readonly Project[] = [
+export const projects = [
   {
-    slug: 'gofurry', name: 'GoFurry', type: '资源发现平台', status: '开发中',
-    island: { name: '铆湾', width: 39, bearing: 21, model: 'gofurry' },
-    description: '面向 Furry 社群的可定制浏览器起始页与资源发现入口。',
-    links: [{ label: 'GitHub 源码', href: 'https://github.com/librecosta/gofurry' }],
-    media: projectPreviews.gofurry,
+    id: 'gofurry', slug: 'gofurry', name: 'GoFurry', status: 'development',
+    island: { width: 39, bearing: 21, model: 'gofurry' },
+    links: [{ action: 'source', href: 'https://github.com/librecosta/gofurry' }],
   },
   {
-    slug: 'tool4furry', name: 'Tool4Furry', type: '创作者工具', status: '开发中',
-    island: { name: '砧石屿', width: 35, bearing: 71, model: 'tool4furry' },
-    description: '面向 Furry 创作者的开源浏览器工具箱。',
-    links: [{ label: 'GitHub 源码', href: 'https://github.com/librecosta/tool4furry' }],
-    media: projectPreviews.tool4furry,
+    id: 'tool4furry', slug: 'tool4furry', name: 'Tool4Furry', status: 'development',
+    island: { width: 35, bearing: 71, model: 'tool4furry' },
+    links: [{ action: 'source', href: 'https://github.com/librecosta/tool4furry' }],
   },
   {
-    slug: 'librecosta-uptime', name: 'LibreCosta Uptime', type: '可用性监测', status: '已发布',
-    island: { name: '风标岭', width: 28, bearing: 19, model: 'uptime' },
-    description: '自托管 HTTP/HTTPS 可用性监测工具，附状态面板。',
-    links: [{ label: '查看发布版', href: 'https://github.com/librecosta/uptime/releases' }],
-    media: projectPreviews.uptime,
+    id: 'uptime', slug: 'librecosta-uptime', name: 'LibreCosta Uptime', status: 'released',
+    island: { width: 28, bearing: 19, model: 'uptime' },
+    links: [{ action: 'releases', href: 'https://github.com/librecosta/uptime/releases' }],
   },
   {
-    slug: 'harvest', name: 'Harvest', type: '数据采集引擎', status: '开源项目',
-    island: { name: '层畴屿', width: 37, bearing: 0, model: 'harvest' },
-    description: '支持持久化调度和可扩展采集源的分布式数据采集引擎。',
-    links: [{ label: '查看项目文档', href: 'https://github.com/librecosta/harvest#readme' }],
-    media: { src: '/works/harvest.webp', alt: 'Harvest 命令行帮助，列出控制面、Worker 和健康检查命令' },
+    id: 'harvest', slug: 'harvest', name: 'Harvest', status: 'openSource',
+    island: { width: 37, bearing: 0, model: 'harvest' },
+    links: [{ action: 'docs', href: 'https://github.com/librecosta/harvest#readme' }],
   },
   {
-    slug: 'liquid-glass', name: 'Liquid Glass', type: 'SVG 折射库', status: '已发布',
-    island: { name: '折光屿', width: 34, bearing: 0, model: 'liquid-glass' },
-    description: '为原生 HTML 提供可定制 SVG 玻璃折射的开源库。',
+    id: 'liquid-glass', slug: 'liquid-glass', name: 'Liquid Glass', status: 'released',
+    island: { width: 34, bearing: 0, model: 'liquid-glass' },
     links: [
-      { label: '查看库与用法', href: 'https://github.com/librecosta/liquid-glass#readme' },
-      { label: '查看发布版', href: 'https://github.com/librecosta/liquid-glass/releases' },
+      { action: 'usage', href: 'https://github.com/librecosta/liquid-glass#readme' },
+      { action: 'releases', href: 'https://github.com/librecosta/liquid-glass/releases' },
     ],
-    media: { src: '/works/liquid-glass.webp', alt: 'Liquid Glass Playground 中的折射演示与调节控件' },
   },
   {
-    slug: 'wavefield', name: 'Wavefield', type: 'WebGPU 实验', status: '开源项目',
-    island: { name: '回波岬', width: 45, bearing: 22, model: 'wavefield' },
-    description: '以 WebGPU 绘制可交互的线框地形。',
+    id: 'wavefield', slug: 'wavefield', name: 'Wavefield', status: 'openSource',
+    island: { width: 45, bearing: 22, model: 'wavefield' },
     links: [
-      { label: '查看项目', href: 'https://github.com/librecosta/wavefield#readme' },
-      { label: '阅读技术文章', href: 'https://gopheratlas.com/notes/graphics-interaction/webgpu-wavefield-reconstruction/' },
+      { action: 'project', href: 'https://github.com/librecosta/wavefield#readme' },
+      { action: 'article', href: 'https://gopheratlas.com/notes/graphics-interaction/webgpu-wavefield-reconstruction/' },
     ],
-    media: { src: '/works/wavefield-preview.webp', alt: '回波岬的银蓝色波网跨过岩谷，两侧由张力架固定' },
   },
   {
-    slug: 'sofaraway', name: 'SoFarAway', type: '浏览器节奏游戏', status: '开发中',
-    island: { name: '远拍岛', width: 44, bearing: 0, model: 'sofaraway' },
-    description: '在程序化音乐和场景中穿过节拍门的浏览器节奏跑酷游戏。',
-    links: [{ label: '查看项目', href: 'https://github.com/librecosta/sofaraway#readme' }],
-    media: projectPreviews.sofaraway,
+    id: 'sofaraway', slug: 'sofaraway', name: 'SoFarAway', status: 'development',
+    island: { width: 44, bearing: 0, model: 'sofaraway' },
+    links: [{ action: 'project', href: 'https://github.com/librecosta/sofaraway#readme' }],
   },
   {
-    slug: 'gopheratlas', name: 'GopherAtlas', type: '技术出版', status: '持续更新',
-    island: { name: '页港', width: 36, bearing: 15, model: 'gopher-atlas' },
-    description: 'LibreCosta 团队的 Go 技术文章与实验笔记。',
+    id: 'gopheratlas', slug: 'gopheratlas', name: 'GopherAtlas', status: 'ongoing',
+    island: { width: 36, bearing: 15, model: 'gopher-atlas' },
     links: [
-      { label: '阅读文章', href: 'https://gopheratlas.com/articles/' },
-      { label: '访问博客', href: 'https://gopheratlas.com/' },
+      { action: 'articles', href: 'https://gopheratlas.com/articles/' },
+      { action: 'blog', href: 'https://gopheratlas.com/' },
     ],
-    media: projectPreviews.gopheratlas,
   },
-];
+] as const satisfies readonly ProjectSource[];
 
-const englishCopy = {
-  gofurry: {
-    type: 'Resource Discovery', status: 'In Development', links: ['View Source'], alt: englishPreviewAlt.gofurry,
-    description: 'A customizable browser start page and resource discovery hub for the furry community.',
-  },
-  tool4furry: {
-    type: 'Creator Tools', status: 'In Development', links: ['View Source'], alt: englishPreviewAlt.tool4furry,
-    description: 'An open-source browser toolbox for furry creators.',
-  },
-  uptime: {
-    type: 'Uptime Monitoring', status: 'Released', links: ['View Releases'], alt: englishPreviewAlt.uptime,
-    description: 'A self-hosted HTTP/HTTPS uptime monitor with a built-in status dashboard.',
-  },
-  harvest: {
-    type: 'Data Collection Engine', status: 'Open Source', links: ['View Documentation'],
-    description: 'A distributed data collection engine with persistent scheduling and extensible providers.',
-    alt: 'Harvest command-line help listing control plane, worker, and health check commands',
-  },
-  'liquid-glass': {
-    type: 'SVG Refraction Library', status: 'Released', links: ['Documentation & Usage', 'View Releases'],
-    description: 'An open-source library that brings customizable SVG glass refraction to native HTML.',
-    alt: 'Refraction demo and controls in the Liquid Glass Playground',
-  },
-  wavefield: {
-    type: 'WebGPU Experiment', status: 'Open Source', links: ['View Project', 'Read the Article'],
-    description: 'An interactive wireframe terrain rendered with WebGPU.',
-    alt: 'A silver-blue wave grid stretches across a rocky valley between tension frames',
-  },
-  sofaraway: {
-    type: 'Browser Rhythm Game', status: 'In Development', links: ['View Project'], alt: englishPreviewAlt.sofaraway,
-    description: 'A high-speed browser rhythm flight game with music and visuals generated entirely at runtime.',
-  },
-  'gopher-atlas': {
-    type: 'Technical Publishing', status: 'Ongoing', links: ['Read Articles', 'Visit Blog'], alt: englishPreviewAlt.gopheratlas,
-    description: 'Go engineering articles and experiment notes from the LibreCosta team.',
-  },
-} satisfies Record<Island['model'], { type: string; status: string; links: string[]; alt: string; description: string }>;
-
-export const englishProjects = projects.map((project): Project => {
-  const { type, status, description, links, alt } = englishCopy[project.island.model];
-  return { ...project, type, status, description, media: { ...project.media, alt },
-    links: project.links.map(({ href }, index) => ({ href, label: links[index] })) };
-});
+export function projectsForLocale(locale: Locale): readonly Project[] {
+  const copy = siteCopy[locale].works;
+  return projects.map(project => {
+    const { category, island, description, alt } = copy.projects[project.id];
+    return { ...project, type: category, description, island: { ...project.island, name: island },
+      status: copy.statuses[project.status], media: { ...projectPreviews[project.id], alt },
+      links: project.links.map(({ action, href }) => ({ href, label: copy.actions[action] })) };
+  });
+}

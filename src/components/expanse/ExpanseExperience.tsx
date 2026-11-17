@@ -6,7 +6,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { useEnglish } from '@/site/LocaleProvider';
+import { useSiteCopy } from '@/site/LocaleProvider';
 import type { AudioCue } from '@/components/audio/site-audio';
 import { EXPANSE, SKY_VIEWS, WIND_VIEWS, type JourneySignal, type SkyView, type WindView } from './parameters';
 import { mapJourneyProgress } from './journey-timing';
@@ -28,16 +28,14 @@ function progressText({ raw, value }: Pick<JourneySignal, 'raw' | 'value'>, stat
   return `章节 ${(raw * 100).toFixed(1)}% / 平滑 ${(value * 100).toFixed(1)}% / 原路径 u=${journey.toFixed(3)}`;
 }
 
-const englishLandscape = 'Sand ridges frame a pale valley. Beyond the scattered leaning columns, a larger structure fades into the distance.';
-
 function Unavailable() {
-  const english = useEnglish();
+  const copy = useSiteCopy().world;
   return <div className={styles.unavailable} role="status">
     <h1>The Expanse</h1>
-    <p>{english ? englishLandscape : '连续沙脊围出苍白浅谷。稀疏的倾斜柱阵之后，更高的巨构隐入远方。'}</p>
-    <p>{english ? 'This 3D experience requires WebGL 2.' : '三维视图暂不可用。此体验需要 WebGL2。'}</p>
-    <a href="#expanse-transcript">{english ? 'Read Act I' : '阅读本幕'}</a>
-    <button type="button" onClick={() => window.location.reload()}>{english ? 'Reload and Try Again' : '刷新后重试'}</button>
+    <p>{copy.landscape}</p>
+    <p>{copy.webgl}</p>
+    <a href="#expanse-transcript">{copy.readAct}</a>
+    <button type="button" onClick={() => window.location.reload()}>{copy.reload}</button>
   </div>;
 }
 
@@ -49,7 +47,7 @@ class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void 
 }
 
 export default function ExpanseExperience() {
-  const english = useEnglish();
+  const copy = useSiteCopy().world;
   const root = useRef<HTMLElement>(null), hint = useRef<HTMLParagraphElement>(null);
   const stage = useRef<HTMLElement>(null);
   const editorHost = useRef<HTMLDivElement>(null), editorDragging = useRef(false);
@@ -226,14 +224,14 @@ export default function ExpanseExperience() {
   return <main ref={root} className={styles.journey} data-reduced={reduced || contextLost} data-ready={ready}
     style={{ '--journey-screens': EXPANSE.journey.screens, '--journey-intro': EXPANSE.journey.introScreens,
       '--journey-hold': EXPANSE.journey.holdScreens } as CSSProperties}>
-    <figure ref={stage} className={styles.stage} aria-label={english ? englishLandscape : '连续沙脊围出浅谷，稀疏柱阵之后是远方的主体巨构。'}>
+    <figure ref={stage} className={styles.stage} aria-label={copy.sceneLabel}>
       <SceneBoundary onFail={onContextLost}>
         {contextLost ? <Unavailable /> : <ExpanseCanvas stage={stage} signal={signal} mobile={mobile} reduced={reduced}
           debug={debug} skyView={skyView} windView={windView} cameraRef={cameraRef} observationElements={observationElements}
           editor={editorStarted ? { host: editorHost, open: editorOpen, close: closeEditor } : undefined}
           editorDragging={editorDragging}
           onReady={onReady} onContextLost={onContextLost} />}
-        {!ready && !contextLost && <p className={styles.loading} role="status">{english ? 'Unfolding the wasteland…' : '正在展开荒原'}</p>}
+        {!ready && !contextLost && <p className={styles.loading} role="status">{copy.loading}</p>}
       </SceneBoundary>
       <ExpanseInstrument ready={ready} reduced={reduced} unavailable={contextLost} stage={stage}
         hint={hint} progressBar={progressBar} progressFill={progressFill} cameraRef={cameraRef} />
@@ -242,8 +240,8 @@ export default function ExpanseExperience() {
         invalidate={invalidateScene} />
       <ExpanseNarrative subtitles={subtitles} endpointState={endpointState}
         ready={ready} reduced={reduced} unavailable={contextLost} />
-      <h1 className={styles.srOnly}>{english ? 'The Expanse' : 'The Expanse — 荒原'}</h1>
-      <noscript><div className={styles.unavailable}><p>{english ? `${englishLandscape} Enable JavaScript to explore.` : '连续沙脊与苍白浅谷，远方的倾斜柱阵与巨构。启用 JavaScript 后可进入空间。'}</p></div></noscript>
+      <h1 className={styles.srOnly}>{copy.title}</h1>
+      <noscript><div className={styles.unavailable}><p>{copy.noScript}</p></div></noscript>
       {process.env.NODE_ENV === 'development' && debug && <aside className={styles.debug} data-editor-open={editorOpen && !contextLost} aria-label="场景调试">
         <output ref={debugOutput} aria-label="章节进度、平滑滚动与原路径位置">{progressText({ raw: 0, value: 0 }, false)}</output>
         <div>主线 {subtitles.length} / {witnessSequence.length} · 全息卡 {observation ?? '关闭'}</div>
@@ -269,7 +267,7 @@ export default function ExpanseExperience() {
       {process.env.NODE_ENV === 'development' && debug && editorStarted && <div ref={editorHost} id="expanse-transform-inspector"
         className={styles.transformEditor} data-transform-inspector
         hidden={!editorOpen || contextLost} />}
-      <figcaption className={styles.srOnly}>{english ? 'Scroll down to approach the abandoned structures. Stop at any time or scroll up to retrace the journey.' : '以页面滚动走近遗落巨构。随时停止，向上滚动可以原路返回。'}</figcaption>
+      <figcaption className={styles.srOnly}>{copy.instructions}</figcaption>
     </figure>
     {(reduced || contextLost) && <ExpanseTranscript />}
   </main>;

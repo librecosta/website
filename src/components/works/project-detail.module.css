@@ -40,6 +40,15 @@
   cursor: pointer;
 }
 .viewTools p { color: var(--secondary); font: 600 11px/1.2 var(--instrument-type); }
+.viewTools .islandName {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+:global(html[data-localized]) .island { position: relative; }
+:global(html[data-localized]) .archive { overflow-wrap: anywhere; }
 .viewTools button:hover, .viewTools button:focus-visible { color: var(--color); }
 .viewTools button:focus-visible, .viewport canvas:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
 

@@ -4,6 +4,13 @@ body {
   line-height: 1.6;
 }
 
+html:lang(ja) {
+  --japanese-type: 'Hiragino Sans', 'Yu Gothic', Meiryo, 'Noto Sans CJK JP', sans-serif;
+  line-break: strict;
+}
+
+html:lang(ja) body { font-family: var(--japanese-type); }
+
 main {
   max-width: 64rem;
   margin: 0 auto;

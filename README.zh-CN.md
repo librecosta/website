@@ -34,7 +34,7 @@ pnpm preview
 | CN | `pnpm build:cn` | `dist/cn/` | EdgeOne Makers |
 | INTL | `pnpm build:intl` | `dist/intl/` | Cloudflare |
 
-使用 `pnpm preview cn` 或 `pnpm preview intl` 预览对应静态产物。发布前运行 `pnpm check:release cn` 或 `pnpm check:release intl`。两份产物均包含中英文内容，CN 正式站点 Origin 待确认。详见[地区与路由契约](docs/publication-routing.md)。
+使用 `pnpm preview cn` 或 `pnpm preview intl` 预览对应静态产物。发布前运行 `pnpm check:release cn` 或 `pnpm check:release intl`。两份产物均包含中文、英语、日语、德语、法语和西班牙语，CN 正式站点 Origin 待确认。详见[地区与路由契约](docs/publication-routing.md)。
 
 ## 项目文档
 

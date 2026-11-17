@@ -8,6 +8,10 @@
   background: #dedfd9;
   font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
+.journey:lang(ja) { font-family: var(--japanese-type); }
+:global(html[data-localized]) .observationData dl div { grid-template-columns: max-content auto; }
+.instrument:lang(ja) :is(.instrumentNav, .soundToggle, .observationData, .hint, .staticNote) { font-family: var(--japanese-type); }
+:global(html[data-localized]) .soundToggle > span { inline-size: max-content; }
 /* Route-scoped: hide chrome only. Native document scrolling stays intact. */
 :global(html):has(.journey) { scrollbar-width: none; }
 :global(html):has(.journey)::-webkit-scrollbar { display: none; width: 0; height: 0; }

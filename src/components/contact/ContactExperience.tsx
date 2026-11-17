@@ -4,12 +4,13 @@ import { useLayoutEffect } from 'react';
 import { animate, domAnimation, LazyMotion, m, useMotionValue, useReducedMotion } from 'motion/react';
 import { WorkshopFrame } from '@/components/WorkshopFrame';
 import { useSoftFocus } from '@/components/soft-focus';
-import { languageControlCopy } from '@/site/content';
-import { useEnglish } from '@/site/LocaleProvider';
+import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
+import { usesOriginalLayout } from '@/site/content';
 import styles from './contact.module.css';
 
 export function ContactExperience() {
-  const english = useEnglish();
+  const { contact: copy, shared } = useSiteCopy();
+  const { locale } = useSiteLocale();
   const reduced = useReducedMotion() === true;
   const clock = useMotionValue(1);
   const title = useSoftFocus(clock, 0, .72, 8, 13);
@@ -27,16 +28,16 @@ export function ContactExperience() {
     <WorkshopFrame route="/contact" reduced={reduced}>
       <main className={styles.screen} aria-labelledby="contact-title">
         <div className={styles.content}>
-          <m.h1 id="contact-title" className={styles.title} lang="en" style={reduced ? undefined : title} data-contact-reveal>
-            CONTACT
+          <m.h1 id="contact-title" className={styles.title} lang={usesOriginalLayout(locale) ? 'en' : undefined} style={reduced ? undefined : title} data-contact-reveal>
+            {copy.title}
           </m.h1>
           <m.p className={styles.intro} style={reduced ? undefined : intro} data-contact-reveal>
-            {english ? "For collaborations or conversations, we'd love to hear from you." : '不管是合作还是交流都欢迎您的来信。'}
+            {copy.intro}
           </m.p>
           <m.div className={styles.channels} style={reduced ? undefined : links} data-contact-reveal>
-            <a className={styles.email} href="mailto:contact@librecosta.com" lang="en">contact@librecosta.com</a>
+            <a className={styles.email} href="mailto:contact@librecosta.com" aria-label={copy.emailLabel}>contact@librecosta.com</a>
             <a className={styles.x} href="https://x.com/LibreCostaHQ" target="_blank" rel="noopener noreferrer"
-              aria-label={`@LibreCostaHQ${languageControlCopy[english ? 'en' : 'zh'].newTab}`}>@LibreCostaHQ</a>
+              aria-label={`@LibreCostaHQ${shared.newTab}`}>@LibreCostaHQ</a>
           </m.div>
         </div>
       </main>

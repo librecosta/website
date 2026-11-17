@@ -157,6 +157,8 @@
 .details > div { display: flex; flex-wrap: wrap; column-gap: 12px; }
 .details dt { flex: 0 0 5em; color: var(--secondary); }
 .details:lang(en) dt { flex-basis: 6.5em; white-space: nowrap; }
+:global(html[data-localized]) .details dt { flex: 0 0 auto; }
+:global(html[data-localized]) .details dd { overflow-wrap: anywhere; }
 .details dd { margin: 0; }
 .profileCopy { justify-self: end; width: min(100%, 440px); color: var(--secondary); font-size: 15px; }
 .profileCopy p + p { margin-top: 19px; }

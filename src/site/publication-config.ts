@@ -1,4 +1,4 @@
-import { reviewedContentLocales } from './content.ts';
+import { reviewedContentLocales, verifyLocaleCopy } from './content.ts';
 import { isLocale, type Locale, type Publication } from './locale-contract.ts';
 
 export function parsePublication(value: unknown): Publication {
@@ -15,6 +15,7 @@ export function parsePublication(value: unknown): Publication {
   }
   const unreviewed = publishedLocales.filter((locale: Locale) => !reviewedContentLocales.includes(locale));
   if (unreviewed.length) throw new Error(`${id} enables unreviewed content: ${unreviewed.join(', ')}.`);
+  publishedLocales.forEach(verifyLocaleCopy);
   return { id, defaultLocale, origin, publishedLocales };
 }
 

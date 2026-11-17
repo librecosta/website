@@ -2,5 +2,5 @@
   "id": "cn",
   "defaultLocale": "zh",
   "origin": null,
-  "publishedLocales": ["zh", "en"]
+  "publishedLocales": ["zh", "en", "ja", "de", "fr", "es"]
 }

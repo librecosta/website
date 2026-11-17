@@ -1,13 +1,14 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
-import { useEnglish } from '@/site/LocaleProvider';
-import { englishObservationRecords, observationIds, observationRecords, type ObservationId } from './narrative';
+import { useSiteCopy } from '@/site/LocaleProvider';
+import { siteCopy } from '@/site/content';
+import { observationCodes, observationIds, type ObservationId } from './narrative';
 import type { ObservationElements } from './ObservationProjection';
 import styles from './signals.module.css';
 
 function SignalCard({ id, elements, invalidate }: {
   id: ObservationId; elements: RefObject<ObservationElements>; invalidate: () => void;
 }) {
-  const english = useEnglish();
+  const copy = useSiteCopy().world;
   const panel = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     elements.current.card = { id, node: panel.current! };
@@ -17,7 +18,7 @@ function SignalCard({ id, elements, invalidate }: {
       invalidate();
     };
   }, [id, elements, invalidate]);
-  const record = (english ? englishObservationRecords : observationRecords)[id];
+  const record = copy.observations[id];
   return <section ref={panel} id="expanse-signal-card" className={styles.srOnly}
     aria-labelledby="expanse-signal-name" data-signal-card={id}>
     <h2 id="expanse-signal-name">{record.name}</h2>
@@ -29,14 +30,14 @@ export function ExpanseSignals({ elements, enabled, active, read, onSelect, inva
   elements: RefObject<ObservationElements>; enabled: boolean; active: ObservationId | null;
   read: ReadonlySet<ObservationId>; onSelect: (id: ObservationId) => void; invalidate: () => void;
 }) {
-  const english = useEnglish();
-  const records = english ? englishObservationRecords : observationRecords;
+  const copy = useSiteCopy().world;
+  const records = copy.observations;
   return <div className={styles.signals} hidden={!enabled}>
     {observationIds.map(id => {
       const record = records[id];
       return <button key={id} className={styles.marker} type="button" data-observation={id}
         ref={button => { elements.current.buttons[id] = button; }}
-        aria-label={`${record.id} · ${record.name}${read.has(id) ? (english ? ', read' : '，已阅读') : ''}`}
+        aria-label={`${observationCodes[id]} · ${record.name}${read.has(id) ? copy.read : ''}`}
         aria-expanded={active === id} aria-controls={active === id ? 'expanse-signal-card' : undefined}
         data-read={read.has(id)} onClick={() => onSelect(id)}>
         <svg className={styles.locator} viewBox="0 0 44 44" fill="none" aria-hidden="true">
@@ -46,7 +47,7 @@ export function ExpanseSignals({ elements, enabled, active, read, onSelect, inva
             stroke="currentColor" />
         </svg>
         {active === id && <i className={styles.scan} aria-hidden="true" />}
-        <span className={styles.label} aria-hidden="true">{record.id} / {record.name}</span>
+        <span className={styles.label} aria-hidden="true">{observationCodes[id]} / {record.name}</span>
       </button>;
     })}
     {enabled && active && <SignalCard key={active} id={active} elements={elements} invalidate={invalidate} />}
@@ -57,7 +58,7 @@ export function SignalReadouts({ elements }: { elements: RefObject<ObservationEl
   return <details className={styles.debugSignals}>
     <summary>观测锚点 · 世界 XYZ</summary>
     <ul>{observationIds.map(id => <li key={id}>
-      <span>{observationRecords[id].id} {observationRecords[id].name}</span>
+      <span>{observationCodes[id]} {siteCopy.zh.world.observations[id].name}</span>
       <span ref={node => { elements.current.readouts[id] = node; }} data-anchor-readout={id}>unmounted</span>
     </li>)}
       <li><span>全息卡</span><span ref={node => { elements.current.cardReadout = node; }} data-card-readout>关闭</span></li>

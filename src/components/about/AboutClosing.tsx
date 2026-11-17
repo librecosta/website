@@ -2,8 +2,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type PointerEvent, type RefObject } from 'react';
 import { AnimatePresence, animate, m, useInView, useMotionValue, useSpring } from 'motion/react';
 import { localePath } from '@/site/locale-contract';
-import { useSiteLocale } from '@/site/LocaleProvider';
-import { englishAbout } from './copy';
+import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
 import { useSoftFocus } from '../soft-focus';
 import styles from './about-closing.module.css';
 
@@ -18,7 +17,7 @@ const previewSpring = { stiffness: 280, damping: 34, mass: .65 };
 
 export function AboutClosing({ reduced }: { reduced: boolean }) {
   const { locale, defaultLocale } = useSiteLocale();
-  const english = locale === 'en';
+  const text = useSiteCopy().about.closing;
   const copy = useRef<HTMLDivElement>(null);
   const inView = useInView(copy, { amount: .3 });
   const clock = useMotionValue(0);
@@ -38,9 +37,9 @@ export function AboutClosing({ reduced }: { reduced: boolean }) {
   return <section className={styles.closing} id="closing" aria-labelledby="closing-title">
     <div className={styles.copy} ref={copy}>
       <m.h2 id="closing-title" className={styles.title} lang="en" style={reduced ? undefined : title} data-closing-reveal>LET’S TALK.</m.h2>
-      <m.p className={styles.intro} style={reduced ? undefined : intro} data-closing-reveal>{english ? englishAbout.closing.intro : '想交流软件、开源或交互设计，欢迎联系我们。'}</m.p>
+      <m.p className={styles.intro} style={reduced ? undefined : intro} data-closing-reveal>{text.intro}</m.p>
       <m.div className={styles.contact} style={reduced ? undefined : contact} data-closing-reveal>
-        <Link href={localePath('/contact', locale, defaultLocale)} prefetch={false}>{english ? englishAbout.closing.contact : '联系我们'}
+        <Link href={localePath('/contact', locale, defaultLocale)} prefetch={false}>{text.contact}
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M2 8h11M8 3l5 5-5 5" />
           </svg>
@@ -93,6 +92,7 @@ function planPreview(target: Target, row: DOMRect, copy: DOMRect, width: number,
 
 function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null>; reduced: boolean }) {
   const { locale, defaultLocale } = useSiteLocale();
+  const { about, shared } = useSiteCopy();
   const row = useRef<HTMLElement>(null);
   const hovered = useRef<Target | null>(null);
   const focused = useRef<Target | null>(null);
@@ -147,7 +147,7 @@ function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null
     return { index, link: event.currentTarget, point: { x: event.clientX, y: event.clientY } };
   }
 
-  return <nav className={styles.links} ref={row} lang="en" aria-label={locale === 'en' ? englishAbout.closing.links : '更多 LibreCosta 链接'}
+  return <nav className={styles.links} ref={row} aria-label={about.closing.links}
     onKeyDown={event => {
       if (event.key !== 'Escape') return;
       hovered.current = focused.current = null;
@@ -176,8 +176,8 @@ function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null
         },
       };
       return href === '/works'
-        ? <Link key={href} href={localePath(href, locale, defaultLocale)} prefetch={false} {...handlers}>{label}</Link>
-        : <a key={href} href={href} target="_blank" rel="noopener noreferrer" {...handlers}>{label}</a>;
+        ? <Link key={href} href={localePath(href, locale, defaultLocale)} prefetch={false} {...handlers}>{about.closing.works}</Link>
+        : <a key={href} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${label}${shared.newTab}`} {...handlers}>{label}</a>;
     })}
     <m.div className={styles.previewPosition} style={{ x, y, rotate, width, height }} aria-hidden="true">
       <AnimatePresence>

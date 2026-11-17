@@ -1,5 +1,7 @@
 import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from 'three';
-import { englishObservationRecords, observationRecords, type ObservationId } from './narrative';
+import { siteCopy } from '@/site/content';
+import type { Locale } from '@/site/locale-contract';
+import { observationCodes, type ObservationId } from './narrative';
 
 export const signalPanel = {
   width: 340,
@@ -29,10 +31,13 @@ function stroke(context: CanvasRenderingContext2D, color: string, width: number,
   context.stroke();
 }
 
-function paintPanel(context: CanvasRenderingContext2D, id: ObservationId, english: boolean) {
+function paintPanel(context: CanvasRenderingContext2D, id: ObservationId, locale: Locale) {
   const { width, height } = signalPanel;
-  const record = (english ? englishObservationRecords : observationRecords)[id];
-  const textFont = english ? 'system-ui, sans-serif' : chinese;
+  const record = siteCopy[locale].world.observations[id];
+  const compact = locale !== 'zh';
+  const spaceSeparated = locale !== 'zh' && locale !== 'ja';
+  const textFont = locale === 'zh' ? chinese : locale === 'ja'
+    ? '"Yu Gothic", "Hiragino Sans", "Meiryo", "Noto Sans CJK JP", sans-serif' : 'system-ui, sans-serif';
   const digits = getComputedStyle(document.documentElement).getPropertyValue('--instrument-type').trim() || 'monospace';
   context.clearRect(0, 0, width, height);
 
@@ -64,19 +69,19 @@ function paintPanel(context: CanvasRenderingContext2D, id: ObservationId, englis
   context.textBaseline = 'middle';
   context.fillStyle = '#32413d';
   context.font = `600 14px ${digits}`;
-  context.fillText(record.id, 21, 28);
+  context.fillText(observationCodes[id], 21, 28);
   context.fillStyle = '#182321';
   context.font = `600 18px ${textFont}`;
-  context.fillText(record.name, 63, 27.5);
-  context.font = `500 ${english ? 16 : 18}px ${textFont}`;
+  context.fillText(record.name, 63, 27.5, width - 84);
+  context.font = `500 ${compact ? 16 : 18}px ${textFont}`;
   context.shadowColor = '#f1f2f0aa';
   context.shadowBlur = 2;
-  let baseline = english ? 65 : 69;
-  const lineHeight = english ? 19 : 22;
+  let baseline = compact ? 65 : 69;
+  const lineHeight = compact ? 19 : 22;
   for (const paragraph of record.lines) {
     let line = '';
-    for (const part of english ? paragraph.split(' ') : paragraph) {
-      const next = english && line ? `${line} ${part}` : line + part;
+    for (const part of spaceSeparated ? paragraph.split(' ') : paragraph) {
+      const next = spaceSeparated && line ? `${line} ${part}` : line + part;
       if (line && context.measureText(next).width > width - 44) {
         context.fillText(line, 21, baseline);
         baseline += lineHeight;
@@ -89,7 +94,7 @@ function paintPanel(context: CanvasRenderingContext2D, id: ObservationId, englis
   context.shadowBlur = 0;
 }
 
-export function createObservationGraphics(english: boolean) {
+export function createObservationGraphics(locale: Locale) {
   const sheet = makeTexture(signalPanel.width, signalPanel.height);
   const material = new MeshBasicMaterial({ map: sheet.texture, transparent: true, depthWrite: false,
     toneMapped: false, fog: false });
@@ -98,7 +103,7 @@ export function createObservationGraphics(english: boolean) {
   panel.visible = false;
   return {
     panel,
-    paint(id: ObservationId) { paintPanel(sheet.context, id, english); sheet.texture.needsUpdate = true; },
+    paint(id: ObservationId) { paintPanel(sheet.context, id, locale); sheet.texture.needsUpdate = true; },
     dispose() { geometry.dispose(); material.dispose(); sheet.texture.dispose(); },
   };
 }

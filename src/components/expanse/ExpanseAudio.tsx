@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { gsap } from 'gsap';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
-import { useEnglish } from '@/site/LocaleProvider';
+import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
+import { usesOriginalLayout } from '@/site/content';
 import type { AudioBus } from '@/components/audio/site-audio';
 import { EncryptedLabel, useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
 
 function AudioStartPrompt({ stage, onEnable }: { stage: RefObject<HTMLElement | null>; onEnable: () => void }) {
+  const { audio } = useSiteCopy().world;
+  const { locale } = useSiteLocale();
   const prompt = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const surface = stage.current, label = prompt.current;
@@ -57,17 +60,18 @@ function AudioStartPrompt({ stage, onEnable }: { stage: RefObject<HTMLElement | 
     return () => context.revert();
   }, [onEnable, stage]);
 
-  return <div ref={prompt} className={styles.audioStartPrompt} lang="en" aria-hidden="true">
-    <span>Click to<br />enable audio</span>
+  return <div ref={prompt} className={styles.audioStartPrompt} lang={usesOriginalLayout(locale) ? 'en' : undefined} aria-hidden="true">
+    <span>{audio.prompt[0]}<br />{audio.prompt[1]}</span>
   </div>;
 }
 
 export function ExpanseSoundToggle({ stage, showPrompt, reduced }: {
   stage: RefObject<HTMLElement | null>; showPrompt: boolean; reduced: boolean;
 }) {
-  const english = useEnglish();
+  const { audio } = useSiteCopy().world;
+  const { locale } = useSiteLocale();
   const { enabled, enable, cue, windStatus, setWindActive } = useSiteAudio();
-  const label = enabled ? 'SOUND ON' : 'SOUND OFF';
+  const label = enabled ? audio.on : audio.off;
   const { play, noise } = useEncryptedText(label, reduced);
   const [failed, setFailed] = useState(false);
   const [started, setStarted] = useState(enabled);
@@ -88,9 +92,9 @@ export function ExpanseSoundToggle({ stage, showPrompt, reduced }: {
   const start = useCallback(() => { void setSound(true); }, [setSound]);
 
   return <>
-    <button type="button" className={styles.soundToggle} lang="en"
-      aria-label={english ? (enabled ? 'Sound On' : 'Sound Off') : 'Scene sound'} aria-pressed={enabled}
-      aria-description={failed ? 'Audio could not start' : windStatus === 'missing' ? 'Local wind audio is unavailable' : undefined}
+    <button type="button" className={styles.soundToggle} lang={usesOriginalLayout(locale) ? 'en' : undefined}
+      aria-label={enabled ? audio.labelOn : audio.labelOff} aria-pressed={enabled}
+      aria-description={failed ? audio.failure : windStatus === 'missing' ? audio.windMissing : undefined}
       onPointerEnter={event => { if (event.pointerType === 'mouse') { cue('hover'); play(); } }}
       onFocus={event => { if (event.currentTarget.matches(':focus-visible')) play(); }}
       onClick={() => void setSound(!enabled)}>

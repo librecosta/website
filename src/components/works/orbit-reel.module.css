@@ -115,6 +115,7 @@
 }
 .cardLabel strong { font-size: clamp(4.5px, calc(7 * var(--card-unit)), 23px); font-weight: 600; }
 .cardLabel span { color: #aebbd4; font-size: clamp(4px, calc(4.3 * var(--card-unit)), 13px); white-space: nowrap; }
+:global(html[data-localized]) .cardLabel span { white-space: normal; overflow-wrap: anywhere; }
 
 .card:focus-visible, .control:focus-visible {
   outline: 2px solid #b7cef2;

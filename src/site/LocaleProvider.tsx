@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, type ReactNode } from 'react';
+import { siteCopy } from './content';
 import type { Locale, Publication } from './locale-contract';
 
 type SiteLocale = {
@@ -21,6 +22,6 @@ export function useSiteLocale() {
   return value;
 }
 
-export function useEnglish() {
-  return useSiteLocale().locale === 'en';
+export function useSiteCopy() {
+  return siteCopy[useSiteLocale().locale];
 }

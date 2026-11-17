@@ -17,6 +17,8 @@
 .page *, .page *::before, .page *::after { box-sizing: border-box; }
 .page :where(h1, h2, h3, p, dl, dd) { margin: 0; }
 .page a:focus-visible { outline: 2px solid #b7cef2; outline-offset: 2px; }
+.page:lang(ja) { font-family: var(--japanese-type); }
+:global(html[data-localized]) .frame .dossier dl > div { grid-template-columns: max-content auto; }
 
 .page .frame {
   --instrument-ink: #cfdbf0;
