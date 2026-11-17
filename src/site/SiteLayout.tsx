@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { AudioProvider } from '@/components/audio/AudioProvider';
+import { cnCompliance } from './cn-compliance';
 import { usesOriginalLayout } from './content';
 import { LocaleProvider } from './LocaleProvider';
 import type { Locale } from './locale-contract';
@@ -20,7 +21,7 @@ export function siteMetadata(locale: Locale): Metadata {
 
 export function SiteLayout({ locale, children }: { locale: Locale; children: ReactNode }) {
   return <html lang={locale} className={instrumentFont.variable} data-localized={!usesOriginalLayout(locale) || undefined}><body>
-    <LocaleProvider value={{ locale, publication }}>
+    <LocaleProvider value={{ locale, publication, compliance: publication.id === 'cn' ? cnCompliance : undefined }}>
       <AudioProvider>{children}</AudioProvider>
     </LocaleProvider>
   </body></html>;

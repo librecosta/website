@@ -22,7 +22,7 @@ export const zh = {
     webgl: '三维视图暂不可用。此体验需要 WebGL2。', canvasFallback: '苍白荒原与半埋巨构。三维视图需要 WebGL2。',
     reload: '刷新后重试', loading: { starting: '正在初始化场景', assets: '正在加载场景资源', presenting: '正在准备画面', ready: '可以开始探索' }, scroll: 'Scroll to explore', progress: '旅程进度',
     audio: { on: 'SOUND ON', off: 'SOUND OFF', labelOn: 'Scene sound', labelOff: 'Scene sound', indicatorOn: '声音开启', indicatorOff: '声音关闭',
-      prompt: ['Click to', 'enable audio'], failure: 'Audio could not start', windMissing: 'Local wind audio is unavailable' },
+      prompt: ['Click to', 'enable audio'], failure: 'Audio could not start', windMissing: 'Wind audio is unavailable' },
     readout: { site: 'SITE', basin: 'PALE BASIN', sector: 'SECTOR', time: 'OBS T+', position: 'POS X / Y / Z', chapter: '第 1 章，共 5 章' },
     transcript: '第一幕 · 荒原', witnessLabel: '独白', observationsLabel: '观测记录', read: '，已阅读', readAct: '阅读本幕', staticView: '静态观览',
     witness: { '01': ['我...在哪？', '那是什么？'], '02': ['城市...', '似乎和我记忆中的不同...'], '03': ['我想……进去看看。'] },

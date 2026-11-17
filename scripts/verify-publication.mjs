@@ -1,18 +1,22 @@
-import { open, readFile, readdir, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, join, relative } from 'node:path';
 import { projectPreviews } from '../src/components/project-previews.ts';
+import { cnCompliance } from '../src/site/cn-compliance.ts';
 import { homePage, pagePath, sitePages } from '../src/site/locale-contract.ts';
+import { llmsText, securityContact, securityLifetimeMs, securityTextPath } from '../src/site/publication-files.ts';
 import { indexingAllowed, pageAlternates, pageSeo, robotsText, sitemapXml, websiteSchema } from '../src/site/seo.ts';
+import windReview from './expanse-wind-review.json' with { type: 'json' };
 
-export const windFiles = ['expanse-wind.opus', 'expanse-wind.mp3'];
-const windAssets = windFiles.map(file => `audio/local/${file}`);
+const windFiles = ['expanse-wind.opus', 'expanse-wind.mp3'];
 const requiredAssets = [
-  'robots.txt',
+  'robots.txt', 'llms.txt', securityTextPath,
   'favicon.ico', 'favicon-96.png', 'apple-touch-icon.png',
   'brand/librecosta-mark.svg', 'brand/librecosta-logo-512.png', 'og/librecosta-default.png',
   'expanse/entrance-ruin.glb',
   'audio/warm-atmosphere.opus',
   'audio/warm-atmosphere.mp3',
+  ...windFiles.map(file => `audio/${file}`),
   'works/draco/draco_decoder.wasm',
   'works/draco/draco_wasm_wrapper.js',
   'about/closing/works-world.webp',
@@ -33,11 +37,12 @@ const localOrigin = 'https://publication.invalid';
 
 function isOutputFile(file, pages, indexing) {
   if (file === 'sitemap.xml') return indexing;
+  if (file === securityTextPath) return true;
   const parts = file.split('/');
   if (parts.some(part => part.startsWith('.'))) return false;
   const extension = extname(file);
   if (parts[0] === '_next') return nextTypes.has(extension);
-  if (file.startsWith('audio/local/')) return windAssets.includes(file);
+  if (file.startsWith('audio/local/')) return false;
   if (publicDirs.has(parts[0]) && publicTypes.has(extension)) return true;
   if (requiredAssets.includes(file)) return true;
   if (pages.has(file)) return true;
@@ -115,24 +120,53 @@ function verifyPageSeo(html, path, page, locale, publication, indexing) {
   }
 }
 
-async function verifyWind(directory, files) {
-  const present = windAssets.filter(file => files.has(file));
-  if (!present.length) return false;
-  if (present.length !== windAssets.length) throw new Error('Expanse wind needs both Opus and MP3.');
-  for (const name of present) {
-    const file = await open(join(directory, name), 'r');
-    try {
-      const header = Buffer.alloc(64);
-      await file.read(header);
-      const valid = name.endsWith('.opus')
-        ? header.toString('ascii', 0, 4) === 'OggS' && header.includes('OpusHead')
-        : header.toString('ascii', 0, 3) === 'ID3' || (header[0] === 0xff && (header[1] & 0xe0) === 0xe0);
-      if (!valid) throw new Error(`Invalid wind audio: ${name}`);
-    } finally {
-      await file.close();
+async function verifyWind(directory) {
+  for (const name of windFiles) {
+    // A managed build does not need FFmpeg. Match the exact encoded bytes
+    // decoded and measured by prepare-audio.py, including the playback seam.
+    const review = windReview[name];
+    const bytes = await readFile(join(directory, 'audio', name));
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    if (!review || sha256 !== review.sha256 || review.seconds !== 58 ||
+      !(review.rmsDbfs >= -25 && review.rmsDbfs <= -21 && review.peakDbfs <= -3 && review.loopStep >= 0 && review.loopStep <= .025)) {
+      throw new Error(`Expanse wind failed the decoded audio review: ${name}`);
     }
   }
-  return true;
+}
+
+async function verifyPublicationFiles(directory, publication, routes) {
+  const llms = await readFile(join(directory, 'llms.txt'), 'utf8');
+  const links = [...llms.matchAll(/\]\(([^)]+)\)/g)].map(([, href]) => new URL(href, publication.origin ?? localOrigin));
+  const expected = publication.id === 'cn' ? [...routes.keys()]
+    : [...routes].filter(([, route]) => route.locale === publication.defaultLocale).map(([path]) => path);
+  if (llms !== llmsText(publication) || links.length !== expected.length || new Set(links.map(url => url.pathname)).size !== expected.length ||
+    links.some(url => url.origin !== (publication.origin ?? localOrigin) || !expected.includes(url.pathname))) {
+    throw new Error('llms.txt does not match the published routes.');
+  }
+
+  const security = await readFile(join(directory, securityTextPath), 'utf8');
+  const [contact, expires, finalLine, ...extra] = security.split('\n');
+  const timestamp = expires?.match(/^Expires: (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)$/)?.[1];
+  const expiry = Date.parse(timestamp);
+  const now = Date.now();
+  if (contact !== securityContact || finalLine !== '' || extra.length || !(expiry > now && expiry - now <= securityLifetimeMs) ||
+    new Date(expiry).toISOString().replace('.000Z', 'Z') !== timestamp) {
+    throw new Error('Invalid or expired security.txt. Build a fresh publication.');
+  }
+}
+
+function verifyCompliance(html, path, page, publication) {
+  const footers = [...html.matchAll(/<footer\b[^>]*\bdata-publication-compliance="([^"]+)"[^>]*>([\s\S]*?)<\/footer>/g)];
+  if (publication.id === 'intl') {
+    if (footers.length || html.includes(cnCompliance.filing) || html.includes(cnCompliance.publicSecurity) || html.includes(cnCompliance.copyright)) {
+      throw new Error(`CN filing data leaked into ${path}.`);
+    }
+    return;
+  }
+  const [, mode, footer] = footers[0] ?? [];
+  if (footers.length !== 1 || mode !== (page === 'about' ? 'flow' : 'docked') ||
+    !footer.includes(cnCompliance.copyright) || !footer.includes(`href="${cnCompliance.filingUrl}">${cnCompliance.filing}</a>`) ||
+    !footer.includes(`<span>${cnCompliance.publicSecurity}</span>`)) throw new Error(`Incorrect CN filing information in ${path}.`);
 }
 
 export async function verifyExport(directory, publication) {
@@ -175,6 +209,8 @@ export async function verifyExport(directory, publication) {
   if (indexing && (await readFile(join(directory, 'sitemap.xml'), 'utf8')) !== sitemapXml(publication)) {
     throw new Error('Unexpected live sitemap.');
   }
+  await verifyPublicationFiles(directory, publication, routes);
+  await verifyWind(directory);
   const notFound = await readFile(join(directory, '404.html'), 'utf8');
   if (!/<meta name="robots" content="noindex/.test(notFound)) throw new Error('404 may be indexed.');
   verifyHtml(notFound, '/404.html', routes, files);
@@ -191,6 +227,7 @@ export async function verifyExport(directory, publication) {
     }
     verifyPageSeo(html, path, page, locale, publication, indexing);
     verifyHtml(html, path, routes, files);
+    verifyCompliance(html, path, page, publication);
   }
-  return { pages: pages.size, files: files.size, bytes, largest, windAvailable: await verifyWind(directory, files) };
+  return { pages: pages.size, files: files.size, bytes, largest };
 }

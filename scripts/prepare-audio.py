@@ -1,9 +1,12 @@
-"""Render the local Web Audio sources with Python 3 and FFmpeg."""
+"""Render the original Web Audio loops with Python 3 and FFmpeg."""
 
 import argparse
 import array
+import hashlib
+import json
 import math
 from pathlib import Path
+import random
 import subprocess
 import tempfile
 import wave
@@ -13,6 +16,9 @@ RATE = 48000
 MUSIC_RATE = 24000
 SECONDS = 52
 OUTPUT = Path(__file__).resolve().parents[1] / 'public' / 'audio' / 'local'
+WIND_REVIEW = Path(__file__).with_name('expanse-wind-review.json')
+WIND_RATE = 24000
+WIND_SECONDS = 58
 
 # Beds: start, duration, MIDI voicing, level. Replies: start, duration, note, level, pan.
 STUDIES = {
@@ -84,24 +90,56 @@ def render_study(score, mechanical):
                b + .21 * left[i - short] + .12 * right[i - long] + .063 * left[i - late])
 
 
-def render_wind(ffmpeg, path):
-    raw = subprocess.check_output([ffmpeg, '-v', 'error', '-ss', '2.5', '-i', str(path), '-t', '34',
-                                   '-af', 'highpass=f=65,lowpass=f=6700', '-ar', str(RATE), '-ac', '2',
-                                   '-f', 'f32le', '-'])
-    samples = array.array('f')
-    samples.frombytes(raw)
-    frames = len(samples) // 2
-    overlap = round(4.5 * RATE)
-    if frames < 3 * overlap:
-        raise ValueError('Wind input is too short for the authored loop.')
-    for i in range(overlap, frames - overlap):
-        yield samples[i*2], samples[i*2+1]
-    for i in range(overlap):
-        weight = i / (overlap - 1) * math.pi / 2
-        a, b = math.cos(weight), math.sin(weight)
-        tail = (frames - overlap + i) * 2
-        head = i * 2
-        yield samples[tail] * a + samples[head] * b, samples[tail+1] * a + samples[head+1] * b
+def filter_wind(samples, cutoff, highpass):
+    # Prime the Butterworth filter with half a second from the end of the loop.
+    angle = math.tau * cutoff / WIND_RATE
+    cosine = math.cos(angle)
+    alpha = math.sin(angle) / math.sqrt(2)
+    b0 = (1 + cosine if highpass else 1 - cosine) / (2 * (1 + alpha))
+    b1 = (-2 if highpass else 2) * b0
+    a1, a2 = -2 * cosine / (1 + alpha), (1 - alpha) / (1 + alpha)
+    z1 = z2 = 0.
+    for i in range(-WIND_RATE // 2, len(samples)):
+        value = samples[i]
+        output = b0 * value + z1
+        z1, z2 = b1 * value - a1 * output + z2, b0 * value - a2 * output
+        if i >= 0:
+            samples[i] = output
+
+
+def wind_band(rng, count, low, high):
+    samples = array.array('f', (rng.uniform(-1, 1) for _ in range(count)))
+    filter_wind(samples, low, highpass=True)
+    filter_wind(samples, high, highpass=False)
+    return samples
+
+
+def wind_envelope(rng, durations, low, high):
+    # Irregular periods and gentle slopes keep the gusts from beating in time.
+    amplitudes = [rng.uniform(low, high) for _ in durations]
+    for i, duration in enumerate(durations):
+        start, end = amplitudes[i - 1], amplitudes[i]
+        frames = round(duration * WIND_RATE)
+        for frame in range(frames):
+            weight = .5 - .5 * math.cos(math.pi * frame / frames)
+            yield start + (end - start) * weight
+
+
+def render_wind():
+    rng = random.Random(20181123)
+    frames = WIND_RATE * WIND_SECONDS
+    air = wind_band(rng, frames, 55, 260)
+    body = wind_band(rng, frames, 150, 780)
+    grain = wind_band(rng, frames, 640, 3900)
+    wake = wind_band(rng, frames, 245, 1850)
+    gusts = wind_envelope(rng, [6, 12, 5, 8, 10, 4, 13], .52, 1.25)
+    sand = wind_envelope(rng, [3, 6, 5, 4, 8, 2, 6, 3, 7, 4, 5, 5], .12, .58)
+    delay = round(.016 * WIND_RATE)
+    for i, (gust, grit) in enumerate(zip(gusts, sand)):
+        bed = (.71 * air[i] + .36 * body[i]) * gust
+        surface = .135 * grain[i] * grit
+        yield (bed + surface + .14 * wake[i] * gust,
+               bed + .135 * grain[i - delay] * grit + .14 * wake[i - delay] * gust)
 
 
 def encode(ffmpeg, stem, frames, rms_db, opus_kbps, rate=RATE):
@@ -122,24 +160,64 @@ def encode(ffmpeg, stem, frames, rms_db, opus_kbps, rate=RATE):
             ('opus', ['-c:a', 'libopus', '-b:a', f'{opus_kbps}k', '-vbr', 'constrained']),
             ('mp3', ['-c:a', 'libmp3lame', '-b:a', '64k', '-write_xing', '1']),
         ):
-            folder = OUTPUT.parent if stem == 'warm-atmosphere' else OUTPUT
+            folder = OUTPUT if stem == 'ethereal-machinery' else OUTPUT.parent
             target = folder / f'{stem}.{extension}'
-            subprocess.run([ffmpeg, '-v', 'error', '-y', '-i', str(wav), *options, str(target)], check=True)
+            muxer_options = ['-fflags', '+bitexact'] if stem == 'expanse-wind' else []
+            subprocess.run([ffmpeg, '-v', 'error', '-y', '-i', str(wav), *options, *muxer_options, str(target)], check=True)
             print(f'{target.name}: {len(pcm) / (2 * rate):.2f} s, {target.stat().st_size:,} bytes', flush=True)
+
+
+def measure_wind(ffmpeg):
+    results = {}
+    for extension in ('opus', 'mp3'):
+        path = OUTPUT.parent / f'expanse-wind.{extension}'
+        samples = array.array('f')
+        samples.frombytes(subprocess.check_output([
+            ffmpeg, '-v', 'error', '-i', str(path), '-ar', str(WIND_RATE), '-ac', '2', '-f', 'f32le', '-'
+        ]))
+        start = WIND_RATE // 4 * 2
+        end = len(samples) - start
+        expected = WIND_SECONDS * WIND_RATE * 2
+        if end - start != expected or not all(map(math.isfinite, samples)):
+            raise ValueError(f'{path.name}: incorrect decoded length or nonfinite sample')
+        loop = samples[start:end]
+        rms = math.sqrt(sum(value * value for value in loop) / len(loop))
+        peak = max(map(abs, loop))
+        # The browser's last splice sample uses the wrap guard, not the encoded tail.
+        seam = max(abs(samples[start + channel] - samples[start + channel - 2]) for channel in range(2))
+        rms_db = 20 * math.log10(rms)
+        peak_db = 20 * math.log10(peak)
+        if not -25 <= rms_db <= -21 or peak_db > -3 or seam > .025:
+            raise ValueError(f'{path.name}: RMS {rms_db:.2f}, peak {peak_db:.2f}, seam {seam:.5f}')
+        results[path.name] = {
+            'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+            'seconds': (end - start) / (2 * WIND_RATE),
+            'rmsDbfs': round(rms_db, 2),
+            'peakDbfs': round(peak_db, 2),
+            'loopStep': round(seam, 5),
+        }
+    return json.dumps(results, indent=2) + '\n'
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ffmpeg', default='ffmpeg')
-    parser.add_argument('--wind', type=Path, help='Local copy of mixkit-arctic-winds-1154.wav')
+    parser.add_argument('--wind', action='store_true', help='Render and measure the first-party wind loop')
+    parser.add_argument('--check-wind', action='store_true', help='Verify the measured release audio without rewriting it')
     parser.add_argument('--studies', action='store_true', help='Render both original audition loops')
     args = parser.parse_args()
-    if not args.wind and not args.studies:
-        parser.error('Select --wind, --studies, or both.')
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    if not (args.wind or args.check_wind or args.studies):
+        parser.error('Select --wind, --check-wind, or --studies.')
     if args.wind:
-        encode(args.ffmpeg, 'expanse-wind', render_wind(args.ffmpeg, args.wind), -23, 36)
+        encode(args.ffmpeg, 'expanse-wind', render_wind(), -23, 36, WIND_RATE)
+        WIND_REVIEW.write_text(measure_wind(args.ffmpeg), encoding='utf-8')
+    if args.check_wind:
+        review = measure_wind(args.ffmpeg)
+        if review != WIND_REVIEW.read_text(encoding='utf-8'):
+            raise ValueError('The audio does not match the committed wind review.')
+        print(review, end='')
     if args.studies:
+        OUTPUT.mkdir(parents=True, exist_ok=True)
         for stem, score in STUDIES.items():
             encode(args.ffmpeg, stem, render_study(score, stem == 'ethereal-machinery'), -22.5, 40, MUSIC_RATE)
 

@@ -34,6 +34,11 @@
   overflow: hidden;
   touch-action: pan-y;
 }
+@media (max-width: 760px) {
+  .stage:has([data-publication-compliance='docked']) {
+    --edge-bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 38px);
+  }
+}
 .canvas { position: absolute !important; inset: 0; opacity: 0; pointer-events: none; touch-action: pan-y; }
 .journey[data-ready='true'] .canvas { opacity: 1; }
 .instrument {
@@ -375,6 +380,12 @@
 }
 @media (max-width: 400px) {
   .brand { width: 126px; }
+}
+@media (max-width: 440px) {
+  .stage .observationData {
+    bottom: calc(var(--edge-bottom) + var(--corner-content-bottom) + 34px);
+  }
+  .stage .readout { bottom: calc(var(--edge-bottom) + var(--rail) + 91px); }
 }
 .journey[data-reduced='true'] :is(.reticle, .socialLinks svg) { transition: none; }
 .journey[data-reduced='true'] .instrument { animation: none; }

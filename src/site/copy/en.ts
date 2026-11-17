@@ -22,7 +22,7 @@ export const en = {
     webgl: 'This 3D experience requires WebGL 2.', canvasFallback: 'This 3D experience requires WebGL 2.', reload: 'Reload and Try Again',
     loading: { starting: 'Starting the renderer', assets: 'Loading scene assets', presenting: 'Preparing the scene', ready: 'Ready to explore' }, scroll: 'Scroll to explore', progress: 'Journey Progress',
     audio: { on: 'SOUND ON', off: 'SOUND OFF', labelOn: 'Sound On', labelOff: 'Sound Off', indicatorOn: 'Sound On', indicatorOff: 'Sound Off',
-      prompt: ['Click to', 'enable audio'], failure: 'Audio could not start', windMissing: 'Local wind audio is unavailable' },
+      prompt: ['Click to', 'enable audio'], failure: 'Audio could not start', windMissing: 'Wind audio is unavailable' },
     readout: { site: 'SITE', basin: 'PALE BASIN', sector: 'SECTOR', time: 'OBS T+', position: 'POS X / Y / Z', chapter: 'Chapter 1 of 5' },
     transcript: 'Act I · The Expanse', witnessLabel: 'Witness narrative', observationsLabel: 'Observation records', read: ', read', readAct: 'Read Act I', staticView: 'Static View',
     witness: { '01': ['Where… am I?', 'What is that?'], '02': ['A city…', 'It looks different from what I remember…'], '03': ["I want to… see what's inside."] },

@@ -146,7 +146,7 @@ export class SiteAudio {
   private async startWind() {
     if (this.wind) return;
     try {
-      const buffer = await this.load('local/expanse-wind');
+      const buffer = await this.load('expanse-wind');
       if (!this.audible || !this.windActive || this.wind) return;
       this.wind = this.loop(buffer, 'wind');
       this.fade(this.wind.gain.gain, 1, musicFade);

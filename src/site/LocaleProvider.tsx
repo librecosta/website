@@ -2,11 +2,13 @@
 
 import { createContext, useContext, type ReactNode } from 'react';
 import { siteCopy } from './content';
+import type { cnCompliance } from './cn-compliance';
 import type { Locale, Publication } from './locale-contract';
 
 type SiteLocale = {
   locale: Locale;
   publication: Publication;
+  compliance?: typeof cnCompliance;
 };
 
 const LocaleContext = createContext<SiteLocale | null>(null);

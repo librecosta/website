@@ -28,11 +28,9 @@ Pin Node **24.18.0** in both managed builds. Install with `npx --yes pnpm@12.8.1
 
 ## Expanse audio and release checks
 
-A Git-only build ships the committed music in Opus and MP3. Interface cues are generated in Web Audio. The Mixkit source and locally generated versions are held outside source control, so a clean checkout cannot provide the wind. Both builds exclude the workstation's `public/audio/local/` by default. The page can still play music and interface cues when wind is missing. [Local asset notice](../public/License/mixkit-arctic-winds.txt) · [Mixkit SFX license](https://mixkit.co/license/modal/sfxFree/)
+A Git-only build ships the original music and procedural wind in Opus and MP3. Interface cues are generated in Web Audio. The browser loads audio after user activation. Both builds exclude the workstation's `public/audio/local/`. [Audio sources and regeneration](research/audio.md)
 
-For release, prepare the approved **end-product** loop with `python scripts/prepare-audio.py --wind <local-wav>` using FFmpeg and an authorized local copy, or supply an approved first-party loop with the same circular encoder padding. Set `PUBLICATION_WIND_DIR` to the private directory containing only the two named build inputs, `expanse-wind.opus` and `expanse-wind.mp3`. The regional build copies only those files to their existing public URLs. Keep the WAV and private build inputs out of Git. A CI runner with authorized access can stage the two files and build the artifact for the platform's static upload if the managed Git builders cannot have the approved inputs staged. Until that input is provisioned on the actual release path, both regions are blocked.
-
-Run `pnpm check:release cn` or `pnpm check:release intl` against the corresponding freshly built artifact. This verifies the static output, indexing approval and the presence and expected format of both wind files. Final release approval also requires the managed platform and domain checks below.
+Run `pnpm check:release cn` or `pnpm check:release intl` against the corresponding freshly built artifact. The verifier checks the exported wind bytes against the decoded audio measurements. Regeneration is an offline task. Managed builds use the tracked files and need neither local input nor FFmpeg. Final release approval also requires the managed platform and domain checks below.
 
 ## Prepublication verification
 
@@ -54,17 +52,19 @@ Repeat the same checks at each protected remote preview. Open a prefixed route w
 | Local static build and Chromium verification | Passed | Passed |
 | Managed Git builder | Pending platform integration | Pending platform integration |
 | Protected remote preview | Pending access configuration and validation | Pending access configuration and validation |
-| Production | Approved wind input, HTTPS and indexing approval pending | Approved wind input, HTTPS, filing and indexing approval pending |
+| Production | HTTPS and indexing approval pending | HTTPS, public-security filing follow-up and indexing approval pending |
 
 During P2, Windows builds and a clean Linux x86-64 container build passed. The Linux run used Node 24.18.0 and pnpm 12.8.1 with the frozen lockfile. Each Git-only export contained 208 files (about 17.8 MB). The largest file was `gopher-atlas.glb` at 1,873,704 bytes. Cloudflare's local emulator served the INTL artifact with canonical directory redirects, correct MIME types and actual 404 responses. Its packaging dry run also passed.
 
-Desktop Chromium loaded the WORLD scene, played the committed music, and verified missing-wind fallback and all eight on-demand WORKS models. Mobile browser emulation covered language switching, refresh, ABOUT motion and CONTACT. The WORKS toolbar now clears the two-row mobile header so the return button can be tapped at 320 and 390 pixels. A separate local Linux build using the two existing encoded wind inputs passed the INTL artifact release check. The Git-only artifacts still fail the wind requirement, as intended.
+During P2, desktop Chromium loaded the WORLD scene, played the committed music, and verified missing-wind fallback and all eight on-demand WORKS models. Mobile browser emulation covered language switching, refresh, ABOUT motion and CONTACT. The WORKS toolbar cleared the two-row mobile header at 320 and 390 pixels. A separate local Linux build with the then-required encoded wind inputs passed the INTL artifact release check. P5-A replaces that audio input with the tracked procedural wind.
 
 ## Search metadata and preview isolation
 
 Each regional build writes candidate Canonical and hreflang targets, robots rules and a sitemap to `dist/seo-review/<region>/`, outside both upload directories. Chinese canonicals belong to CN. English, Japanese, German, French and Spanish canonicals belong to INTL. Each logical page shares its own set of language alternates, and `x-default` points to the corresponding English INTL page. The CN sitemap has four entries and INTL has twenty. [Google localized versions](https://developers.google.com/search/docs/specialty/international/localized-versions)
 
-Both preview artifacts use `noindex, nofollow` and disallow crawling in `robots.txt`. Their title, description, Open Graph and X card metadata are available. Production Canonical, hreflang, JSON-LD and sitemap require approval in `config/publications/indexing.ts`. Keep remote previews access-protected and confirm both target origins over HTTPS in P4 before approving production indexing. P4 also owns platform verification, final branch promotion, DNS and filing requirements.
+Both preview artifacts use `noindex, nofollow` and disallow crawling in `robots.txt`. Their title, description, Open Graph and X card metadata are available. Production Canonical, hreflang, JSON-LD and sitemap require approval in `config/publications/indexing.ts`. Keep remote previews access-protected and confirm both target origins over HTTPS before approving production indexing, promoting the release branch or changing DNS.
+
+Both regions also publish `/llms.txt` and `/.well-known/security.txt`. The former describes the site and links to its published pages. The security contact expires 180 days after each regional build. Rebuild and publish before expiration. On each host, check `/.well-known/security.txt` over HTTPS for an HTTP 200 response and UTF-8 `text/plain`. [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116.html)
 
 ## P3 verification
 
@@ -72,4 +72,11 @@ The supplied LibreCosta brand kit provides the exact monochrome SVG and 1200×63
 
 - Both Windows regional builds passed the static verifier. CN exports eight pages, INTL exports 24, and each serves its own 404. Each localized page has its own title, description and sharing metadata.
 - Chrome desktop and mobile emulation covered all 32 pages at 1440, 390 and 320 CSS pixels. Tests covered same-origin language navigation, cross-origin routing against the local artifacts, language fallback, keyboard and touch, and real HTTP 404 responses.
-- Isolated local builds exercised the approved-indexing branch for all 32 HTML heads and checked both sitemap inventories. The preview artifacts keep the indexing gate closed, with clean-checkout wind files still required for release. Platform, HTTPS and production checks remain for P4.
+- Isolated local builds exercised the approved-indexing branch for all 32 HTML heads and checked both sitemap inventories. P3 kept the indexing gate closed. At that stage clean-checkout wind files were still required for release.
+
+## P5-A verification
+
+- `pnpm check`, `pnpm build:cn` and `pnpm build:intl` passed. Chrome checked the CN filing footer in both languages at 1440, 390 and 320 px. INTL contains no CN filing markup. The GitHub icon opens the website repository and sits to the left of Bilibili.
+- Both local exports serve `/robots.txt`, `/llms.txt` and `/.well-known/security.txt` as UTF-8 plain text. Preview robots rules block crawling and `/sitemap.xml` returns HTTP 404. The local Cloudflare emulator returned the same statuses and MIME types. Separate local indexing fixtures verified 4 CN and 20 INTL sitemap entries and all 32 corresponding HTML heads. The committed indexing switch remains off.
+- The 58-second wind regenerated with identical SHA-256 values. At decode, Opus measured −23.77 dBFS RMS and −7.12 dBFS peak, and MP3 measured −23.38 dBFS RMS and −7.20 dBFS peak. Chrome played Opus and the forced MP3 fallback without fetching audio before activation. The maximum adjacent-sample step across the Web Audio loop seam was 0.00483 and 0.01054 respectively. Mobile playback was tested in Chrome emulation. Physical iOS playback and subjective listening remain unverified.
+- Both `check:release` commands reached the indexing approval gate. Neither required a private wind input. Managed platform integration, HTTPS and indexing approval remain pending. The CN public-security filing placeholder can be replaced once the number is issued.

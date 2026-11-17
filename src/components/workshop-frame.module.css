@@ -63,6 +63,18 @@
   .frame .header nav a:nth-last-child(2) { grid-column: 2; }
 }
 
+@media (max-width: 760px) {
+  .page:has([data-publication-compliance='docked']) {
+    --edge-bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 38px);
+  }
+}
+
+@media (max-width: 440px) {
+  .page[data-workshop-page='about'] .dossier {
+    bottom: calc(var(--edge-bottom) + var(--corner-content-bottom) + 34px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dossier [data-dossier-line] {
     transform: none !important;

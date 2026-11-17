@@ -3,6 +3,7 @@ import { stagger, useAnimate } from 'motion/react';
 import { useSiteCopy, useSiteLocale } from '@/site/LocaleProvider';
 import { usesOriginalLayout } from '@/site/content';
 import type { Locale, SitePage } from '@/site/locale-contract';
+import { PublicationCompliance } from './PublicationCompliance';
 import { InstrumentCorners, InstrumentHeader, InstrumentSocialLinks } from './expanse/ExpanseInstrument';
 import instrument from './expanse/expanse.module.css';
 import styles from './workshop-frame.module.css';
@@ -66,7 +67,7 @@ export function WorkshopFrame({ route, reduced, className, sectionNav, scrollGau
       : route === 'contact' ? [[dossier.channels, `${dossier.email} / X`]] : [],
   } : undefined);
   const shades = <div className={styles.shades} aria-hidden="true" />;
-  return <div className={className ? `${styles.page} ${className}` : styles.page}>
+  return <div className={className ? `${styles.page} ${className}` : styles.page} data-workshop-page={route}>
     {route === 'works' && shades}
     <div className={`${instrument.instrument} ${styles.frame}`}>
       {route !== 'works' && shades}
@@ -76,7 +77,9 @@ export function WorkshopFrame({ route, reduced, className, sectionNav, scrollGau
       {entry && <Dossier entry={entry} reduced={reduced} />}
       {scrollGauge}
       <InstrumentSocialLinks />
+      {(route === 'works' || route === 'contact') && <PublicationCompliance docked />}
     </div>
     {children}
+    {route === 'about' && <PublicationCompliance />}
   </div>;
 }

@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isPublicationPreview, parsePublication } from '../src/site/publication-config.ts';
 import { indexingAllowed, pageAlternates, robotsText, sitemapXml } from '../src/site/seo.ts';
 import { pagePath, sitePages } from '../src/site/locale-contract.ts';
-import { verifyExport, windFiles } from './verify-publication.mjs';
+import { llmsText, securityText, securityTextPath } from '../src/site/publication-files.ts';
+import { verifyExport } from './verify-publication.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const [first, second, ...rest] = process.argv.slice(2);
@@ -23,12 +24,11 @@ const label = id.toUpperCase();
 const dist = join(repo, 'dist');
 const destination = join(dist, id);
 
-function reportRelease(windAvailable, required) {
+function reportRelease(required) {
   const blockers = [];
   if (isPublicationPreview(publication)) blockers.push(`default locale ${publication.defaultLocale} has no published content`);
   if (!publication.origin) blockers.push('production origin has not been set');
-  if (!indexingAllowed(publication)) blockers.push('P4 production indexing approval is pending');
-  if (!windAvailable) blockers.push('approved Expanse wind files are missing');
+  if (!indexingAllowed(publication)) blockers.push('production indexing approval is pending');
   if (!blockers.length) {
     console.log(`${label} artifact release checks passed.`);
     return;
@@ -48,8 +48,8 @@ function buildNext(cwd) {
 }
 
 if (check) {
-  const { windAvailable } = await verifyExport(destination, publication);
-  reportRelease(windAvailable, true);
+  await verifyExport(destination, publication);
+  reportRelease(true);
 } else {
   const builds = join(repo, '.local', 'publication-builds');
   await mkdir(builds, { recursive: true });
@@ -64,22 +64,18 @@ if (check) {
       recursive: true,
       filter: source => relative(publicRoot, source) !== join('audio', 'local'),
     });
-    const windDirectory = process.env.PUBLICATION_WIND_DIR;
-    if (windDirectory) {
-      const target = join(project, 'public', 'audio', 'local');
-      await mkdir(target, { recursive: true });
-      for (const file of windFiles) {
-        const input = resolve(windDirectory, file);
-        await cp(input, join(target, file));
-      }
-    }
     await writeFile(join(project, 'config', 'publications', 'active.ts'), `export { default } from './${id}.json';\n`);
     await buildNext(project);
     const output = join(project, 'out');
+    await mkdir(join(output, '.well-known'), { recursive: true });
+    await Promise.all([
+      writeFile(join(output, 'llms.txt'), llmsText(publication)),
+      writeFile(join(output, securityTextPath), securityText()),
+    ]);
     const sitemap = sitemapXml(publication);
     if (indexingAllowed(publication)) await writeFile(join(output, 'sitemap.xml'), sitemap);
-    const { pages, files, bytes, largest, windAvailable } = await verifyExport(output, publication);
-    reportRelease(windAvailable, process.env.PUBLICATION_REQUIRE_RELEASE === '1');
+    const { pages, files, bytes, largest } = await verifyExport(output, publication);
+    reportRelease(process.env.PUBLICATION_REQUIRE_RELEASE === '1');
     await mkdir(dist, { recursive: true });
     await rm(destination, { recursive: true, force: true });
     await rename(output, destination);

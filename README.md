@@ -16,7 +16,7 @@ pnpm dev
 - [The Expanse](http://127.0.0.1:3000/world/) is WORLD in the default CN development build. ABOUT is the home page. Scroll to explore and scroll back to retrace the journey.
 - With `pnpm dev`, the [Expanse debug view](http://127.0.0.1:3000/world/?debug=1) exposes camera stops and progress, reduced motion, sky and wind layers, observation anchors, the transform inspector, and audio levels.
 
-Sound starts after user activation. The original ambient track ships with the site. Optional local wind preparation is described in [the audio notes](docs/research/audio.md).
+Sound starts after user activation. The original ambient music and procedural wind ship with the site. See [the audio notes](docs/research/audio.md) for generation and verification.
 
 ## Verify and preview
 

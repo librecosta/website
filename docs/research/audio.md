@@ -11,22 +11,23 @@ Hubtown 附件的 `ambient-loop.wav` 长 56.22 秒。按 4 秒分段测量，RMS
 
 ## 生成与播放
 
-使用 Python 3 和支持 `libopus`、`libmp3lame` 的 FFmpeg。传入已取得的 Mixkit WAV。若 FFmpeg 不在 PATH，使用 `--ffmpeg` 指定实际可执行文件。
+使用 Python 3 和支持 `libopus`、`libmp3lame` 的 FFmpeg。若 FFmpeg 不在 PATH，使用 `--ffmpeg` 指定实际可执行文件。本次编码和测量使用 FFmpeg 7.1。
 
 ```sh
-python scripts/prepare-audio.py --wind /path/to/mixkit-arctic-winds-1154.wav --studies
+python scripts/prepare-audio.py --wind
+python scripts/prepare-audio.py --check-wind
 pnpm dev
 ```
 
-A 是项目原创合成的正式背景曲。Opus 和 MP3 回退存放在 `public/audio/`，供静态站点在用户开启声音后加载。B 和风声输出到被 Git 忽略的 `public/audio/local/`。普通模式初始静音。运行 `pnpm dev` 后打开 `/?debug=1`，展开「声音音量」可单独调节风声、背景曲和界面提示音。默认风声与背景曲增益各降低三分之一，界面提示音增益提高三分之一。第三方来源和使用条件见 [Mixkit 许可记录](../../public/License/mixkit-arctic-winds.txt)。
+A 与风声均由 LibreCosta 原创合成，成品以 Opus 和 MP3 存放在 `public/audio/`，随站点分发。`--wind` 仅更新风声与测量记录。`--studies` 可选，用于重新生成 A、B，B 保存在本地研究目录。站点初始静音。在 CN 开发环境打开 `/world/?debug=1`，展开「声音音量」可单独调节风声、背景曲和界面提示音。
 
 | 声轨 | 有效循环 | Opus（字节） | MP3（字节） |
 | --- | ---: | ---: | ---: |
-| Expanse 风声 | 29.50 秒 | 132,445 | 240,428 |
+| Expanse 风声 | 58.00 秒 | 238,209 | 468,692 |
 | A · Warm Atmosphere | 52.00 秒 | 269,981 | 420,716 |
 | B · Ethereal Machinery | 52.00 秒 | 269,588 | 420,716 |
 
-风声去除录音头尾后，用 4.5 秒等功率交叠衔接，并清理低频轰鸣。两种编码都预留 250ms 首尾保护段。Web Audio 略过保护段，在解码后用其中相邻的波形修补末尾 18ms，避免编码器边界造成点击声。
+风声由固定种子生成的低频气流、中频阵风和轻微砂砾噪声组成。每层滤波从循环尾部预热，阵风与砂砾使用各自的不规则周期和渐变包络。两种编码都预留 250 ms 首尾保护段。Web Audio 略过保护段，在解码后用其中相邻的波形修补末尾 18 ms。验收记录包含解码后的有效时长、RMS、峰值、循环边界采样差及 SHA-256，区域构建核对这些已测量的字节。[风声测量数据](../../scripts/expanse-wind-review.json)
 
 ## 播放
 
