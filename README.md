@@ -27,6 +27,15 @@ pnpm preview
 
 `pnpm check` runs scene checks, TypeScript, and the production build. The build writes to `out/`. Stop the dev server first or set `PORT` to preview on a different port.
 
+## Regional static builds
+
+| Publication | Build | Output | Planned host |
+| --- | --- | --- | --- |
+| CN | `pnpm build:cn` | `dist/cn/` | EdgeOne Makers |
+| INTL | `pnpm build:intl` | `dist/intl/` | Cloudflare |
+
+Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. Run `pnpm check:release cn` or `pnpm check:release intl` before publishing. CN has reviewed Chinese content and awaits its production origin. INTL is an internal, non-indexable export until English content is reviewed. See the [publication contract](docs/publication-routing.md).
+
 ## Project documentation
 
 - [Agent entry point](AGENTS.md), [architecture](.agents/architecture.md), and [collaboration playbook](.agents/playbook.md)

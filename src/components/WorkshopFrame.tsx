@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { stagger, useAnimate } from 'motion/react';
+import type { SiteRoute } from '@/site/locale-contract';
 import { InstrumentCorners, InstrumentHeader, InstrumentSocialLinks } from './expanse/ExpanseInstrument';
 import instrument from './expanse/expanse.module.css';
 import styles from './workshop-frame.module.css';
@@ -45,16 +46,8 @@ function Dossier({ route, reduced }: { route: WorkshopRoute; reduced: boolean })
   </aside>;
 }
 
-function Language() {
-  return <div className={styles.language} role="group" aria-label="页面语言">
-    <span lang="zh-CN" aria-current="true" aria-label="中文">中</span>
-    <span aria-hidden="true">/</span>
-    <button type="button" lang="en" disabled aria-label="English (unavailable)">EN</button>
-  </div>;
-}
-
 export function WorkshopFrame({ route, reduced, className, sectionNav, scrollGauge, children }: {
-  route: WorkshopRoute;
+  route: SiteRoute;
   reduced: boolean;
   className?: string;
   sectionNav?: ReactNode;
@@ -67,9 +60,9 @@ export function WorkshopFrame({ route, reduced, className, sectionNav, scrollGau
     <div className={`${instrument.instrument} ${styles.frame}`}>
       {route !== '/works' && shades}
       <InstrumentCorners />
-      <InstrumentHeader currentPage={route} reduced={reduced} className={styles.header} navigationPrefix={<Language />} />
+      <InstrumentHeader currentPage={route} reduced={reduced} className={styles.header} />
       {sectionNav}
-      <Dossier route={route} reduced={reduced} />
+      {route !== '/' && <Dossier route={route} reduced={reduced} />}
       {scrollGauge}
       <InstrumentSocialLinks />
     </div>

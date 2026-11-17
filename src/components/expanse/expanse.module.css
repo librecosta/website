@@ -65,8 +65,8 @@
   left: calc(var(--edge-left) + var(--rail));
   right: calc(var(--edge-right) + var(--rail));
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
-  grid-template-areas: 'brand sound nav chapter';
+  grid-template-columns: minmax(0, 1fr) repeat(4, auto);
+  grid-template-areas: 'brand sound locale nav chapter';
   align-items: center;
   gap: clamp(12px, 2.1vw, 32px);
 }
@@ -348,7 +348,7 @@
     grid-template-areas:
       'brand chapter'
       'brand sound'
-      '. nav';
+      'locale nav';
     gap: 0 8px;
   }
   .brandCluster { align-self: start; }

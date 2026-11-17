@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { useEffect, useRef, type ComponentPropsWithoutRef, type ReactNode, type RefObject } from 'react';
 import type { Camera } from 'three';
 import { useSiteAudio } from '@/components/audio/AudioProvider';
+import { languageControlCopy } from '@/site/content';
+import { LanguageMenu } from '@/site/LanguageMenu';
+import { localePath, type SiteRoute } from '@/site/locale-contract';
+import { useSiteLocale } from '@/site/LocaleProvider';
 import { ExpanseSoundToggle } from './ExpanseAudio';
 import { EncryptedLabel, useEncryptedText } from './EncryptedText';
 import styles from './expanse.module.css';
@@ -129,28 +133,31 @@ export function InstrumentCorners() {
   </svg>)}</>;
 }
 
-export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage, className, navigationPrefix }: {
-  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: '/works' | '/about' | '/contact';
-  className?: string; navigationPrefix?: ReactNode;
+export function InstrumentHeader({ reduced, soundToggle, gauge, currentPage = '/', className }: {
+  reduced: boolean; soundToggle?: ReactNode; gauge?: ReactNode; currentPage?: SiteRoute;
+  className?: string;
 }) {
   const { enabled, cue } = useSiteAudio();
+  const { locale, defaultLocale } = useSiteLocale();
+  const copy = languageControlCopy[locale] ?? languageControlCopy.en;
+  const pagePath = (route: SiteRoute) => localePath(route, locale, defaultLocale);
   const brand = useEncryptedText('LIBRECOSTA', reduced);
   return <header className={className ? `${styles.instrumentHeader} ${className}` : styles.instrumentHeader}>
     <div className={styles.brandCluster}>
-      <Link href="/" className={styles.brand} aria-label="LibreCosta 首页"
+      <Link href={pagePath('/')} className={styles.brand} aria-label={copy.home}
         onPointerEnter={event => { if (event.pointerType === 'mouse') { cue('hover'); brand.play(); } }}
         onFocus={event => { if (event.currentTarget.matches(':focus-visible')) brand.play(); }}
         onClick={() => cue('click')}><Wordmark noise={brand.noise} /></Link>
       {soundToggle && <span className={styles.soundIndicator} role="img" aria-label={enabled ? '声音开启' : '声音关闭'} data-enabled={enabled} />}
     </div>
     {soundToggle}
-    {navigationPrefix}
-    <nav className={styles.instrumentNav} aria-label="站点导航" data-audio-ui>
-      {currentPage && <InstrumentLink href="/" text="WORLD" reduced={reduced} />}
-      <InstrumentLink href="/works" text="WORKS" reduced={reduced} current={currentPage === '/works'} />
-      <InstrumentLink href="/about" text="ABOUT" reduced={reduced} current={currentPage === '/about'} />
+    <LanguageMenu route={currentPage} reduced={reduced} />
+    <nav className={styles.instrumentNav} aria-label={copy.navigation} data-audio-ui>
+      {currentPage !== '/' && <InstrumentLink href={pagePath('/')} text="WORLD" reduced={reduced} />}
+      <InstrumentLink href={pagePath('/works')} text="WORKS" reduced={reduced} current={currentPage === '/works'} />
+      <InstrumentLink href={pagePath('/about')} text="ABOUT" reduced={reduced} current={currentPage === '/about'} />
       <InstrumentLink href="https://gopheratlas.com/" text="BLOG" reduced={reduced} external />
-      <InstrumentLink href="/contact" text="CONTACT" reduced={reduced} current={currentPage === '/contact'} />
+      <InstrumentLink href={pagePath('/contact')} text="CONTACT" reduced={reduced} current={currentPage === '/contact'} />
     </nav>
     {gauge}
   </header>;
@@ -171,16 +178,18 @@ function ChapterGauge() {
 
 export function InstrumentSocialLinks() {
   const { cue } = useSiteAudio();
-  return <nav className={styles.socialLinks} aria-label="社交媒体" onClick={() => cue('click')}>
+  const { locale } = useSiteLocale();
+  const copy = languageControlCopy[locale] ?? languageControlCopy.en;
+  return <nav className={styles.socialLinks} aria-label={copy.social} onClick={() => cue('click')}>
     <a href="https://space.bilibili.com/37124259" target="_blank" rel="noopener noreferrer"
-      aria-label="Bilibili（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
+      aria-label={`Bilibili${copy.newTab}`} onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5"
         strokeLinecap="round" strokeLinejoin="round">
         <path d="m7.5 3.5 3.4 4m5.6-4-3.4 4M5 7.5h14l2 2v9.5l-2 2H5l-2-2V9.5Z M7 13.5l3-1m4 0 3 1" />
       </svg>
     </a>
     <a href="https://x.com/LibreCostaHQ" target="_blank" rel="noopener noreferrer"
-      aria-label="X（在新标签页打开）" onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
+      aria-label={`X${copy.newTab}`} onPointerEnter={event => { if (event.pointerType === 'mouse') cue('hover'); }}>
       <svg viewBox="-100 -86.5 1400 1400" aria-hidden="true" fill="currentColor">
         {/* X's official monochrome mark, framed to match the Bilibili icon. */}
         <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z" />

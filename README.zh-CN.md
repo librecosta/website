@@ -27,6 +27,15 @@ pnpm preview
 
 `pnpm check` 运行场景约束检查、TypeScript 检查和生产构建。静态产物位于 `out/`。预览前可停止开发服务器，也可通过 `PORT` 使用其他端口。
 
+## 地区静态构建
+
+| 地区 | 构建命令 | 输出 | 计划托管平台 |
+| --- | --- | --- | --- |
+| CN | `pnpm build:cn` | `dist/cn/` | EdgeOne Makers |
+| INTL | `pnpm build:intl` | `dist/intl/` | Cloudflare |
+
+使用 `pnpm preview cn` 或 `pnpm preview intl` 预览对应静态产物。发布前运行 `pnpm check:release cn` 或 `pnpm check:release intl`。CN 中文内容已就绪，正式站点 Origin 待确认。INTL 在英文内容验收前仅供内部验证，页面禁止索引。详见[地区与路由契约](docs/publication-routing.md)。
+
 ## 项目文档
 
 - [Agent 入口](AGENTS.md)、[架构说明](.agents/architecture.md)和[协作手册](.agents/playbook.md)

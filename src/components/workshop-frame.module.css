@@ -51,33 +51,6 @@
 
 .frame .dossier dl > div { grid-template-columns: minmax(max-content, 9ch) auto; }
 
-.language {
-  grid-area: locale;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #8b9bb2;
-  font: 600 11px/1 var(--instrument-type);
-  letter-spacing: .08em;
-  white-space: nowrap;
-}
-
-.language [aria-current='true'] {
-  border-bottom: 1px solid #a5bcdb;
-  padding-block: 3px;
-  color: var(--instrument-ink);
-}
-
-.language button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  opacity: 1;
-  font: inherit;
-  letter-spacing: inherit;
-}
-
 @media (max-width: 720px) {
   .shades::before { height: calc(var(--edge-top) + 104px); }
   .frame .header {
@@ -87,7 +60,6 @@
   }
   .frame .header nav { grid-template-columns: repeat(3, auto); gap: 0 4px; }
   .frame .header nav a:nth-last-child(2) { grid-column: 2; }
-  .language { align-self: start; justify-self: start; font-size: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

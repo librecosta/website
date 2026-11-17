@@ -1,0 +1,4 @@
+.frame { display: grid; min-height: 100dvh; place-items: center; }
+.content { text-align: center; }
+.content h1 { margin-bottom: .55em; font-size: clamp(2rem, 6vw, 4rem); }
+.content p { color: var(--secondary); }

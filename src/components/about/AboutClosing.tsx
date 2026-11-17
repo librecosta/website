@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type PointerEvent, type RefObject } from 'react';
 import { AnimatePresence, animate, m, useInView, useMotionValue, useSpring } from 'motion/react';
+import { localePath } from '@/site/locale-contract';
+import { useSiteLocale } from '@/site/LocaleProvider';
 import { useSoftFocus } from '../soft-focus';
 import styles from './about-closing.module.css';
 
@@ -14,6 +16,7 @@ const previewEase = [.2, .8, .2, 1] as const;
 const previewSpring = { stiffness: 280, damping: 34, mass: .65 };
 
 export function AboutClosing({ reduced }: { reduced: boolean }) {
+  const { locale, defaultLocale } = useSiteLocale();
   const copy = useRef<HTMLDivElement>(null);
   const inView = useInView(copy, { amount: .3 });
   const clock = useMotionValue(0);
@@ -35,7 +38,7 @@ export function AboutClosing({ reduced }: { reduced: boolean }) {
       <m.h2 id="closing-title" className={styles.title} lang="en" style={reduced ? undefined : title} data-closing-reveal>LET’S TALK.</m.h2>
       <m.p className={styles.intro} style={reduced ? undefined : intro} data-closing-reveal>想交流软件、开源或交互设计，欢迎联系我们。</m.p>
       <m.div className={styles.contact} style={reduced ? undefined : contact} data-closing-reveal>
-        <Link href="/contact" prefetch={false}>联系我们
+        <Link href={localePath('/contact', locale, defaultLocale)} prefetch={false}>联系我们
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M2 8h11M8 3l5 5-5 5" />
           </svg>
@@ -87,6 +90,7 @@ function planPreview(target: Target, row: DOMRect, copy: DOMRect, width: number,
 }
 
 function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null>; reduced: boolean }) {
+  const { locale, defaultLocale } = useSiteLocale();
   const row = useRef<HTMLElement>(null);
   const hovered = useRef<Target | null>(null);
   const focused = useRef<Target | null>(null);
@@ -169,8 +173,8 @@ function ClosingLinks({ copy, reduced }: { copy: RefObject<HTMLDivElement | null
           show(hovered.current);
         },
       };
-      return href.startsWith('/')
-        ? <Link key={href} href={href} prefetch={false} {...handlers}>{label}</Link>
+      return href === '/works'
+        ? <Link key={href} href={localePath(href, locale, defaultLocale)} prefetch={false} {...handlers}>{label}</Link>
         : <a key={href} href={href} target="_blank" rel="noopener noreferrer" {...handlers}>{label}</a>;
     })}
     <m.div className={styles.previewPosition} style={{ x, y, rotate, width, height }} aria-hidden="true">

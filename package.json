@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
-    "typecheck": "tsc --noEmit",
+    "build:cn": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-publication.mjs cn",
+    "build:intl": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-publication.mjs intl",
+    "check:release": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-publication.mjs --check-release",
+    "typecheck": "next typegen && tsc --noEmit",
     "check:world": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-expanse.mjs",
     "check": "pnpm check:world && pnpm typecheck && pnpm build",
     "preview": "node scripts/serve.mjs"
