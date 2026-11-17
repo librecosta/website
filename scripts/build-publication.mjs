@@ -11,9 +11,10 @@ import { verifyExport } from './verify-publication.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const [first, second, ...rest] = process.argv.slice(2);
 const check = first === '--check-release';
-const id = check ? second : first;
-if ((id !== 'cn' && id !== 'intl') || rest.length || (!check && second)) {
-  throw new Error('Usage: node scripts/build-publication.mjs [--check-release] <cn|intl>');
+const edgeone = first === '--edgeone';
+const id = check || edgeone ? second : first;
+if ((id !== 'cn' && id !== 'intl') || (edgeone && id !== 'cn') || rest.length || (!check && !edgeone && second)) {
+  throw new Error('Usage: node scripts/build-publication.mjs [--check-release] <cn|intl> | --edgeone cn');
 }
 
 const configuration = join(repo, 'config', 'publications', `${id}.json`);
@@ -21,7 +22,7 @@ const publication = parsePublication(JSON.parse(await readFile(configuration, 'u
 if (publication.id !== id) throw new Error(`Publication ${publication.id} does not match ${id}.json.`);
 
 const label = id.toUpperCase();
-const dist = join(repo, 'dist');
+const dist = edgeone ? join(repo, 'deploy', 'edgeone-cn', 'dist') : join(repo, 'dist');
 const destination = join(dist, id);
 
 function reportRelease(required) {
@@ -75,7 +76,7 @@ if (check) {
     const sitemap = sitemapXml(publication);
     if (indexingAllowed(publication)) await writeFile(join(output, 'sitemap.xml'), sitemap);
     const { pages, files, bytes, largest } = await verifyExport(output, publication);
-    reportRelease(process.env.PUBLICATION_REQUIRE_RELEASE === '1');
+    reportRelease(edgeone || process.env.PUBLICATION_REQUIRE_RELEASE === '1');
     await mkdir(dist, { recursive: true });
     await rm(destination, { recursive: true, force: true });
     await rename(output, destination);

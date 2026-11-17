@@ -1,0 +1,6 @@
+{
+  "nodeVersion": "24.18.0",
+  "installCommand": "npx --yes pnpm@12.8.1 --dir ../.. install --frozen-lockfile",
+  "buildCommand": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ../../scripts/build-publication.mjs --edgeone cn",
+  "outputDirectory": "dist/cn"
+}
