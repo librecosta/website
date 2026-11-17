@@ -8,7 +8,6 @@
   --edge-bottom: max(var(--inset), env(safe-area-inset-bottom));
   --edge-left: max(var(--inset), env(safe-area-inset-left));
   --edge-right: max(var(--inset), env(safe-area-inset-right));
-  --instrument-type: Oxanium, 'Bahnschrift', 'Segoe UI', sans-serif;
   color: var(--color);
   font-family: Arial, 'Microsoft YaHei', system-ui, sans-serif;
   line-height: 1.65;
