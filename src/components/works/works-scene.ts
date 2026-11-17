@@ -40,32 +40,6 @@ function prepareIsland(project: Project, model: T.Object3D) {
   const size = new T.Box3().setFromObject(carrier, true).getSize(new T.Vector3());
   carrier.scale.setScalar(project.island.width / Math.max(size.x, size.z));
   carrier.updateMatrixWorld(true);
-  // The original Blender assets carry calibrated PBR and baked shading.
-  if (project.island.model !== 'signal') return carrier;
-  const seen = new Set<T.Material>();
-  model.traverse(node => {
-    if (!(node instanceof T.Mesh)) return;
-    for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
-      if (!(material instanceof T.MeshStandardMaterial) || seen.has(material)) continue;
-      seen.add(material);
-      if (!material.name.startsWith('LibreCosta')) material.roughness = 1;
-      material.metalness *= 0.55;
-      material.emissiveIntensity *= 0.34;
-      if (material.aoMap) {
-        // Retain the upstream baked overhead visibility in the G channel.
-        material.onBeforeCompile = shader => {
-          shader.fragmentShader = shader.fragmentShader.replace('#include <aomap_fragment>', `
-            #include <aomap_fragment>
-            #ifdef USE_AOMAP
-              float overhead = 1.0 - 0.42 * (1.0 - texture2D(aoMap, vAoMapUv).g);
-              reflectedLight.directDiffuse *= overhead;
-              reflectedLight.directSpecular *= overhead;
-            #endif
-          `);
-        };
-      }
-    }
-  });
   return carrier;
 }
 
@@ -113,10 +87,11 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
   const beatline = project.island.model === 'sofaraway';
   const waveLoom = project.island.model === 'wavefield';
   const discoveryHarbor = project.island.model === 'gofurry';
-  const neutralDaylight = project.island.model === 'gopher-atlas' || project.island.model === 'tool4furry' || waveLoom || discoveryHarbor;
+  const vigilStation = project.island.model === 'uptime';
+  const neutralDaylight = project.island.model === 'gopher-atlas' || project.island.model === 'tool4furry' || waveLoom || discoveryHarbor || vigilStation;
   const optical = project.island.model === 'liquid-glass' || beatline;
-  // Match the approved harbor view so the court and the lower quay both read.
-  const viewOffset = discoveryHarbor ? new T.Vector3(200, 168, 200) : offset;
+  // Match the authored views of the harbor court and the station's stepped approach.
+  const viewOffset = discoveryHarbor || vigilStation ? new T.Vector3(200, 168, 200) : offset;
   const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 900);
   camera.position.copy(viewOffset);
   camera.lookAt(0, 0, 0);
@@ -128,7 +103,7 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
   scene.add(hemisphere, sun);
   if (project.island.model === 'harvest' || optical || neutralDaylight) {
     // Neutral reflected daylight brings up the copper and timber on the camera side.
-    const fill = new T.DirectionalLight('#e6edfa', optical ? .85 : .64);
+    const fill = new T.DirectionalLight('#e6edfa', optical || vigilStation ? .85 : .64);
     fill.position.set(86, 72, 118);
     scene.add(fill);
   }
@@ -309,9 +284,9 @@ export function mountIsland(canvas: HTMLCanvasElement, project: Project, callbac
     }
     const carrier = prepareIsland(project, model);
     scene.add(carrier);
-    if (optical) {
+    if (optical || vigilStation) {
       scene.environment = atelierEnvironment();
-      scene.environmentIntensity = beatline ? .38 : .62;
+      scene.environmentIntensity = vigilStation ? .42 : beatline ? .38 : .62;
     }
     home = fitIsland(carrier, camera);
     controls.target.copy(home.target);

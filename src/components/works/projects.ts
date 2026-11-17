@@ -4,7 +4,7 @@ type Island = {
   name: string;
   width: number;
   bearing: number;
-  model: 'gofurry' | 'tool4furry' | 'signal' | 'liquid-glass' | 'wavefield' | 'harvest' | 'sofaraway' | 'gopher-atlas';
+  model: 'gofurry' | 'tool4furry' | 'uptime' | 'liquid-glass' | 'wavefield' | 'harvest' | 'sofaraway' | 'gopher-atlas';
 };
 
 export type Project = {
@@ -37,7 +37,7 @@ export const projects: readonly Project[] = [
   },
   {
     slug: 'librecosta-uptime', name: 'LibreCosta Uptime', type: '可用性监测', status: '已发布',
-    island: { name: '风标岭', width: 28, bearing: 45, model: 'signal' },
+    island: { name: '风标岭', width: 28, bearing: 19, model: 'uptime' },
     description: '自托管 HTTP/HTTPS 可用性监测工具，附状态面板。',
     links: [{ label: '查看发布版', href: 'https://github.com/librecosta/uptime/releases' }],
     media: projectPreviews.uptime,
