@@ -42,4 +42,8 @@ Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. 
 - [Creative vision](docs/creative/vision.md), [story outline](docs/creative/narrative.md), and [Act I direction](docs/creative/act-01-expanse.md)
 - [Procedural environment research](docs/research/procedural-environments.md) and [retired Expanse studies](docs/archive/expanse-legacy/README.md)
 
+## License
+
+Original website code and 3D models are licensed under [BSD-3-Clause](LICENSE). All rights are reserved in the remaining original artwork, audio and branding. Third-party materials retain their upstream terms. See [Asset licensing](ASSETS-LICENSE.md) for scope and exceptions.
+
 Operated by Chengdu Yuanan Kaiwu Technology Co., Ltd. [LibreCosta](https://librecosta.com)

@@ -42,4 +42,8 @@ pnpm preview
 - [创意愿景](docs/creative/vision.md)、[叙事骨架](docs/creative/narrative.md)和[第一幕方向](docs/creative/act-01-expanse.md)
 - [程序化环境研究](docs/research/procedural-environments.md)和[已退役的荒原实验](docs/archive/expanse-legacy/README.md)
 
+## 许可证
+
+官网原创代码与原创 3D 模型采用 [BSD-3-Clause](LICENSE)。其余原创美术、音频与品牌资产保留版权。第三方材料沿用上游条款。适用范围与例外见[资产授权声明](ASSETS-LICENSE.md)。
+
 由成都远岸开物科技有限公司运营。 [LibreCosta 官网](https://librecosta.com)
