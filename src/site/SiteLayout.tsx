@@ -16,9 +16,6 @@ export function siteMetadata(locale: Locale): Metadata {
     description: locale === 'zh' ? 'LibreCosta 官方网站。' : undefined,
     icons: brandIcons,
     robots: indexingAllowed(publication) ? undefined : { index: false, follow: false },
-    verification: publication.id === 'cn'
-      ? { other: { 'baidu-site-verification': 'codeva-VqPM8zReFt' } }
-      : undefined,
   };
 }
 
