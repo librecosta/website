@@ -2,6 +2,7 @@ import { homePage, locales, pagePath, sitePages, type Locale, type Publication }
 import { pageSeo } from './seo.ts';
 
 export const securityTextPath = '.well-known/security.txt';
+export const baiduVerificationFile = 'baidu_verify_codeva-VqPM8zReFt.html';
 export const securityContact = 'Contact: mailto:contact@librecosta.com';
 export const securityLifetimeMs = 180 * 24 * 60 * 60 * 1000;
 

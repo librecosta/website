@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { isPublicationPreview, parsePublication } from '../src/site/publication-config.ts';
 import { indexingAllowed, pageAlternates, robotsText, sitemapXml } from '../src/site/seo.ts';
 import { pagePath, sitePages } from '../src/site/locale-contract.ts';
-import { llmsText, securityText, securityTextPath } from '../src/site/publication-files.ts';
+import { baiduVerificationFile, llmsText, securityText, securityTextPath } from '../src/site/publication-files.ts';
 import { verifyExport } from './verify-publication.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
@@ -73,6 +73,9 @@ if (check) {
       writeFile(join(output, 'llms.txt'), llmsText(publication)),
       writeFile(join(output, securityTextPath), securityText()),
     ]);
+    if (id === 'cn') {
+      await cp(join(project, 'config', 'publications', baiduVerificationFile), join(output, baiduVerificationFile));
+    }
     const sitemap = sitemapXml(publication);
     if (indexingAllowed(publication)) await writeFile(join(output, 'sitemap.xml'), sitemap);
     const { pages, files, bytes, largest } = await verifyExport(output, publication);
