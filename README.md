@@ -2,6 +2,8 @@
 
 [简体中文](README.zh-CN.md)
 
+**Original code and 3D models · [BSD-3-Clause](LICENSE)** · [License statement](LICENSE-STATEMENT.md) · [Asset licensing](ASSETS-LICENSE.md)
+
 LibreCosta's website uses a static Next.js export. The international home page presents **The Expanse**, its first interactive act, which follows a pale desert valley toward a distant city and its segmented ring.
 
 ## Run locally

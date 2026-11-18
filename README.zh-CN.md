@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+**原创代码与 3D 模型采用 [BSD-3-Clause](LICENSE)** · [开源许可声明](LICENSE-STATEMENT.md) · [资产授权说明](ASSETS-LICENSE.md)
+
 LibreCosta 官网使用 Next.js 静态导出。国际站首页呈现第一幕 **The Expanse · 荒原**，沿苍白浅谷走向远方的城市和分段巨环。
 
 ## 本地运行
