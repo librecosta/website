@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+**原创代码与 3D 模型采用 [BSD-3-Clause](LICENSE)** · [开源许可声明](LICENSE-STATEMENT.md) · [资产授权说明](ASSETS-LICENSE.md)
+
 LibreCosta 官网使用 Next.js 静态导出。国际站首页呈现第一幕 **The Expanse · 荒原**，沿苍白浅谷走向远方的城市和分段巨环。
 
 ## 本地运行
@@ -41,5 +43,9 @@ pnpm preview
 - [Agent 入口](AGENTS.md)、[架构说明](.agents/architecture.md)和[协作手册](.agents/playbook.md)
 - [创意愿景](docs/creative/vision.md)、[叙事骨架](docs/creative/narrative.md)和[第一幕方向](docs/creative/act-01-expanse.md)
 - [程序化环境研究](docs/research/procedural-environments.md)和[已退役的荒原实验](docs/archive/expanse-legacy/README.md)
+
+## 许可证
+
+官网原创代码与原创 3D 模型采用 [BSD-3-Clause](LICENSE)。其余原创美术、音频与品牌资产保留版权。第三方材料沿用上游条款。适用范围与例外见[资产授权声明](ASSETS-LICENSE.md)。
 
 由成都远岸开物科技有限公司运营。 [LibreCosta 官网](https://librecosta.com)

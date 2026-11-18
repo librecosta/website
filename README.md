@@ -2,6 +2,8 @@
 
 [简体中文](README.zh-CN.md)
 
+**Original code and 3D models · [BSD-3-Clause](LICENSE)** · [License statement](LICENSE-STATEMENT.md) · [Asset licensing](ASSETS-LICENSE.md)
+
 LibreCosta's website uses a static Next.js export. The international home page presents **The Expanse**, its first interactive act, which follows a pale desert valley toward a distant city and its segmented ring.
 
 ## Run locally
@@ -41,5 +43,9 @@ Run `pnpm preview cn` or `pnpm preview intl` to serve the corresponding export. 
 - [Agent entry point](AGENTS.md), [architecture](.agents/architecture.md), and [collaboration playbook](.agents/playbook.md)
 - [Creative vision](docs/creative/vision.md), [story outline](docs/creative/narrative.md), and [Act I direction](docs/creative/act-01-expanse.md)
 - [Procedural environment research](docs/research/procedural-environments.md) and [retired Expanse studies](docs/archive/expanse-legacy/README.md)
+
+## License
+
+Original website code and 3D models are licensed under [BSD-3-Clause](LICENSE). All rights are reserved in the remaining original artwork, audio and branding. Third-party materials retain their upstream terms. See [Asset licensing](ASSETS-LICENSE.md) for scope and exceptions.
 
 Operated by Chengdu Yuanan Kaiwu Technology Co., Ltd. [LibreCosta](https://librecosta.com)
