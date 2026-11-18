@@ -5,6 +5,7 @@ The four project images with source commits below are unmodified copies.
 sofaraway.webp (17,354 bytes)
 User-supplied SoFarAway.png, resized without cropping to 800 × 450 and encoded as WebP.
 Used by both ABOUT and WORKS. Copyright (c) 2026 LibreCosta.
+All rights reserved in this distribution.
 
 gofurry-og.png (15,453 bytes)
 https://github.com/librecosta/gofurry/blob/fe3c47e20e0fcb1f12c00cc9553762cfad7bd044/apps/web/public/brand/gofurry-og.png
@@ -18,7 +19,7 @@ gopheratlas-og.png (43,944 bytes)
 https://github.com/deepfurry/gopher-atlas/blob/1f730584d7b3b585bfa142fa90d9a9714a607e21/apps/web/public/images/og-default.png
 Copyright (c) 2026 DeepFurry
 
-BSD 3-Clause License
+BSD 3-Clause License (GoFurry, Tool4Furry and GopherAtlas images above)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -48,7 +49,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 uptime-dashboard.webp (29,208 bytes)
 https://github.com/librecosta/uptime/blob/5e83d8cde4aa00a16013d32fa463a2421a63c742/docs/assets/uptime-dashboard.webp
 
-MIT License
+MIT License (LibreCosta Uptime dashboard image)
 
 Copyright (c) 2026 LibreCosta
 

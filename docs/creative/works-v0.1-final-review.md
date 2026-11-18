@@ -22,7 +22,7 @@ Wavefield 的双面薄纱增加一次屏上绘制，实际提交 125,864 个三�
 ## 资产和许可
 
 - 移除 `bay.glb`、`foundry.glb`、`signal.glb`、13 份无人使用的旧项目图和图标，以及旧 WORKS 字标。静态导出中三个旧模型返回 404，当前目录与产物中均只有八份正式 GLB。公共目录文件净移除 1,669,757 字节，不计新增许可文本。三份 Blender 历史对照脚本从对应 Git 提交读取旧模型，已用 Blender 重新渲染通过。 [Harvest 对照](../../assets/works/harvest/render_references.py) · [Liquid Glass 对照](../../assets/works/liquid-glass/compare.py) · [SoFarAway 对照](../../assets/works/sofaraway/compare.py)
-- 八岛和轮盘预览为 LibreCosta 原创，采用 BSD 3-Clause。Wenz MIT 保留用于单岛相机和模型定位的改编代码，已移除退役模型说明。TuneShape MIT 对应现用 Orbit Reel。Draco 的两个分发文件与 Three.js r187 安装包逐字节一致，保留 Apache 2.0。补录 Three.js 与 Motion 系列的 MIT 文本。 [素材声明](../../public/works/asset-notices.txt) · [Wenz](../../public/works/wenz-license.txt) · [TuneShape](../../public/License/tuneshape-orbit-reel.txt) · [Draco](../../public/works/draco-license.txt) · [运行库](../../public/works/runtime-licenses.txt)
+- W5 发布时，八岛和轮盘预览作为 LibreCosta 原创资产按 BSD 3-Clause 分发。当前分发范围见[资产授权声明](../../ASSETS-LICENSE.md)。Wenz MIT 保留用于单岛相机和模型定位的改编代码，已移除退役模型说明。TuneShape MIT 对应现用 Orbit Reel。Draco 的两个分发文件与 Three.js r187 安装包逐字节一致，保留 Apache 2.0。补录 Three.js 与 Motion 系列的 MIT 文本。 [素材声明](../../public/works/asset-notices.txt) · [Wenz](../../public/works/wenz-license.txt) · [TuneShape](../../public/License/tuneshape-orbit-reel.txt) · [Draco](../../public/works/draco-license.txt) · [运行库](../../public/works/runtime-licenses.txt)
 
 ## 浏览器回归
 

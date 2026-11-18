@@ -12,54 +12,54 @@ Three.js and the Motion packages used by WORKS are listed in runtime-licenses.tx
 The Draco glTF WASM decoder and JavaScript wrapper match the Three.js r187
 distribution. See draco-license.txt (Apache 2.0).
 
+All eight original WORKS models are licensed under BSD-3-Clause, including
+their editable Blender model files, GLB exports, and included materials and
+textures. The license text is reproduced below. For the full repository scope,
+see https://github.com/librecosta/website/blob/master/ASSETS-LICENSE.md.
+
 islands/harvest.glb (891,716 bytes) — The Collector's Workshop. Original LibreCosta
 Blender model, surface atlases and baked contact/daylight shading. The editable
 source and export scripts are in assets/works/harvest/ in the website repository.
-Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
 
 islands/liquid-glass.glb (1,081,908 bytes) — The Refraction Atelier. Original LibreCosta
 Blender model, opaque surface atlases and baked contact/daylight shading, with separate
 PBR transmission and thickness for the optical pieces. The editable source and export
 scripts are in assets/works/liquid-glass/ in the website repository.
-Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
 
 islands/sofaraway.glb (1,111,248 bytes) — The Beatline. Original LibreCosta
 Blender model, opaque surface atlases and baked contact/daylight shading, with
 independent layered flight glazing, control window transmission and emissive
 rhythm lights. Editable source and export scripts are in assets/works/sofaraway/
-in the website repository. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause
-License below.
+in the website repository.
 
 islands/gopher-atlas.glb (1,873,704 bytes) — The Atlas Observatory. Original
 LibreCosta Blender model, packed PBR atlases and baked contact/daylight shading,
 with independent PBR glazing and warm lights. Editable source and export
 scripts are in assets/works/gopher-atlas/ in the website repository.
-Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
 
 islands/tool4furry.glb (1,831,560 bytes) — The Makers' Studio. Original LibreCosta
 Blender model, packed PBR surface atlases, baked contact/daylight shading, and
 separate clear and diffuse glazing and warm lights. Editable source and export
-script: assets/works/tool4furry/. Copyright (c) 2026 LibreCosta. See the BSD
-3-Clause License below.
+script: assets/works/tool4furry/.
 
 islands/wavefield.glb (933,268 bytes) — The Wave Loom. Original LibreCosta Blender
 geometry, PBR surface atlases and baked contact/daylight shading, with independent
 silver-blue fibres, translucent gossamer and workshop windows. Editable source
-and export script: assets/works/wavefield/. Copyright (c) 2026 LibreCosta.
-See the BSD 3-Clause License below.
+and export script: assets/works/wavefield/.
 
 islands/gofurry.glb (1,826,616 bytes) — The Discovery Harbor. Original LibreCosta
 Blender geometry with packed PBR surface atlases, baked contact and daylight
 shading, independent glazing and warm lights. Editable source and export script:
-assets/works/gofurry/. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+assets/works/gofurry/.
 
 islands/uptime.glb (1,459,392 bytes) — The Vigil Station. Original LibreCosta
 Blender geometry, packed PBR atlases and baked contact, daylight and interior
 shading, with independent glazing and amber lights. Editable source and export
-script: assets/works/uptime/. Copyright (c) 2026 LibreCosta. See the BSD 3-Clause License below.
+script: assets/works/uptime/.
 
-The eight islands, field archive interface and reel placeholder glyphs are
-LibreCosta artwork.
+The original island renders, reel placeholder glyphs and Harvest dossier artwork
+are copyright (c) 2026 Chengdu Yuanan Kaiwu Technology Co., Ltd. All rights
+reserved in this distribution. Earlier grants continue under their terms.
 
 Project previews
 
@@ -96,12 +96,7 @@ Upstream license: https://github.com/librecosta/liquid-glass/blob/main/LICENSE
 
 BSD 3-Clause License
 
-Copyright (c) 2026, LibreCosta (GoFurry, Harvest, Sofaraway, Wavefield)
-Copyright (c) 2026, LibreCosta (The Atlas Observatory island and preview)
-Copyright (c) 2026, LibreCosta (The Makers' Studio island and preview)
-Copyright (c) 2026, LibreCosta (The Wave Loom island and previews)
-Copyright (c) 2026, LibreCosta (The Discovery Harbor island and preview)
-Copyright (c) 2026, LibreCosta (The Vigil Station island and preview)
+Copyright (c) 2026, Chengdu Yuanan Kaiwu Technology Co., Ltd.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -128,9 +123,9 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-MIT License
+MIT License (upstream Liquid Glass Playground screenshot)
 
-Copyright (c) 2026 LibreCosta (LibreCosta Uptime and Liquid Glass)
+Copyright (c) 2026 LibreCosta
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
