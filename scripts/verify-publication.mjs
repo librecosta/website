@@ -4,7 +4,7 @@ import { extname, join, relative } from 'node:path';
 import { projectPreviews } from '../src/components/project-previews.ts';
 import { cnCompliance } from '../src/site/cn-compliance.ts';
 import { homePage, pagePath, sitePages } from '../src/site/locale-contract.ts';
-import { llmsText, securityContact, securityLifetimeMs, securityTextPath } from '../src/site/publication-files.ts';
+import { baiduVerificationFile, llmsText, securityContact, securityLifetimeMs, securityTextPath } from '../src/site/publication-files.ts';
 import { indexingAllowed, pageAlternates, pageSeo, robotsText, sitemapXml, websiteSchema } from '../src/site/seo.ts';
 import windReview from './expanse-wind-review.json' with { type: 'json' };
 
@@ -35,8 +35,9 @@ const fallbackPages = ['404.html', '404/index.html', '_not-found/index.html'];
 const errorTemplates = ['4xx/index.html', '5xx/index.html'];
 const localOrigin = 'https://publication.invalid';
 
-function isOutputFile(file, pages, indexing) {
+function isOutputFile(file, pages, indexing, region) {
   if (file === 'sitemap.xml') return indexing;
+  if (file === baiduVerificationFile) return region === 'cn';
   if (file === securityTextPath) return true;
   const parts = file.split('/');
   if (parts.some(part => part.startsWith('.'))) return false;
@@ -135,6 +136,12 @@ async function verifyWind(directory) {
 }
 
 async function verifyPublicationFiles(directory, publication, routes) {
+  if (publication.id === 'cn') {
+    const original = await readFile(new URL(`../config/publications/${baiduVerificationFile}`, import.meta.url));
+    const exported = await readFile(join(directory, baiduVerificationFile));
+    if (!exported.equals(original)) throw new Error('Baidu verification file does not match the original.');
+  }
+
   const llms = await readFile(join(directory, 'llms.txt'), 'utf8');
   const links = [...llms.matchAll(/\]\(([^)]+)\)/g)].map(([, href]) => new URL(href, publication.origin ?? localOrigin));
   const expected = publication.id === 'cn' ? [...routes.keys()]
@@ -182,7 +189,7 @@ export async function verifyExport(directory, publication) {
   const paths = entries.filter(entry => !entry.isDirectory()).map(entry => {
     const file = join(entry.parentPath, entry.name);
     const path = relative(directory, file).replaceAll('\\', '/');
-    if (!entry.isFile() || !isOutputFile(path, allowedPages, indexing)) throw new Error(`Unexpected exported file: ${path}`);
+    if (!entry.isFile() || !isOutputFile(path, allowedPages, indexing, publication.id)) throw new Error(`Unexpected exported file: ${path}`);
     return { path, file };
   });
   // Cloudflare Free allows 20,000 files and 25 MiB each. Makers also lists 20,000
