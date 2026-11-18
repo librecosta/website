@@ -1,0 +1,12 @@
+{
+  "F01": {"slug":"heightfield-decomposition","title":"Heightfield decomposition","type":"data","raw":["F01-height.json"],"numeric":true},
+  "F02": {"slug":"terrain-geometry","title":"Terrain geometry","type":"browser-isolation","raw":["F02"]},
+  "F03": {"slug":"aeolian-surface-shader","title":"Aeolian surface shader","type":"browser-isolation","raw":["F03"]},
+  "F04": {"slug":"shader-antialiasing","title":"Shader antialiasing","type":"browser-isolation","raw":["F04"],"limitation":"Small still-frame difference at this viewpoint. No claim about temporal aliasing or visible moiré reduction."},
+  "F05": {"slug":"sand-concentration-field","title":"Sand concentration field","type":"browser-and-data","raw":["F05","F05-offline.json"],"numeric":true},
+  "F06": {"slug":"moving-transport-window","title":"Moving transport window","type":"data","raw":["F06-window.json"],"numeric":true},
+  "F07": {"slug":"sandstorm-rendering","title":"Sandstorm rendering","type":"browser-isolation","raw":["F07"]},
+  "F08": {"slug":"procedural-sky-layers","title":"Procedural sky layers","type":"browser-and-data","raw":["F08","F08-sky.json","F08-field.rgba"],"numeric":true},
+  "F09": {"slug":"aerial-perspective","title":"Aerial perspective","type":"browser-isolation","raw":["F09"]},
+  "F10": {"slug":"runtime-performance","title":"Runtime performance","type":"data-from-browser","raw":["F10-frames.json"],"limitation":"Desktop hardware with two viewport configurations. GPU draw timings exclude CPU work, transport updates, uploads outside the draw and compositing."}
+}
