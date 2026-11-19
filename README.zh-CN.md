@@ -6,6 +6,12 @@
 
 LibreCosta 官网使用 Next.js 静态导出。国际站首页呈现第一幕 **The Expanse · 荒原**，沿苍白浅谷走向远方的城市和分段巨环。
 
+## 技术博客
+
+| 篇章 | 主题 | 中文 | English |
+| --- | --- | --- | --- |
+| 第一幕 · The Expanse | 程序化地形、沙尘输运与大气渲染 | [阅读文章](https://gopheratlas.com/notes/graphics-interaction/the-expanse-procedural-desert/) | [Read article](https://gopheratlas.com/notes/graphics-interaction/the-expanse-procedural-desert-en/) |
+
 ## 本地运行
 
 使用 Node.js 24 LTS 和 [package.json](package.json) 指定的 pnpm 版本。
