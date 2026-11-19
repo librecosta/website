@@ -6,6 +6,12 @@
 
 LibreCosta's website uses a static Next.js export. The international home page presents **The Expanse**, its first interactive act, which follows a pale desert valley toward a distant city and its segmented ring.
 
+## Technical articles
+
+| Part | Topic | 中文 | English |
+| --- | --- | --- | --- |
+| Act I · The Expanse | Procedural terrain, sand transport and atmosphere | [阅读文章](https://gopheratlas.com/notes/graphics-interaction/the-expanse-procedural-desert/) | [Read article](https://gopheratlas.com/notes/graphics-interaction/the-expanse-procedural-desert-en/) |
+
 ## Run locally
 
 Use Node.js 24 LTS and the pnpm version in [package.json](package.json).
