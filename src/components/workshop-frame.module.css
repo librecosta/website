@@ -70,6 +70,9 @@
 }
 
 @media (max-width: 440px) {
+  .page:has([data-publication-compliance='docked']) {
+    --edge-bottom: calc(max(var(--inset), env(safe-area-inset-bottom)) + 62px);
+  }
   .page[data-workshop-page='about'] .dossier {
     bottom: calc(var(--edge-bottom) + var(--corner-content-bottom) + 34px);
   }

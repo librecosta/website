@@ -13,6 +13,7 @@ const requiredAssets = [
   'robots.txt', 'llms.txt', securityTextPath,
   'favicon.ico', 'favicon-96.png', 'apple-touch-icon.png',
   'brand/librecosta-mark.svg', 'brand/librecosta-logo-512.png', 'og/librecosta-default.png',
+  cnCompliance.publicSecurityIcon.slice(1),
   'expanse/entrance-ruin.glb',
   'audio/warm-atmosphere.opus',
   'audio/warm-atmosphere.mp3',
@@ -173,7 +174,15 @@ function verifyCompliance(html, path, page, publication) {
   const [, mode, footer] = footers[0] ?? [];
   if (footers.length !== 1 || mode !== (page === 'about' ? 'flow' : 'docked') ||
     !footer.includes(cnCompliance.copyright) || !footer.includes(`href="${cnCompliance.filingUrl}">${cnCompliance.filing}</a>`) ||
-    !footer.includes(`<span>${cnCompliance.publicSecurity}</span>`)) throw new Error(`Incorrect CN filing information in ${path}.`);
+    html.includes('公安备案待办理')) throw new Error(`Incorrect CN filing information in ${path}.`);
+  const securityLinks = [...footer.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)]
+    .filter(([, attributes]) => attributes.includes(`href="${cnCompliance.publicSecurityUrl}"`));
+  const [, attributes, contents] = securityLinks[0] ?? [];
+  if (securityLinks.length !== 1 || !attributes.includes('target="_blank"') ||
+    !attributes.includes('rel="noopener noreferrer"') || !contents.includes(cnCompliance.publicSecurity) ||
+    !contents.includes(`src="${cnCompliance.publicSecurityIcon}"`) || !contents.includes('alt=""')) {
+    throw new Error(`Incorrect CN public security filing link in ${path}.`);
+  }
 }
 
 export async function verifyExport(directory, publication) {

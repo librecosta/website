@@ -1,0 +1,10 @@
+CN public security filing icon
+
+File: /brand/mps-filing.png
+Source: official public security website filing portal, https://beian.mps.gov.cn/
+Provided by the site operator from its filing download on 2026-11-23.
+Used alongside the CN website's filing number, 川公网安备51010702045043号.
+
+The original PNG is distributed unchanged for this filing display. Rights remain
+with the relevant authority. The repository's BSD-3-Clause license does not
+relicense this official icon.
