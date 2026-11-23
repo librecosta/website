@@ -14,6 +14,7 @@ These materials retain their original licenses and notices. Reuse them under the
 
 | Material | Source and terms |
 | --- | --- |
+| CN public security filing icon | Official icon supplied by the site operator from the public security filing portal. [Source and use](public/License/mps-filing-icon.txt). Rights remain with the relevant authority. |
 | The Expanse entrance ruin | Volodymyr Hrushevskiy's model, adapted under CC BY 4.0. [Attribution and changes](public/expanse/future-city-attribution.txt) |
 | Oxanium font | SIL Open Font License 1.1. [Font license](public/expanse/OFL-Oxanium.txt) |
 | TuneShape UI adaptations and GitHub Invertocat | MIT. [Component and icon notices](public/License/) |

@@ -37,7 +37,7 @@ After saving the root setting, redeploy `master`. In the managed build log, conf
 
 The Makers commands passed in a clean Linux container with Node 24.18.0 and pnpm 12.8.1. Local static serving returned all eight CN routes and the expected 308 and 404 responses. Tencent's published framework detector classified the repository root as `next` and the Makers root as `other`. Confirm plugin selection in the managed build log.
 
-The public origin is configured under Domain Name Management. The CN pages display ICP filing `蜀ICP备2025158691号-3` and the text `公安备案待办理`. For rollback, redeploy the last verified Makers deployment. [Domain access and filing](https://pages.edgeone.ai/document/domain-overview) · [Manage deploys](https://pages.edgeone.ai/document/manage-deploys)
+The public origin is configured under Domain Name Management. The CN pages display ICP filing `蜀ICP备2025158691号-3` and public security filing `川公网安备51010702045043号`, linked to its official MPS record with the supplied filing icon. For rollback, redeploy the last verified Makers deployment. [Domain access and filing](https://pages.edgeone.ai/document/domain-overview) · [Manage deploys](https://pages.edgeone.ai/document/manage-deploys)
 
 ## Expanse audio and release checks
 
