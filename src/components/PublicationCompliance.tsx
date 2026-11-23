@@ -10,7 +10,10 @@ export function PublicationCompliance({ docked = false }: { docked?: boolean }) 
     <span>{compliance.copyright}</span>
     <span className={styles.filings}>
       <a href={compliance.filingUrl}>{compliance.filing}</a>
-      <span>{compliance.publicSecurity}</span>
+      <a href={compliance.publicSecurityUrl} rel="noopener noreferrer" target="_blank">
+        <img src={compliance.publicSecurityIcon} width={14} height={16} alt="" />
+        {compliance.publicSecurity}
+      </a>
     </span>
   </footer>;
 }

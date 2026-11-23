@@ -9,15 +9,18 @@
   text-align: center;
 }
 
-.filings { display: inline-flex; align-items: center; gap: 12px; }
+.filings { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; column-gap: 12px; }
 .footer a {
   display: inline-flex;
   min-height: 24px;
   align-items: center;
+  gap: 4px;
+  white-space: nowrap;
   color: inherit;
   pointer-events: auto;
   text-underline-offset: .22em;
 }
+.footer img { flex-shrink: 0; object-fit: contain; }
 .footer a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 .flow {
